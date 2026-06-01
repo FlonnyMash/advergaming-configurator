@@ -16,6 +16,13 @@ const gameEngineOrigin = new URL(GAME_ENGINE_URL).origin;
 
 export function DevicePreview() {
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  const activeTemplate = useConfigStore((state) => state.activeTemplate);
+
+  const iframeSrc = (() => {
+    const url = new URL(GAME_ENGINE_URL);
+    url.searchParams.set("game", activeTemplate);
+    return url.toString();
+  })();
 
   useEffect(() => {
     const sendConfig = (config: GameMasterConfig) => {
@@ -60,7 +67,7 @@ export function DevicePreview() {
           <div className="relative h-full overflow-hidden rounded-[2rem] bg-black">
             <iframe
               ref={iframeRef}
-              src={GAME_ENGINE_URL}
+              src={iframeSrc}
               title="Game preview"
               className="h-full w-full border-0"
             />

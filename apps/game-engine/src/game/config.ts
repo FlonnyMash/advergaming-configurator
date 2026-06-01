@@ -1,5 +1,4 @@
 import Phaser from "phaser";
-import { MainScene } from "./scenes/MainScene.ts";
 
 function hexToPhaserColor(hex: string): number {
   return Phaser.Display.Color.HexStringToColor(hex).color;
@@ -8,7 +7,10 @@ function hexToPhaserColor(hex: string): number {
 export function createGameConfig(options: {
   parent: string;
   backgroundColor: string;
+  scene: Phaser.Types.Scenes.SceneType | Phaser.Types.Scenes.SceneType[];
 }): Phaser.Types.Core.GameConfig {
+  const scene = Array.isArray(options.scene) ? options.scene : [options.scene];
+
   return {
     type: Phaser.AUTO,
     parent: options.parent,
@@ -17,6 +19,6 @@ export function createGameConfig(options: {
       mode: Phaser.Scale.RESIZE,
       autoCenter: Phaser.Scale.CENTER_BOTH,
     },
-    scene: [MainScene],
+    scene,
   };
 }

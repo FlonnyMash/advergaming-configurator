@@ -1,12 +1,11 @@
-import type { GameplayConfig, ThemeConfig } from "@advergaming/shared";
+import type { GameMasterConfig } from "@advergaming/shared";
 import Phaser from "phaser";
 
 export const MAIN_SCENE_KEY = "Main";
 
+const DEFAULT_BOX_KEY = "defaultBox";
 const CUSTOM_PLAYER_KEY = "customPlayer";
-const DEFAULT_PLAYER_TEXTURE = "__WHITE";
-const PLAYER_DISPLAY_WIDTH = 48;
-const PLAYER_DISPLAY_HEIGHT = 32;
+const PLAYER_DISPLAY_SIZE = 100;
 
 let gameStartPending = false;
 
@@ -36,12 +35,18 @@ export class MainScene extends Phaser.Scene {
 
   create(): void {
     const { width, height } = this.scale;
-    this.playerSprite = this.add.sprite(
-      width / 2,
-      height / 2,
-      DEFAULT_PLAYER_TEXTURE,
-    );
-    this.playerSprite.setDisplaySize(PLAYER_DISPLAY_WIDTH, PLAYER_DISPLAY_HEIGHT);
+
+    if (!this.textures.exists(DEFAULT_BOX_KEY)) {
+      const canvas = this.textures.createCanvas(DEFAULT_BOX_KEY, 50, 50);
+      if (canvas) {
+        canvas.context.fillStyle = "#ffffff";
+        canvas.context.fillRect(0, 0, 50, 50);
+        canvas.refresh();
+      }
+    }
+
+    this.playerSprite = this.add.sprite(width / 2, height / 2, DEFAULT_BOX_KEY);
+    this.playerSprite.setDisplaySize(PLAYER_DISPLAY_SIZE, PLAYER_DISPLAY_SIZE);
 
     window.addEventListener("GAME_START", this.onGameStart);
 
@@ -72,54 +77,38 @@ export class MainScene extends Phaser.Scene {
     }
   }
 
-  updateConfig(config: GameplayConfig): void {
-    this.currentSpeed = config.playerSpeed;
-  }
+  updateConfig(payload: GameMasterConfig): void {
+    this.currentSpeed = payload.gameplay.playerSpeed;
+    this.cameras.main.setBackgroundColor(
+      hexToPhaserColor(payload.theme.primaryColor),
+    );
 
-  updateTheme(theme: ThemeConfig): void {
-    this.cameras.main.setBackgroundColor(hexToPhaserColor(theme.primaryColor));
+    const playerTexture = payload.theme.playerTexture;
+    if (playerTexture === this.lastPlayerTexture) return;
+    this.lastPlayerTexture = playerTexture;
 
-    if (theme.playerTexture === this.lastPlayerTexture) return;
-
-    this.lastPlayerTexture = theme.playerTexture;
-
-    if (theme.playerTexture === null) {
-      this.removeCustomPlayerTexture();
-      this.playerSprite.setTexture(DEFAULT_PLAYER_TEXTURE);
-      this.playerSprite.setDisplaySize(
-        PLAYER_DISPLAY_WIDTH,
-        PLAYER_DISPLAY_HEIGHT,
-      );
+    if (!playerTexture) {
+      if (this.textures.exists(CUSTOM_PLAYER_KEY)) {
+        this.textures.remove(CUSTOM_PLAYER_KEY);
+      }
+      this.playerSprite.setTexture(DEFAULT_BOX_KEY);
+      this.playerSprite.setDisplaySize(PLAYER_DISPLAY_SIZE, PLAYER_DISPLAY_SIZE);
       this.playerSprite.setVisible(true);
       return;
     }
 
-    this.removeCustomPlayerTexture();
-
-    this.textures.once(
-      Phaser.Textures.Events.ADD,
-      (_texture: Phaser.Textures.Texture, key: string) => {
-        if (key !== CUSTOM_PLAYER_KEY) return;
-        this.playerSprite.setTexture(CUSTOM_PLAYER_KEY);
-        this.playerSprite.setDisplaySize(
-          PLAYER_DISPLAY_WIDTH,
-          PLAYER_DISPLAY_HEIGHT,
-        );
-        this.playerSprite.setVisible(true);
-      },
-    );
-
-    try {
-      this.textures.addBase64(CUSTOM_PLAYER_KEY, theme.playerTexture);
-    } catch {
-      this.playerSprite.setTexture(DEFAULT_PLAYER_TEXTURE);
-      this.playerSprite.setVisible(true);
-    }
-  }
-
-  private removeCustomPlayerTexture(): void {
     if (this.textures.exists(CUSTOM_PLAYER_KEY)) {
       this.textures.remove(CUSTOM_PLAYER_KEY);
     }
+
+    this.textures.once("addtexture", (key: string) => {
+      if (key === CUSTOM_PLAYER_KEY) {
+        this.playerSprite.setTexture(CUSTOM_PLAYER_KEY);
+        this.playerSprite.setDisplaySize(PLAYER_DISPLAY_SIZE, PLAYER_DISPLAY_SIZE);
+        this.playerSprite.setVisible(true);
+      }
+    });
+
+    this.textures.addBase64(CUSTOM_PLAYER_KEY, playerTexture);
   }
 }
