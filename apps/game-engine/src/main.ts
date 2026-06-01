@@ -4,7 +4,7 @@ import Phaser from "phaser";
 import { setupBridge } from "./bridge/messenger.ts";
 import { createGameConfig } from "./game/config.ts";
 import { MAIN_SCENE_KEY, MainScene } from "./game/scenes/MainScene.ts";
-import { updateUI } from "./overlays/ui-manager.ts";
+import { initUIInteractions, updateUI } from "./overlays/ui-manager.ts";
 
 let game: Phaser.Game | null = null;
 
@@ -29,16 +29,21 @@ function applyConfig(config: GameMasterConfig): void {
     );
     game.events.once("ready", () => {
       const scene = getMainScene();
-      scene?.updateGameConfig(config.gameplay);
+      scene?.updateConfig(config.gameplay);
       scene?.updateTheme(config.theme);
     });
     return;
   }
 
   const scene = getMainScene();
-  scene?.updateGameConfig(config.gameplay);
+  scene?.updateConfig(config.gameplay);
   scene?.updateTheme(config.theme);
 }
 
+window.addEventListener("GAME_START", () => {
+  getMainScene()?.start();
+});
+
 setupBridge(applyConfig);
 applyConfig(DEFAULT_GAME_MASTER_CONFIG);
+initUIInteractions();

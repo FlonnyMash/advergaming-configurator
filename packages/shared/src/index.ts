@@ -1,5 +1,6 @@
 export interface ThemeConfig {
   primaryColor: string;
+  playerTexture: string | null;
 }
 
 export interface GameplayConfig {
@@ -50,6 +51,8 @@ export function isUpdateConfigMessage(
   const gameplay = payload.gameplay;
   const domOverlay = payload.domOverlay;
   if (!isRecord(theme) || typeof theme.primaryColor !== "string") return false;
+  const playerTexture = theme.playerTexture;
+  if (playerTexture !== null && typeof playerTexture !== "string") return false;
   if (!isRecord(gameplay) || typeof gameplay.playerSpeed !== "number")
     return false;
   if (!isRecord(domOverlay)) return false;
@@ -65,7 +68,7 @@ export function isIframeReadyMessage(data: unknown): data is IframeReadyMessage 
 }
 
 export const DEFAULT_GAME_MASTER_CONFIG: GameMasterConfig = {
-  theme: { primaryColor: "#6366f1" },
+  theme: { primaryColor: "#6366f1", playerTexture: null },
   gameplay: { playerSpeed: 200 },
   domOverlay: {
     startScreenTitle: "Play Now",

@@ -1,6 +1,7 @@
 "use client";
 
 import { useConfigStore } from "@/store/useConfigStore";
+import { useRef } from "react";
 
 function Section({
   title,
@@ -68,12 +69,38 @@ function Toggle({
 const inputClass =
   "rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100";
 
+const MAX_TEXTURE_BYTES = 4 * 1024 * 1024;
+
 export function ConfigSidebar() {
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const config = useConfigStore((state) => state.config);
   const setTheme = useConfigStore((state) => state.setTheme);
+  const setPlayerTexture = useConfigStore((state) => state.setPlayerTexture);
   const setGameplay = useConfigStore((state) => state.setGameplay);
   const setDomOverlay = useConfigStore((state) => state.setDomOverlay);
   const resetConfig = useConfigStore((state) => state.resetConfig);
+
+  const handlePlayerTextureChange = (
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > MAX_TEXTURE_BYTES) {
+      event.target.value = "";
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = reader.result;
+      if (typeof result === "string") {
+        setPlayerTexture(result);
+      }
+      event.target.value = "";
+    };
+    reader.readAsDataURL(file);
+  };
 
   return (
     <aside className="flex h-full w-[360px] shrink-0 flex-col border-r border-zinc-200 bg-white">
@@ -109,6 +136,39 @@ export function ConfigSidebar() {
                 {config.theme.primaryColor}
               </span>
             </div>
+          </Field>
+        </Section>
+
+        <Section title="Assets">
+          <Field label="Player texture">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/png,image/jpeg,.png,.jpg,.jpeg"
+              onChange={handlePlayerTextureChange}
+              className={`${inputClass} cursor-pointer file:mr-3 file:rounded-md file:border-0 file:bg-indigo-50 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-indigo-700 hover:file:bg-indigo-100`}
+            />
+            {config.theme.playerTexture ? (
+              <div className="flex items-center gap-3">
+                <img
+                  src={config.theme.playerTexture}
+                  alt="Player texture preview"
+                  className="h-12 w-12 rounded-lg border border-zinc-200 object-contain bg-zinc-50"
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPlayerTexture(null);
+                    if (fileInputRef.current) fileInputRef.current.value = "";
+                  }}
+                  className="rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-600 transition-colors hover:bg-zinc-50"
+                >
+                  Clear
+                </button>
+              </div>
+            ) : (
+              <p className="text-xs text-zinc-400">PNG or JPG, max 4 MB</p>
+            )}
           </Field>
         </Section>
 

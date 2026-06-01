@@ -1,12 +1,13 @@
 import type { DOMOverlayConfig, ThemeConfig } from "@advergaming/shared";
 
-export type UIConfig = DOMOverlayConfig & ThemeConfig;
+export type UIConfig = DOMOverlayConfig & Pick<ThemeConfig, "primaryColor">;
 
 let uiRoot: HTMLElement | null = null;
 let startTitle: HTMLElement | null = null;
 let ctaButton: HTMLButtonElement | null = null;
 let leadForm: HTMLElement | null = null;
 let highscores: HTMLElement | null = null;
+let interactionsInitialized = false;
 
 function ensureUI(): void {
   if (uiRoot) return;
@@ -78,4 +79,21 @@ export function updateUI(config: UIConfig): void {
     highscores.classList.toggle("hidden", !config.showHighscores);
     highscores.classList.toggle("block", config.showHighscores);
   }
+}
+
+export function initUIInteractions(): void {
+  if (interactionsInitialized) return;
+  interactionsInitialized = true;
+
+  ensureUI();
+
+  ctaButton?.addEventListener("click", () => {
+    uiRoot?.classList.add(
+      "opacity-0",
+      "pointer-events-none",
+      "transition-opacity",
+      "duration-300",
+    );
+    window.dispatchEvent(new Event("GAME_START"));
+  });
 }

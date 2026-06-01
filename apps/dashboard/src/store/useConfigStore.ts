@@ -10,6 +10,7 @@ import { create } from "zustand";
 interface ConfigStore {
   config: GameMasterConfig;
   setTheme: (theme: Partial<ThemeConfig>) => void;
+  setPlayerTexture: (playerTexture: string | null) => void;
   setGameplay: (gameplay: Partial<GameplayConfig>) => void;
   setDomOverlay: (domOverlay: Partial<DOMOverlayConfig>) => void;
   resetConfig: () => void;
@@ -23,6 +24,14 @@ export const useConfigStore = create<ConfigStore>((set) => ({
       config: {
         ...state.config,
         theme: { ...state.config.theme, ...theme },
+      },
+    })),
+
+  setPlayerTexture: (playerTexture) =>
+    set((state) => ({
+      config: {
+        ...state.config,
+        theme: { ...state.config.theme, playerTexture },
       },
     })),
 
