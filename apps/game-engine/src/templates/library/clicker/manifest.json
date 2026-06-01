@@ -1,0 +1,88 @@
+{
+  "id": "clicker",
+  "version": "1.0.0",
+  "author": "Mashed Games",
+  "previewUrl": "/previews/clicker.svg",
+  "status": "production",
+  "label": "Clicker",
+  "description": "Tap-to-score promo game with custom sprite and CTA.",
+  "schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+      "branding": {
+        "type": "object",
+        "properties": {
+          "theme": {
+            "type": "object",
+            "properties": {
+              "primaryColor": {
+                "type": "string",
+                "default": "#6366f1",
+                "x-control": {
+                  "type": "color",
+                  "label": "Brand color",
+                  "targetCategory": "branding",
+                  "targetPath": "theme.primaryColor",
+                  "surface": "both"
+                }
+              },
+              "playerTexture": {
+                "type": ["string", "null"],
+                "default": null,
+                "x-control": {
+                  "type": "image",
+                  "label": "Clicker sprite",
+                  "targetCategory": "branding",
+                  "targetPath": "theme.playerTexture",
+                  "surface": "both"
+                }
+              }
+            }
+          },
+          "domOverlay": {
+            "type": "object",
+            "properties": {
+              "ctaButtonText": {
+                "type": "string",
+                "default": "Start Game",
+                "x-control": {
+                  "type": "text",
+                  "label": "CTA button text",
+                  "targetCategory": "branding",
+                  "targetPath": "domOverlay.ctaButtonText",
+                  "surface": "configurator",
+                  "placeholder": "Start Game"
+                }
+              }
+            }
+          }
+        }
+      },
+      "system": {
+        "type": "object",
+        "properties": {
+          "mechanics": {
+            "type": "object",
+            "properties": {
+              "playerSpeed": {
+                "type": "number",
+                "default": 200,
+                "minimum": 100,
+                "maximum": 600,
+                "x-control": {
+                  "type": "slider",
+                  "label": "Tap sensitivity",
+                  "targetCategory": "system",
+                  "targetPath": "mechanics.playerSpeed",
+                  "surface": "studio",
+                  "step": 10
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

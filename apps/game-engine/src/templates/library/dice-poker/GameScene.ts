@@ -1,7 +1,8 @@
-import type { GameMasterConfig } from "@advergaming/shared";
+import { getPrimaryBrandColor, type GameMasterConfig } from "@advergaming/shared";
 import Phaser from "phaser";
+import type { TemplateScene } from "../../types.ts";
 
-export const MAIN_SCENE_KEY = "Main";
+export const DICE_POKER_SCENE_KEY = "DicePoker";
 
 const DEFAULT_BOX_KEY = "defaultBox";
 const CUSTOM_PLAYER_KEY = "customPlayer";
@@ -19,7 +20,7 @@ function hexToPhaserColor(hex: string): number {
   return Phaser.Display.Color.HexStringToColor(hex).color;
 }
 
-export class MainScene extends Phaser.Scene {
+export class DicePokerScene extends Phaser.Scene implements TemplateScene {
   playerSprite!: Phaser.GameObjects.Sprite;
   isPlaying = false;
 
@@ -30,7 +31,7 @@ export class MainScene extends Phaser.Scene {
   };
 
   constructor() {
-    super({ key: MAIN_SCENE_KEY });
+    super({ key: DICE_POKER_SCENE_KEY });
   }
 
   create(): void {
@@ -78,12 +79,12 @@ export class MainScene extends Phaser.Scene {
   }
 
   updateConfig(payload: GameMasterConfig): void {
-    this.currentSpeed = payload.gameplay.playerSpeed;
+    this.currentSpeed = payload.system.mechanics.playerSpeed;
     this.cameras.main.setBackgroundColor(
-      hexToPhaserColor(payload.theme.primaryColor),
+      hexToPhaserColor(getPrimaryBrandColor(payload)),
     );
 
-    const playerTexture = payload.theme.playerTexture;
+    const playerTexture = payload.branding.theme.playerTexture;
     if (playerTexture === this.lastPlayerTexture) return;
     this.lastPlayerTexture = playerTexture;
 

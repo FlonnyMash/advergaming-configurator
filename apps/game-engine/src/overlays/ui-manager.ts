@@ -1,6 +1,7 @@
-import type { DOMOverlayConfig, ThemeConfig } from "@advergaming/shared";
+import type { GameMasterConfig } from "@advergaming/shared";
+import { getDomOverlayForUi } from "@advergaming/shared";
 
-export type UIConfig = DOMOverlayConfig & Pick<ThemeConfig, "primaryColor">;
+export type UIConfig = ReturnType<typeof getDomOverlayForUi>;
 
 let uiRoot: HTMLElement | null = null;
 let startTitle: HTMLElement | null = null;
@@ -58,26 +59,29 @@ function ensureUI(): void {
   highscores = layer.querySelector("#highscores");
 }
 
-export function updateUI(config: UIConfig): void {
+export function updateUI(config: UIConfig): void;
+export function updateUI(config: GameMasterConfig): void;
+export function updateUI(config: UIConfig | GameMasterConfig): void {
+  const ui = "branding" in config ? getDomOverlayForUi(config) : config;
   ensureUI();
 
   if (startTitle) {
-    startTitle.textContent = config.startScreenTitle;
+    startTitle.textContent = ui.startScreenTitle;
   }
 
   if (ctaButton) {
-    ctaButton.textContent = config.ctaButtonText;
-    ctaButton.style.backgroundColor = config.primaryColor;
+    ctaButton.textContent = ui.ctaButtonText;
+    ctaButton.style.backgroundColor = ui.primaryColor;
   }
 
   if (leadForm) {
-    leadForm.classList.toggle("hidden", !config.showLeadForm);
-    leadForm.classList.toggle("block", config.showLeadForm);
+    leadForm.classList.toggle("hidden", !ui.showLeadForm);
+    leadForm.classList.toggle("block", ui.showLeadForm);
   }
 
   if (highscores) {
-    highscores.classList.toggle("hidden", !config.showHighscores);
-    highscores.classList.toggle("block", config.showHighscores);
+    highscores.classList.toggle("hidden", !ui.showHighscores);
+    highscores.classList.toggle("block", ui.showHighscores);
   }
 }
 

@@ -1,14 +1,21 @@
 {
-  "name": "game-engine",
+  "name": "@advergaming/game-engine",
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "exports": {
+    "./templates/schemas": "./src/templates/schema-index.ts",
+    "./templates/catalog": "./src/templates/catalog.ts"
+  },
   "scripts": {
+    "sync-manifest-registry": "tsx scripts/sync-manifest-registry.ts",
+    "predev": "pnpm sync-manifest-registry",
     "dev": "vite",
-    "build": "tsc && vite build",
+    "build": "pnpm sync-manifest-registry && tsc && vite build",
     "preview": "vite preview"
   },
   "devDependencies": {
+    "tsx": "^4.20.3",
     "@tailwindcss/vite": "^4.3.0",
     "tailwindcss": "^4.3.0",
     "typescript": "~6.0.2",

@@ -1,0 +1,61 @@
+{
+  "id": "demo-starter",
+  "version": "0.1.0",
+  "author": "Mashed Games",
+  "previewUrl": "/previews/demo-starter.svg",
+  "status": "development",
+  "label": "Demo Starter",
+  "description": "Boilerplate template for rapid demo development.",
+  "schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+      "gameplay": {
+        "type": "object",
+        "properties": {
+          "playerSpeed": {
+            "type": "number",
+            "default": 200,
+            "minimum": 50,
+            "maximum": 400,
+            "x-control": {
+              "type": "slider",
+              "label": "Movement speed",
+              "targetCategory": "gameplay",
+              "step": 10
+            }
+          }
+        }
+      },
+      "theme": {
+        "type": "object",
+        "properties": {
+          "primaryColor": {
+            "type": "string",
+            "default": "#6366f1",
+            "x-control": {
+              "type": "color",
+              "label": "Background color",
+              "targetCategory": "theme"
+            }
+          }
+        }
+      },
+      "domOverlay": {
+        "type": "object",
+        "properties": {
+          "startScreenTitle": {
+            "type": "string",
+            "default": "Demo Starter",
+            "x-control": {
+              "type": "text",
+              "label": "Start screen title",
+              "targetCategory": "domOverlay",
+              "placeholder": "Demo Starter"
+            }
+          }
+        }
+      }
+    }
+  }
+}
