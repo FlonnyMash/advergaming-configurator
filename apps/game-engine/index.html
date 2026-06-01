@@ -2,12 +2,12 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>game-engine</title>
   </head>
-  <body>
-    <div id="app"></div>
+  <body class="m-0 overflow-hidden">
+    <div id="game-container" class="absolute inset-0 z-0"></div>
+    <div id="ui-layer" class="absolute inset-0 z-10 pointer-events-none"></div>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>
