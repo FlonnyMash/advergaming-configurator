@@ -1,14 +1,14 @@
 import {
   BRIDGE_MESSAGE_TYPE,
-  isLoadTemplateMessage,
-  isRequestDiagnosticsMessage,
-  isUpdateConfigMessage,
   normalizeGameMasterConfig,
+  parseBridgeMessage,
   type BrandingPatch,
   type GameMasterConfig,
   type GameTemplateId,
   type IframeReadyMessage,
+  type UpdateConfigMessage,
 } from "@advergaming/shared";
+import { supportsExternalTouchControls } from "./studio-touch-bridge.ts";
 import { allowsSystemMutation, getEngineMode } from "../env/app-mode.ts";
 import { applyBrandingPatch } from "../configurator/applyBrandingOnly.ts";
 import { getPublishedSystemDefaults } from "../templates/schema-index.ts";
@@ -36,23 +36,22 @@ function getParentTargetOrigin(): string {
   return getDashboardOrigin() ?? "*";
 }
 
-function isAllowedDashboardOrigin(origin: string): boolean {
+function isAllowedDashboardMessage(event: MessageEvent): boolean {
+  if (event.source !== window.parent) return false;
+
   const configured = getDashboardOrigin();
-  if (configured) return origin === configured;
-  if (import.meta.env.DEV) {
-    return (
-      origin === DEFAULT_DASHBOARD_ORIGIN ||
-      origin === "http://127.0.0.1:3000"
-    );
-  }
-  return origin === DEFAULT_DASHBOARD_ORIGIN;
+  if (configured) return event.origin === configured;
+
+  if (import.meta.env.DEV) return true;
+
+  return (
+    event.origin === DEFAULT_DASHBOARD_ORIGIN ||
+    event.origin === "http://127.0.0.1:3000"
+  );
 }
 
 function resolveConfigUpdate(
-  message: Extract<
-    import("@advergaming/shared").UpdateConfigMessage,
-    { type: typeof BRIDGE_MESSAGE_TYPE.UPDATE_CONFIG }
-  >,
+  message: UpdateConfigMessage,
   previous: GameMasterConfig,
 ): GameMasterConfig {
   const engineMode = getEngineMode();
@@ -62,7 +61,10 @@ function resolveConfigUpdate(
     return applyBrandingPatch(previous, patch);
   }
 
-  const normalized = normalizeGameMasterConfig(message.payload, currentTemplateId);
+  const normalized = normalizeGameMasterConfig(
+    message.payload,
+    currentTemplateId,
+  );
   if (!normalized) return previous;
 
   if (engineMode === "configurator" || message.senderMode === "configurator") {
@@ -90,6 +92,9 @@ export function setupBridge(handlers: {
         engineMode: getEngineMode(),
         allowsSystemMutation: allowsSystemMutation(),
         templateId: handlers.getCurrentTemplateId(),
+        externalTouchControls: supportsExternalTouchControls(
+          handlers.getCurrentTemplateId(),
+        ),
       },
     };
     window.parent.postMessage(iframeReadyMessage, getParentTargetOrigin());
@@ -98,34 +103,45 @@ export function setupBridge(handlers: {
   postReady();
 
   window.addEventListener("message", (event: MessageEvent) => {
-    if (!isAllowedDashboardOrigin(event.origin)) return;
+    if (!isAllowedDashboardMessage(event)) return;
 
-    if (isUpdateConfigMessage(event.data)) {
-      const previous = handlers.getCurrentConfig();
-      handlers.onUpdate(resolveConfigUpdate(event.data, previous));
+    const message = parseBridgeMessage(event.data);
+    if (!message) {
+      if (import.meta.env.DEV) {
+        console.warn("Engine received invalid message format:", event.data);
+      }
       return;
     }
 
-    if (isLoadTemplateMessage(event.data)) {
-      currentTemplateId = event.data.payload;
-      handlers.onLoadTemplate(event.data.payload);
-      postReady();
-      return;
-    }
-
-    if (isRequestDiagnosticsMessage(event.data)) {
-      const config = handlers.getCurrentConfig();
-      window.parent.postMessage(
-        {
-          type: BRIDGE_MESSAGE_TYPE.DIAGNOSTICS_PAYLOAD,
-          payload: {
-            config,
-            templateId: handlers.getCurrentTemplateId(),
-            engineMode: getEngineMode(),
+    switch (message.type) {
+      case BRIDGE_MESSAGE_TYPE.UPDATE_CONFIG: {
+        const previous = handlers.getCurrentConfig();
+        handlers.onUpdate(resolveConfigUpdate(message, previous));
+        break;
+      }
+      case BRIDGE_MESSAGE_TYPE.LOAD_TEMPLATE: {
+        currentTemplateId = message.payload;
+        handlers.onLoadTemplate(message.payload);
+        postReady();
+        break;
+      }
+      case BRIDGE_MESSAGE_TYPE.REQUEST_DIAGNOSTICS: {
+        const config = handlers.getCurrentConfig();
+        window.parent.postMessage(
+          {
+            type: BRIDGE_MESSAGE_TYPE.DIAGNOSTICS_PAYLOAD,
+            payload: {
+              config,
+              templateId: handlers.getCurrentTemplateId(),
+              engineMode: getEngineMode(),
+            },
           },
-        },
-        event.origin,
-      );
+          event.origin,
+        );
+        break;
+      }
+      default:
+        break;
     }
   });
 }

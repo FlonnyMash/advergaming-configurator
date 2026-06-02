@@ -85,6 +85,39 @@ export function updateUI(config: UIConfig | GameMasterConfig): void {
   }
 }
 
+/**
+ * Maps branding config to CSS variables and DOM nodes above the Phaser canvas.
+ */
+export function updateDomOverlays(config: GameMasterConfig): void {
+  const root = document.documentElement;
+  const { theme } = config.branding;
+
+  root.style.setProperty("--theme-primary", theme.primaryColor);
+  root.style.setProperty("--theme-secondary", theme.secondaryColor);
+  root.style.setProperty("--theme-font-family", theme.fontFamily);
+
+  const leadFormBackground = document.getElementById(
+    "lead-form-bg",
+  ) as HTMLImageElement | null;
+  if (leadFormBackground && theme.logoTexture) {
+    leadFormBackground.src = theme.logoTexture;
+  }
+
+  updateUI(config);
+}
+
+/** Restore the default engine start overlay after a template-specific DOM mount. */
+export function restoreEngineDefaultOverlay(): void {
+  uiRoot = null;
+  startTitle = null;
+  ctaButton = null;
+  leadForm = null;
+  highscores = null;
+  interactionsInitialized = false;
+  ensureUI();
+  initUIInteractions();
+}
+
 export function initUIInteractions(): void {
   if (interactionsInitialized) return;
   interactionsInitialized = true;

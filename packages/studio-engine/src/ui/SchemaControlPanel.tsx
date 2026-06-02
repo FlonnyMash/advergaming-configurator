@@ -2,32 +2,82 @@
 
 import {
   getConfigValue,
+  groupControlsByElement,
   type ControlFieldSchema,
   type ControlValue,
   type GameMasterConfig,
   type GameSchema,
 } from "@advergaming/shared";
-import { useRef } from "react";
+import { useRef, useState } from "react";
 
 export const controlInputClass =
   "rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100";
 
 const MAX_TEXTURE_BYTES = 4 * 1024 * 1024;
 
-function Section({
+function ChevronIcon({ expanded }: { expanded?: boolean }) {
+  return (
+    <svg
+      aria-hidden
+      viewBox="0 0 20 20"
+      fill="currentColor"
+      className={`h-4 w-4 shrink-0 text-zinc-400 transition-transform ${
+        expanded ? "rotate-180" : ""
+      }`}
+    >
+      <path
+        fillRule="evenodd"
+        d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.94a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z"
+        clipRule="evenodd"
+      />
+    </svg>
+  );
+}
+
+function CollapsibleGroup({
   title,
+  subtitle,
+  count,
+  defaultOpen = false,
   children,
 }: {
   title: string;
+  subtitle?: string;
+  count: number;
+  defaultOpen?: boolean;
   children: React.ReactNode;
 }) {
+  const [open, setOpen] = useState(defaultOpen);
+
   return (
-    <section className="space-y-3">
-      <h2 className="text-xs font-semibold uppercase tracking-wider text-zinc-500">
-        {title}
-      </h2>
-      <div className="space-y-4">{children}</div>
-    </section>
+    <div className="border-b border-zinc-100 last:border-b-0">
+      <button
+        type="button"
+        aria-expanded={open}
+        onClick={() => setOpen((value) => !value)}
+        className="flex w-full items-center gap-3 px-4 py-3.5 text-left transition-colors hover:bg-zinc-50"
+      >
+        <ChevronIcon expanded={open} />
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-sm font-medium text-zinc-900">
+            {title}
+          </span>
+          {subtitle ? (
+            <span className="mt-0.5 block truncate text-xs text-zinc-500">
+              {subtitle}
+            </span>
+          ) : null}
+        </span>
+        <span className="shrink-0 rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-medium tabular-nums text-zinc-600">
+          {count}
+        </span>
+      </button>
+      {open ? (
+        <div className="space-y-4 border-t border-zinc-100 bg-zinc-50/40 px-4 py-4">
+          {children}
+        </div>
+      ) : null}
+    </div>
   );
 }
 
@@ -43,6 +93,72 @@ function Field({
       <span className="text-sm text-zinc-700">{label}</span>
       {children}
     </label>
+  );
+}
+
+function clampSliderValue(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value));
+}
+
+function SliderControl({
+  label,
+  min,
+  max,
+  step,
+  value,
+  onChange,
+}: {
+  label: string;
+  min: number;
+  max: number;
+  step: number;
+  value: number;
+  onChange: (value: number) => void;
+}) {
+  const [draft, setDraft] = useState<string | null>(null);
+
+  const commitDraft = () => {
+    if (draft === null) return;
+    const parsed = Number(draft);
+    if (Number.isFinite(parsed)) {
+      onChange(clampSliderValue(parsed, min, max));
+    }
+    setDraft(null);
+  };
+
+  return (
+    <Field label={label}>
+      <div className="flex items-center gap-3">
+        <input
+          type="range"
+          min={min}
+          max={max}
+          step={step}
+          value={value}
+          onChange={(e) => {
+            setDraft(null);
+            onChange(Number(e.target.value));
+          }}
+          className="min-w-0 flex-1 accent-indigo-500"
+        />
+        <input
+          type="number"
+          min={min}
+          max={max}
+          step={step}
+          value={draft ?? value}
+          onChange={(e) => setDraft(e.target.value)}
+          onBlur={commitDraft}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              commitDraft();
+              e.currentTarget.blur();
+            }
+          }}
+          className={`${controlInputClass} w-20 shrink-0 tabular-nums`}
+        />
+      </div>
+    </Field>
   );
 }
 
@@ -64,17 +180,14 @@ function SchemaControl({
       const step = schema.step ?? 10;
       const numericValue = typeof value === "number" ? value : min;
       return (
-        <Field label={`${schema.label} — ${numericValue}`}>
-          <input
-            type="range"
-            min={min}
-            max={max}
-            step={step}
-            value={numericValue}
-            onChange={(e) => onChange(Number(e.target.value))}
-            className="w-full accent-indigo-500"
-          />
-        </Field>
+        <SliderControl
+          label={schema.label}
+          min={min}
+          max={max}
+          step={step}
+          value={numericValue}
+          onChange={onChange}
+        />
       );
     }
     case "color": {
@@ -167,9 +280,9 @@ function SchemaControl({
   }
 }
 
-const CATEGORY_LABELS: Record<string, string> = {
-  system: "System / Mechanics",
-  branding: "Branding & UI",
+const CATEGORY_SUBTITLES: Record<string, string> = {
+  system: "Mechanics & engine",
+  branding: "Look, feel & UI copy",
 };
 
 export interface SchemaControlPanelProps {
@@ -183,28 +296,30 @@ export function SchemaControlPanel({
   config,
   onControlChange,
 }: SchemaControlPanelProps) {
-  const groups = ["system", "branding"] as const;
+  const groups = groupControlsByElement(schema.controls);
+
+  if (groups.length === 0) return null;
 
   return (
-    <>
-      {groups.map((category) => {
-        const controls = schema.controls.filter(
-          (c) => c.targetCategory === category,
-        );
-        if (controls.length === 0) return null;
-        return (
-          <Section key={category} title={CATEGORY_LABELS[category] ?? category}>
-            {controls.map((control) => (
-              <SchemaControl
-                key={`${control.targetCategory}-${control.targetPath}`}
-                schema={control}
-                value={getConfigValue(config, control)}
-                onChange={(value) => onControlChange(control, value)}
-              />
-            ))}
-          </Section>
-        );
-      })}
-    </>
+    <div className="overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm">
+      {groups.map((group, index) => (
+        <CollapsibleGroup
+          key={`${group.category}-${group.key}`}
+          title={group.label}
+          subtitle={CATEGORY_SUBTITLES[group.category]}
+          count={group.controls.length}
+          defaultOpen={index === 0}
+        >
+          {group.controls.map((control) => (
+            <SchemaControl
+              key={`${control.targetCategory}-${control.targetPath}`}
+              schema={control}
+              value={getConfigValue(config, control)}
+              onChange={(value) => onControlChange(control, value)}
+            />
+          ))}
+        </CollapsibleGroup>
+      ))}
+    </div>
   );
 }

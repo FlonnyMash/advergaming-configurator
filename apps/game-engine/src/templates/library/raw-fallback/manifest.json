@@ -1,0 +1,74 @@
+{
+  "id": "raw-fallback",
+  "version": "0.1.0",
+  "author": "Imported",
+  "previewUrl": "/previews/raw-fallback.svg",
+  "status": "development",
+  "label": "raw fallback",
+  "schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+      "branding": {
+        "type": "object",
+        "properties": {
+          "primaryColor": {
+            "type": "string",
+            "default": "#6366f1",
+            "x-control": {
+              "type": "color",
+              "label": "Primary Color",
+              "targetCategory": "branding",
+              "targetPath": "branding.primaryColor",
+              "surface": "both"
+            }
+          },
+          "backgroundColor": {
+            "type": "string",
+            "default": "#0f172a",
+            "x-control": {
+              "type": "color",
+              "label": "Background Color",
+              "targetCategory": "branding",
+              "targetPath": "branding.backgroundColor",
+              "surface": "both"
+            }
+          }
+        }
+      },
+      "system": {
+        "type": "object",
+        "properties": {
+          "gameSpeed": {
+            "type": "number",
+            "default": 200,
+            "minimum": 50,
+            "maximum": 800,
+            "x-control": {
+              "type": "slider",
+              "label": "Game Speed",
+              "targetCategory": "system",
+              "targetPath": "system.gameSpeed",
+              "surface": "studio",
+              "step": 1
+            }
+          },
+          "gravity": {
+            "type": "number",
+            "default": 0,
+            "minimum": -1000,
+            "maximum": 1000,
+            "x-control": {
+              "type": "slider",
+              "label": "Gravity",
+              "targetCategory": "system",
+              "targetPath": "system.gravity",
+              "surface": "studio",
+              "step": 1
+            }
+          }
+        }
+      }
+    }
+  }
+}

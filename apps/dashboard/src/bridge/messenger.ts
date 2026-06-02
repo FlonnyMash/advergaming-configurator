@@ -1,7 +1,15 @@
 import {
   BRIDGE_MESSAGE_TYPE,
+  DiagnosticsPayloadMessageSchema,
+  IframeReadyMessageSchema,
   isDiagnosticsPayloadMessage,
+  isGameEventMessage,
   isIframeReadyMessage,
+  type GameEventMessage,
+  type IframeReadyMessage,
+  LoadTemplateMessageSchema,
+  RequestDiagnosticsMessageSchema,
+  UpdateConfigMessageSchema,
   type AppMode,
   type BrandingPatch,
   type ConfigUpdateMode,
@@ -10,6 +18,29 @@ import {
   type LoadTemplateMessage,
   type UpdateConfigMessage,
 } from "@advergaming/shared";
+
+const isDev = process.env.NODE_ENV === "development";
+
+function warnIfInvalid(
+  schema: {
+    safeParse: (
+      data: unknown,
+    ) =>
+      | { success: true }
+      | { success: false; error: { flatten: () => unknown } };
+  },
+  data: unknown,
+  label: string,
+): void {
+  if (!isDev) return;
+  const result = schema.safeParse(data);
+  if (!result.success) {
+    console.warn(
+      `[DashboardMessenger] Invalid ${label}:`,
+      result.error.flatten(),
+    );
+  }
+}
 
 const GAME_ENGINE_URL =
   process.env.NEXT_PUBLIC_GAME_ENGINE_URL ?? "http://localhost:5173";
@@ -26,6 +57,7 @@ type ConfigSender = GameMasterConfig | BrandingPatch;
 class DashboardMessenger {
   private targetWindow: Window | null = null;
   private iframeReady = false;
+  private expectedTemplateId: GameTemplateId | null = null;
   private pendingUpdates: {
     payload: ConfigSender;
     updateMode: ConfigUpdateMode;
@@ -33,6 +65,11 @@ class DashboardMessenger {
   }[] = [];
   private pendingLoadTemplate: GameTemplateId | null = null;
   private diagnosticsHandler: ((payload: unknown) => void) | null = null;
+  private gameEventHandler: ((message: GameEventMessage) => void) | null =
+    null;
+  private iframeReadyHandler:
+    | ((capabilities: IframeReadyMessage["capabilities"]) => void)
+    | null = null;
   private readonly senderMode: AppMode;
 
   constructor(senderMode: AppMode = getDashboardAppMode()) {
@@ -46,20 +83,67 @@ class DashboardMessenger {
     }
   }
 
-  onIframeNavigation(): void {
+  /**
+   * Call when the preview iframe finishes loading a new game URL.
+   * Binds the content window and records which template this navigation expects.
+   */
+  armIframe(contentWindow: Window | null, templateId: GameTemplateId): void {
+    this.expectedTemplateId = templateId;
+    this.setTarget(contentWindow);
+  }
+
+  onIframeNavigation(expectedTemplateId: GameTemplateId): void {
     this.iframeReady = false;
+    this.targetWindow = null;
+    this.expectedTemplateId = expectedTemplateId;
+    this.pendingUpdates = [];
+    this.pendingLoadTemplate = null;
+  }
+
+  private acceptsIframeReady(
+    event: MessageEvent,
+    capabilities: IframeReadyMessage["capabilities"],
+  ): boolean {
+    if (
+      this.expectedTemplateId !== null &&
+      capabilities.templateId !== this.expectedTemplateId
+    ) {
+      return false;
+    }
+    if (this.targetWindow !== null && event.source !== this.targetWindow) {
+      return false;
+    }
+    if (event.source instanceof Window) {
+      this.targetWindow = event.source;
+    }
+    return true;
   }
 
   handleWindowMessage(event: MessageEvent): void {
     if (event.origin !== gameEngineOrigin) return;
 
     if (isIframeReadyMessage(event.data)) {
+      warnIfInvalid(IframeReadyMessageSchema, event.data, "IFRAME_READY");
+      if (!this.acceptsIframeReady(event, event.data.capabilities)) {
+        return;
+      }
       this.iframeReady = true;
+      this.iframeReadyHandler?.(event.data.capabilities);
       this.flush();
       return;
     }
 
+    if (isGameEventMessage(event.data)) {
+      this.gameEventHandler?.(event.data);
+      return;
+    }
+
     if (isDiagnosticsPayloadMessage(event.data)) {
+      warnIfInvalid(
+        DiagnosticsPayloadMessageSchema,
+        event.data,
+        "DIAGNOSTICS_PAYLOAD",
+      );
       this.diagnosticsHandler?.(event.data.payload);
     }
   }
@@ -68,12 +152,45 @@ class DashboardMessenger {
     this.diagnosticsHandler = handler;
   }
 
+  onIframeReady(
+    handler: (capabilities: IframeReadyMessage["capabilities"]) => void,
+  ): () => void {
+    this.iframeReadyHandler = handler;
+    return () => {
+      if (this.iframeReadyHandler === handler) {
+        this.iframeReadyHandler = null;
+      }
+    };
+  }
+
+  onGameEvent(handler: (message: GameEventMessage) => void): () => void {
+    this.gameEventHandler = handler;
+    return () => {
+      if (this.gameEventHandler === handler) {
+        this.gameEventHandler = null;
+      }
+    };
+  }
+
+  sendGameEvent(eventName: string, data: unknown): void {
+    if (!this.iframeReady || !this.targetWindow) return;
+    const message: GameEventMessage = {
+      type: BRIDGE_MESSAGE_TYPE.GAME_EVENT,
+      eventName,
+      data,
+    };
+    this.targetWindow.postMessage(message, gameEngineOrigin);
+  }
+
   requestDiagnostics(): void {
     if (!this.iframeReady || !this.targetWindow) return;
-    this.targetWindow.postMessage(
-      { type: BRIDGE_MESSAGE_TYPE.REQUEST_DIAGNOSTICS },
-      gameEngineOrigin,
+    const message = { type: BRIDGE_MESSAGE_TYPE.REQUEST_DIAGNOSTICS };
+    warnIfInvalid(
+      RequestDiagnosticsMessageSchema,
+      message,
+      "REQUEST_DIAGNOSTICS",
     );
+    this.targetWindow.postMessage(message, gameEngineOrigin);
   }
 
   sendConfig(
@@ -123,6 +240,7 @@ class DashboardMessenger {
       updateMode,
       senderMode: this.senderMode,
     };
+    warnIfInvalid(UpdateConfigMessageSchema, message, "UPDATE_CONFIG");
     this.targetWindow.postMessage(message, gameEngineOrigin);
   }
 
@@ -133,6 +251,7 @@ class DashboardMessenger {
       type: BRIDGE_MESSAGE_TYPE.LOAD_TEMPLATE,
       payload: templateId,
     };
+    warnIfInvalid(LoadTemplateMessageSchema, message, "LOAD_TEMPLATE");
     this.targetWindow.postMessage(message, gameEngineOrigin);
   }
 }

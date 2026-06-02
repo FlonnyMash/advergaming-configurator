@@ -1,4 +1,5 @@
 import {
+  applyPath,
   assertPermission,
   buildConfigFromSchema,
   type BrandingSettings,
@@ -20,24 +21,8 @@ interface StudioConfigStore {
   setSystem: (system: Partial<SystemSettings>) => void;
   setBranding: (branding: Partial<BrandingSettings>) => void;
   patchBrandingPath: (path: string, value: unknown) => void;
+  patchSystemPath: (path: string, value: unknown) => void;
   resetConfig: () => void;
-}
-
-function applyPath(
-  root: Record<string, unknown>,
-  path: string,
-  value: unknown,
-): void {
-  const parts = path.split(".");
-  let current = root;
-  for (let i = 0; i < parts.length - 1; i++) {
-    const key = parts[i]!;
-    if (typeof current[key] !== "object" || current[key] === null) {
-      current[key] = {};
-    }
-    current = current[key] as Record<string, unknown>;
-  }
-  current[parts[parts.length - 1]!] = value;
 }
 
 export const useStudioConfigStore = create<StudioConfigStore>((set, get) => ({
@@ -83,6 +68,20 @@ export const useStudioConfigStore = create<StudioConfigStore>((set, get) => ({
         config: {
           ...state.config,
           branding: branding as unknown as BrandingSettings,
+        },
+      };
+    }),
+
+  patchSystemPath: (path, value) =>
+    set((state) => {
+      const system = structuredClone(
+        state.config.system,
+      ) as unknown as Record<string, unknown>;
+      applyPath(system, path, value);
+      return {
+        config: {
+          ...state.config,
+          system: system as unknown as SystemSettings,
         },
       };
     }),

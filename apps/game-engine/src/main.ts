@@ -1,7 +1,6 @@
 import "./style.css";
 import {
   DEFAULT_GAME_MASTER_CONFIG,
-  getDomOverlayForUi,
   getPrimaryBrandColor,
   parseGameTemplateId,
   type GameMasterConfig,
@@ -9,9 +8,19 @@ import {
 } from "@advergaming/shared";
 import Phaser from "phaser";
 import { setupBridge, setBridgeTemplateId } from "./bridge/messenger.ts";
+import {
+  gameChromeOverlayManager,
+  setupGameChromeBridge,
+} from "./bridge/game-chrome-bridge.ts";
 import { getEngineMode } from "./env/app-mode.ts";
 import { createGameConfig } from "./game/config.ts";
-import { initUIInteractions, updateUI } from "./overlays/ui-manager.ts";
+import { bindGamePreviewResize } from "./game/previewResize.ts";
+import { updatePhaserMechanics } from "./game/applyMechanics.ts";
+import {
+  initUIInteractions,
+  restoreEngineDefaultOverlay,
+  updateDomOverlays,
+} from "./overlays/ui-manager.ts";
 import {
   getCatalogEntry,
   getPublishedSystemDefaults,
@@ -27,6 +36,7 @@ let currentTemplateId: GameTemplateId = parseGameTemplateId(
   new URLSearchParams(window.location.search).get("game"),
   TEMPLATE_CATALOG_IDS,
 );
+setBridgeTemplateId(currentTemplateId);
 let game: Phaser.Game | null = null;
 let latestConfig: GameMasterConfig = {
   ...DEFAULT_GAME_MASTER_CONFIG,
@@ -37,12 +47,46 @@ let latestConfig: GameMasterConfig = {
 };
 
 let debugTeardown: (() => void) | null = null;
+let previewResizeTeardown: (() => void) | null = null;
+let gameBooting = false;
+setupGameChromeBridge();
 
-function getActiveScene(): TemplateScene | undefined {
-  if (!game) return undefined;
-  const activeScenes = game.scene.getScenes(true);
-  const scene = activeScenes[0] ?? game.scene.getScenes(false)[0];
-  return scene as TemplateScene | undefined;
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function resolveGameBackgroundColor(config: GameMasterConfig): string {
+  const branding = config.branding as unknown as Record<string, unknown>;
+  const system = config.system as unknown as Record<string, unknown>;
+  for (const catchGame of [branding.catchGame, system.catchGame]) {
+    if (!isRecord(catchGame)) continue;
+    const gameSection = catchGame.game;
+    if (isRecord(gameSection) && typeof gameSection.backgroundColor === "string") {
+      return gameSection.backgroundColor;
+    }
+  }
+  return getPrimaryBrandColor(config);
+}
+
+function findSceneWithStart(gameInstance: Phaser.Game): TemplateScene | undefined {
+  for (const scene of gameInstance.scene.scenes) {
+    const typed = scene as TemplateScene;
+    if (typeof typed.start === "function") {
+      return typed;
+    }
+  }
+  return undefined;
+}
+
+function applyLegacyArcadeDebug(config: GameMasterConfig): void {
+  if (!game?.config.physics?.arcade) return;
+  const system = config.system as unknown as Record<string, unknown>;
+  const catchGame = system.catchGame;
+  if (!isRecord(catchGame)) return;
+  const physics = catchGame.physics;
+  if (isRecord(physics) && typeof physics.debug === "boolean") {
+    game.config.physics.arcade.debug = physics.debug;
+  }
 }
 
 function canLoadTemplate(id: GameTemplateId): boolean {
@@ -54,14 +98,35 @@ function canLoadTemplate(id: GameTemplateId): boolean {
 
 async function mountStudioToolkit(phaserGame: Phaser.Game): Promise<void> {
   if (getEngineMode() !== "studio") return;
-  const [{ mountDevToolkit }, { DebugOverlay }] = await Promise.all([
-    import("./debug/dev-toolkit/DevToolkitHost.ts"),
+
+  const [
+    { setupDevToolkitBridge, postDevToolkitState },
+    { DevToolkitController },
+    { DebugOverlay },
+    { GameFreezeController },
+  ] = await Promise.all([
+    import("./bridge/dev-toolkit-bridge.ts"),
+    import("./debug/dev-toolkit/DevToolkitController.ts"),
     import("./debug/DebugOverlay.ts"),
+    import("./debug/GameFreezeController.ts"),
   ]);
+
+  let controller: DevToolkitController | null = null;
+  const bridgeTeardown = setupDevToolkitBridge(() => controller);
+
   const overlay = new DebugOverlay(phaserGame);
-  const toolkit = mountDevToolkit(overlay);
+  const freeze = new GameFreezeController(phaserGame);
+  controller = new DevToolkitController(overlay, freeze, () => {
+    if (controller) {
+      postDevToolkitState(controller.getState());
+    }
+  });
+
   debugTeardown = () => {
-    toolkit.destroy();
+    bridgeTeardown();
+    controller?.destroy();
+    controller = null;
+    freeze.destroy();
     overlay.destroy();
     debugTeardown = null;
   };
@@ -72,6 +137,17 @@ function loadTemplate(id: GameTemplateId, config: GameMasterConfig): void {
 
   if (debugTeardown) {
     debugTeardown();
+  }
+
+  if (previewResizeTeardown) {
+    previewResizeTeardown();
+    previewResizeTeardown = null;
+  }
+
+  gameChromeOverlayManager.clear();
+
+  if (currentTemplateId === "catch-game-demo" && id !== "catch-game-demo") {
+    restoreEngineDefaultOverlay();
   }
 
   if (game) {
@@ -90,42 +166,86 @@ function loadTemplate(id: GameTemplateId, config: GameMasterConfig): void {
     latestConfig.system = structuredClone(getPublishedSystemDefaults(id));
   }
 
+  gameBooting = true;
+
   const { Scene } = getTemplateDefinition(id);
   game = new Phaser.Game(
     createGameConfig({
       parent: "game-container",
-      backgroundColor: getPrimaryBrandColor(latestConfig),
+      backgroundColor: resolveGameBackgroundColor(latestConfig),
       scene: Scene,
     }),
   );
 
+  previewResizeTeardown = bindGamePreviewResize(game);
+
   game.events.once("ready", async () => {
-    getActiveScene()?.updateConfig?.(latestConfig);
+    gameBooting = false;
+    applyLegacyArcadeDebug(latestConfig);
     if (game) {
+      if (currentTemplateId !== "catch-game-demo") {
+        updateDomOverlays(latestConfig);
+      }
+      updatePhaserMechanics(latestConfig, game);
+      window.dispatchEvent(new Event("resize"));
       await mountStudioToolkit(game);
     }
   });
 }
 
-function applyConfig(config: GameMasterConfig): void {
+let configApplyTimer: ReturnType<typeof setTimeout> | null = null;
+
+function applyConfigNow(config: GameMasterConfig): void {
   latestConfig = config;
-  updateUI(getDomOverlayForUi(config));
+  const requestedTemplateId = config.meta.templateId;
+
+  if (requestedTemplateId !== currentTemplateId) {
+    loadTemplate(requestedTemplateId, config);
+    return;
+  }
+
+  if (currentTemplateId !== "catch-game-demo") {
+    updateDomOverlays(config);
+  }
 
   if (!game) {
     loadTemplate(currentTemplateId, config);
     return;
   }
 
-  getActiveScene()?.updateConfig?.(config);
+  if (gameBooting) {
+    return;
+  }
+
+  applyLegacyArcadeDebug(config);
+  updatePhaserMechanics(config, game);
+}
+
+function applyConfig(config: GameMasterConfig): void {
+  if (configApplyTimer) {
+    clearTimeout(configApplyTimer);
+  }
+  configApplyTimer = setTimeout(() => {
+    configApplyTimer = null;
+    applyConfigNow(config);
+  }, 80);
 }
 
 function handleLoadTemplate(templateId: GameTemplateId): void {
   if (!canLoadTemplate(templateId)) return;
-  loadTemplate(templateId, latestConfig);
+  if (configApplyTimer) {
+    clearTimeout(configApplyTimer);
+    configApplyTimer = null;
+  }
+  loadTemplate(templateId, {
+    ...latestConfig,
+    meta: { ...latestConfig.meta, templateId },
+  });
 }
 
 window.addEventListener("GAME_START", () => {
-  getActiveScene()?.start?.();
+  if (!game) return;
+  findSceneWithStart(game)?.start?.();
 });
 
 setupBridge({

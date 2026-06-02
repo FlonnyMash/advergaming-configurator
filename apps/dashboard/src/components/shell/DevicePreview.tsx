@@ -4,8 +4,13 @@ import {
   createDashboardMessenger,
   gameEngineOrigin,
 } from "@/bridge/messenger";
+import { useGameChromeOverlayStore } from "@/lib/game-chrome-overlay-store";
 import type { AppMode, ConfigUpdateMode, GameMasterConfig, GameTemplateId } from "@advergaming/shared";
-import { useEffect, useMemo, useRef } from "react";
+import {
+  GAME_CHROME_BRIDGE_EVENTS,
+  parseGameChromeOverlaysRegistryPayload,
+} from "@advergaming/shared";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 const GAME_ENGINE_URL =
   process.env.NEXT_PUBLIC_GAME_ENGINE_URL ?? "http://localhost:5173";
@@ -31,30 +36,41 @@ export function DevicePreview({
   configUpdateMode = "full",
 }: DevicePreviewProps) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  const phoneScreenRef = useRef<HTMLDivElement>(null);
+  const [previewTemplateId, setPreviewTemplateId] =
+    useState<GameTemplateId>(initialTemplateId);
   const messenger = useMemo(
     () => createDashboardMessenger(appMode),
     [appMode],
   );
 
-  const iframeSrc = (() => {
+  const iframeSrc = useMemo(() => {
     const url = new URL(GAME_ENGINE_URL);
-    url.searchParams.set("game", initialTemplateId);
+    url.searchParams.set("game", previewTemplateId);
     url.searchParams.set("appMode", appMode);
     return url.toString();
-  })();
+  }, [previewTemplateId, appMode]);
 
   useEffect(() => {
     const syncTarget = () => {
       messenger.setTarget(iframeRef.current?.contentWindow ?? null);
     };
 
+    useGameChromeOverlayStore.getState().setMessenger(messenger);
+
     let lastTemplateId = initialTemplateId;
 
     const unsubscribe = subscribe((state) => {
-      if (state.selectedTemplateId !== lastTemplateId) {
-        messenger.sendLoadTemplate(state.selectedTemplateId);
+      const templateChanged = state.selectedTemplateId !== lastTemplateId;
+      if (templateChanged) {
         lastTemplateId = state.selectedTemplateId;
+        setPreviewTemplateId(state.selectedTemplateId);
+        useGameChromeOverlayStore.getState().clearRegistry();
+        messenger.onIframeNavigation(state.selectedTemplateId);
+        // Iframe remounts via key + src; config is pushed on load.
+        return;
       }
+
       if (configUpdateMode === "branding-patch") {
         messenger.sendConfig(state.config.branding, "branding-patch");
       } else {
@@ -66,13 +82,35 @@ export function DevicePreview({
       messenger.handleWindowMessage(event);
     };
 
+    const offGameEvent = messenger.onGameEvent((message) => {
+      if (
+        message.eventName !== GAME_CHROME_BRIDGE_EVENTS.OVERLAYS_REGISTRY
+      ) {
+        return;
+      }
+      const payload = parseGameChromeOverlaysRegistryPayload(message.data);
+      if (!payload) return;
+      useGameChromeOverlayStore.getState().setRegistry(payload.overlays);
+    });
+
     window.addEventListener("message", onIframeMessage);
     syncTarget();
 
+    return () => {
+      unsubscribe();
+      offGameEvent();
+      useGameChromeOverlayStore.getState().setMessenger(null);
+      useGameChromeOverlayStore.getState().clearRegistry();
+      window.removeEventListener("message", onIframeMessage);
+      messenger.setTarget(null);
+    };
+  }, [messenger, subscribe, configUpdateMode, initialTemplateId]);
+
+  useEffect(() => {
     const iframe = iframeRef.current;
-    const onLoad = () => {
-      messenger.onIframeNavigation();
-      syncTarget();
+    if (!iframe) return;
+
+    const pushPreviewConfig = () => {
       const config = getConfig();
       if (configUpdateMode === "branding-patch") {
         messenger.sendConfig(config.branding, "branding-patch");
@@ -80,27 +118,73 @@ export function DevicePreview({
         messenger.sendConfig(config, "full");
       }
     };
-    iframe?.addEventListener("load", onLoad);
+
+    const onLoad = () => {
+      messenger.armIframe(iframe.contentWindow ?? null, previewTemplateId);
+      useGameChromeOverlayStore.getState().clearRegistry();
+      pushPreviewConfig();
+      // IFRAME_READY can arrive before the load event; retry once the engine is up.
+      window.setTimeout(pushPreviewConfig, 150);
+    };
+
+    iframe.addEventListener("load", onLoad);
+    if (iframe.contentDocument?.readyState === "complete") {
+      onLoad();
+    }
 
     return () => {
-      unsubscribe();
-      window.removeEventListener("message", onIframeMessage);
-      iframe?.removeEventListener("load", onLoad);
-      messenger.setTarget(null);
+      iframe.removeEventListener("load", onLoad);
     };
-  }, [messenger, subscribe, getConfig, configUpdateMode]);
+  }, [iframeSrc, previewTemplateId, messenger, getConfig, configUpdateMode]);
+
+  useEffect(() => {
+    const screen = phoneScreenRef.current;
+    const iframe = iframeRef.current;
+    if (!screen || !iframe) return;
+
+    const notifyEngineResize = () => {
+      try {
+        iframe.contentWindow?.dispatchEvent(new Event("resize"));
+      } catch {
+        // Cross-origin guard (should not happen for local dev origins).
+      }
+    };
+
+    const observer = new ResizeObserver(() => {
+      notifyEngineResize();
+    });
+    observer.observe(screen);
+
+    const onLoad = () => {
+      notifyEngineResize();
+      requestAnimationFrame(notifyEngineResize);
+      window.setTimeout(notifyEngineResize, 100);
+      window.setTimeout(notifyEngineResize, 400);
+    };
+    iframe.addEventListener("load", onLoad);
+    notifyEngineResize();
+
+    return () => {
+      observer.disconnect();
+      iframe.removeEventListener("load", onLoad);
+    };
+  }, [iframeSrc]);
 
   return (
-    <div className="flex flex-1 items-center justify-center bg-zinc-100 p-8">
-      <div className="relative aspect-[390/844] max-h-[90vh] w-full max-w-[390px]">
+    <div className="flex min-h-0 flex-1 items-center justify-center overflow-auto bg-zinc-100 p-8">
+      <div className="relative h-[min(90vh,844px)] w-[390px] max-w-full shrink-0">
         <div className="absolute inset-0 rounded-[2.5rem] bg-zinc-900 p-3 shadow-2xl shadow-zinc-900/20">
           <div className="absolute top-0 left-1/2 z-10 h-6 w-28 -translate-x-1/2 rounded-b-2xl bg-zinc-900" />
-          <div className="relative h-full overflow-hidden rounded-[2rem] bg-black">
+          <div
+            ref={phoneScreenRef}
+            className="relative h-full min-h-0 overflow-hidden rounded-[2rem] bg-black"
+          >
             <iframe
+              key={previewTemplateId}
               ref={iframeRef}
               src={iframeSrc}
               title="Game preview"
-              className="h-full w-full border-0"
+              className="block h-full min-h-[1px] w-full min-w-[1px] border-0"
             />
           </div>
         </div>

@@ -15,9 +15,9 @@
     "preview": "vite preview"
   },
   "devDependencies": {
-    "tsx": "^4.20.3",
     "@tailwindcss/vite": "^4.3.0",
     "tailwindcss": "^4.3.0",
+    "tsx": "^4.20.3",
     "typescript": "~6.0.2",
     "vite": "^8.0.12"
   },

@@ -3,20 +3,80 @@ export {
   type BridgeMessage,
   type ConfigUpdateMode,
   type DiagnosticsPayloadMessage,
+  type GameEventMessage,
   type IframeReadyMessage,
   type LoadTemplateMessage,
   type RequestDiagnosticsMessage,
   type UpdateConfigMessage,
   isBrandingPatch,
+  isBrandingPatchShape,
   isDiagnosticsPayloadMessage,
+  isGameEventMessage,
   isGameMasterConfig,
   isIframeReadyMessage,
   isLoadTemplateMessage,
   isRequestDiagnosticsMessage,
   isUpdateConfigMessage,
+  parseBridgeMessage,
 } from "./bridge";
 
 export {
+  AnimationClipMappingSchema,
+  AnimationDefinitionSchema,
+  BrandingPatchSchema,
+  BrandingSettingsSchema,
+  BridgeMessageSchema,
+  ControlFieldSchemaSchema,
+  ControlTypeSchema,
+  ControlValueSchema,
+  DiagnosticsPayloadMessageSchema,
+  GameMasterConfigSchema,
+  GameSchemaSchema,
+  IframeReadyMessageSchema,
+  LegacyGameMasterConfigSchema,
+  LoadTemplateMessageSchema,
+  RequestDiagnosticsMessageSchema,
+  SystemSettingsSchema,
+  UpdateConfigMessageSchema,
+  parseBrandingPatch,
+  parseGameMasterConfig,
+} from "./game-schema";
+
+export {
+  parsePlayerTouchBridgePayload,
+  parseTouchControlsStatePayload,
+  PlayerTouchBridgePayloadSchema,
+  STUDIO_TOUCH_BRIDGE_EVENTS,
+  TouchControlsStatePayloadSchema,
+  type PlayerTouchBridgePayload,
+  type TouchControlsStatePayload,
+} from "./studio-touch-bridge";
+
+export {
+  DEFAULT_DEV_TOOLKIT_FLAGS,
+  DEV_TOOLKIT_BRIDGE_EVENTS,
+  DevToolkitFlagsSchema,
+  DevToolkitSetFlagsPayloadSchema,
+  parseDevToolkitFlags,
+  parseDevToolkitSetFlagsPayload,
+  type DevToolkitFlags,
+  type DevToolkitSetFlagsPayload,
+} from "./dev-toolkit-bridge";
+
+export {
+  GAME_CHROME_BRIDGE_EVENTS,
+  GameChromeOverlayDescriptorSchema,
+  GameChromeOverlaysRegistryPayloadSchema,
+  SetGameChromeOverlayVisibilityPayloadSchema,
+  parseGameChromeOverlaysRegistryPayload,
+  parseSetGameChromeOverlayVisibilityPayload,
+  type GameChromeOverlayDescriptor,
+  type GameChromeOverlaysRegistryPayload,
+  type SetGameChromeOverlayVisibilityPayload,
+} from "./game-chrome-bridge";
+
+export {
+  applyPath,
   buildConfigFromSchema,
   buildConfigWithFrozenSystem,
   exportClientPayload,
@@ -25,6 +85,11 @@ export {
   migrateLegacyConfig,
   normalizeGameMasterConfig,
 } from "./config-utils";
+
+export {
+  groupControlsByElement,
+  type ControlGroup,
+} from "./control-grouping";
 
 export {
   assertPermission,

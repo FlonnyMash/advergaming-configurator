@@ -1,4 +1,9 @@
-export { StudioSidebar, type StudioSidebarProps } from "./ui/StudioSidebar";
+export { StudioSidebar } from "./ui/StudioSidebar";
+export {
+  StudioTemplateCatalog,
+  type StudioTemplateCatalogProps,
+} from "./ui/StudioTemplateCatalog";
+export { StudioConfigJsonTools } from "./ui/StudioConfigJsonTools";
 export {
   SchemaControlPanel,
   controlInputClass,

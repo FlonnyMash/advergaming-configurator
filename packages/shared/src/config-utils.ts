@@ -1,14 +1,16 @@
-import type {
-  BrandingPatch,
-  BrandingSettings,
-  ControlFieldSchema,
-  ControlValue,
-  GameMasterConfig,
-  GameSchema,
-  GameTemplateId,
-  LegacyGameMasterConfig,
-  SystemSettings,
-} from "./types";
+import {
+  GameMasterConfigSchema,
+  LegacyGameMasterConfigSchema,
+  type BrandingPatch,
+  type BrandingSettings,
+  type ControlFieldSchema,
+  type ControlValue,
+  type GameMasterConfig,
+  type GameSchema,
+  type GameTemplateId,
+  type LegacyGameMasterConfig,
+  type SystemSettings,
+} from "./game-schema";
 import {
   DEFAULT_BRANDING_SETTINGS,
   DEFAULT_GAME_MASTER_CONFIG,
@@ -25,16 +27,54 @@ function setByPath(
   path: string,
   value: ControlValue,
 ): void {
+  applyPath(target, path, value);
+}
+
+/** Sets nested values; supports numeric path segments for arrays. */
+export function applyPath(
+  root: Record<string, unknown>,
+  path: string,
+  value: unknown,
+): void {
   const parts = path.split(".");
-  let current: Record<string, unknown> = target;
+  let current: unknown = root;
+
   for (let i = 0; i < parts.length - 1; i++) {
     const key = parts[i]!;
-    if (!isRecord(current[key])) {
-      current[key] = {};
+    const nextKey = parts[i + 1]!;
+    const nextIsIndex = /^\d+$/.test(nextKey);
+
+    if (Array.isArray(current)) {
+      const index = Number(key);
+      if (!isRecord(current[index]) && !Array.isArray(current[index])) {
+        current[index] = nextIsIndex ? [] : {};
+      }
+      current = current[index];
+      continue;
     }
-    current = current[key] as Record<string, unknown>;
+
+    if (!isRecord(current)) {
+      return;
+    }
+
+    if (
+      !(key in current) ||
+      current[key] === null ||
+      (typeof current[key] !== "object" && !Array.isArray(current[key]))
+    ) {
+      current[key] = nextIsIndex ? [] : {};
+    }
+    current = current[key];
   }
-  current[parts[parts.length - 1]!] = value;
+
+  const last = parts[parts.length - 1]!;
+  if (Array.isArray(current)) {
+    current[Number(last)] = value;
+    return;
+  }
+  if (isRecord(current)) {
+    current[last] = value;
+  }
 }
 
 function getByPath(
@@ -44,6 +84,10 @@ function getByPath(
   const parts = path.split(".");
   let current: unknown = root;
   for (const part of parts) {
+    if (Array.isArray(current)) {
+      current = current[Number(part)];
+      continue;
+    }
     if (!isRecord(current)) return undefined;
     current = current[part];
   }
@@ -90,36 +134,17 @@ export function normalizeGameMasterConfig(
   data: unknown,
   templateId?: GameTemplateId,
 ): GameMasterConfig | null {
-  if (isGameMasterConfigShape(data)) {
-    return data;
+  const parsed = GameMasterConfigSchema.safeParse(data);
+  if (parsed.success) {
+    return parsed.data;
   }
-  if (isLegacyGameMasterConfig(data)) {
-    return migrateLegacyConfig(data, templateId);
+
+  const legacy = LegacyGameMasterConfigSchema.safeParse(data);
+  if (legacy.success) {
+    return migrateLegacyConfig(legacy.data, templateId);
   }
+
   return null;
-}
-
-function isGameMasterConfigShape(data: unknown): data is GameMasterConfig {
-  if (!isRecord(data)) return false;
-  if (!isRecord(data.meta) || !isRecord(data.system) || !isRecord(data.branding)) {
-    return false;
-  }
-  const branding = data.branding;
-  if (!isRecord(branding.theme)) return false;
-  if (typeof branding.theme.primaryColor !== "string") return false;
-  return true;
-}
-
-function isLegacyGameMasterConfig(
-  data: unknown,
-): data is LegacyGameMasterConfig {
-  if (!isRecord(data)) return false;
-  return (
-    "theme" in data &&
-    "gameplay" in data &&
-    "domOverlay" in data &&
-    !("system" in data)
-  );
 }
 
 export function buildConfigFromSchema(

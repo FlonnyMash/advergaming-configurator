@@ -1,10 +1,20 @@
 import type { NextConfig } from "next";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+const monorepoRoot = path.join(
+  path.dirname(fileURLToPath(import.meta.url)),
+  "../..",
+);
 
 const isConfiguratorBuild =
   process.env.NEXT_PUBLIC_APP_MODE === "configurator";
 
 const nextConfig: NextConfig = {
-  turbopack: {},
+  turbopack: {
+    root: monorepoRoot,
+  },
+  outputFileTracingRoot: monorepoRoot,
   transpilePackages: [
     "@advergaming/shared",
     "@advergaming/studio-engine",

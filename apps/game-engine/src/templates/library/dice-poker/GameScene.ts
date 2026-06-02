@@ -1,5 +1,6 @@
 import { getPrimaryBrandColor, type GameMasterConfig } from "@advergaming/shared";
 import Phaser from "phaser";
+import { reloadBase64Texture } from "../../../game/reloadBase64Texture.ts";
 import type { TemplateScene } from "../../types.ts";
 
 export const DICE_POKER_SCENE_KEY = "DicePoker";
@@ -88,28 +89,19 @@ export class DicePokerScene extends Phaser.Scene implements TemplateScene {
     if (playerTexture === this.lastPlayerTexture) return;
     this.lastPlayerTexture = playerTexture;
 
-    if (!playerTexture) {
-      if (this.textures.exists(CUSTOM_PLAYER_KEY)) {
-        this.textures.remove(CUSTOM_PLAYER_KEY);
-      }
-      this.playerSprite.setTexture(DEFAULT_BOX_KEY);
-      this.playerSprite.setDisplaySize(PLAYER_DISPLAY_SIZE, PLAYER_DISPLAY_SIZE);
-      this.playerSprite.setVisible(true);
-      return;
-    }
-
-    if (this.textures.exists(CUSTOM_PLAYER_KEY)) {
-      this.textures.remove(CUSTOM_PLAYER_KEY);
-    }
-
-    this.textures.once("addtexture", (key: string) => {
-      if (key === CUSTOM_PLAYER_KEY) {
-        this.playerSprite.setTexture(CUSTOM_PLAYER_KEY);
-        this.playerSprite.setDisplaySize(PLAYER_DISPLAY_SIZE, PLAYER_DISPLAY_SIZE);
+    reloadBase64Texture({
+      scene: this,
+      textureKey: CUSTOM_PLAYER_KEY,
+      dataUrl: playerTexture,
+      fallbackTextureKey: DEFAULT_BOX_KEY,
+      onApplied: (textureKey) => {
+        this.playerSprite.setTexture(textureKey);
+        this.playerSprite.setDisplaySize(
+          PLAYER_DISPLAY_SIZE,
+          PLAYER_DISPLAY_SIZE,
+        );
         this.playerSprite.setVisible(true);
-      }
+      },
     });
-
-    this.textures.addBase64(CUSTOM_PLAYER_KEY, playerTexture);
   }
 }

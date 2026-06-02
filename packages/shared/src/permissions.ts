@@ -63,9 +63,9 @@ export function filterSchemaControls(
 }
 
 export function filterSchemaByMode(
-  schema: import("./types.js").GameSchema,
+  schema: import("./types").GameSchema,
   mode: AppMode,
-): import("./types.js").GameSchema {
+): import("./types").GameSchema {
   return {
     ...schema,
     controls: filterSchemaControls(schema.controls, mode),
