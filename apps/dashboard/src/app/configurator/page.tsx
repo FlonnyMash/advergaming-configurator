@@ -1,5 +1,7 @@
 "use client";
 
+import { ConfiguratorProjectGate } from "@/components/configurator/ConfiguratorProjectGate";
+import { ConfiguratorToolsShell } from "@/components/configurator/ConfiguratorToolsShell";
 import { DevToolkitBridgeHost } from "@/components/studio/DevToolkitBridgeHost";
 import { CenterWorkspace } from "@/components/shell/CenterWorkspace";
 import { GameChromeOverlayPanel } from "@/components/shell/GameChromeOverlayPanel";
@@ -7,10 +9,9 @@ import {
   ConfiguratorSidebar,
   useConfiguratorStore,
 } from "@advergaming/configurator-engine";
-import { ConfiguratorToolsShell } from "@/components/configurator/ConfiguratorToolsShell";
-import { useCallback } from "react";
+import { Suspense, useCallback } from "react";
 
-export default function ConfiguratorPage() {
+function ConfiguratorWorkspace() {
   const initialTemplateId =
     useConfiguratorStore.getState().selectedTemplateId;
   const selectedTemplateId = useConfiguratorStore(
@@ -51,5 +52,21 @@ export default function ConfiguratorPage() {
       />
       <ConfiguratorToolsShell />
     </div>
+  );
+}
+
+export default function ConfiguratorPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex flex-1 items-center justify-center text-sm text-zinc-500">
+          Loading…
+        </div>
+      }
+    >
+      <ConfiguratorProjectGate>
+        <ConfiguratorWorkspace />
+      </ConfiguratorProjectGate>
+    </Suspense>
   );
 }

@@ -79,6 +79,10 @@ const hexColorSchema = z
 export const GameMasterConfigMetaSchema = z.object({
   templateId: GameTemplateIdSchema,
   schemaVersion: z.string(),
+  projectId: z.string().optional(),
+  parentTemplateId: GameTemplateIdSchema.optional(),
+  parentPinnedVersion: z.string().optional(),
+  lastParentSyncAt: z.string().optional(),
 });
 
 export const WinConditionConfigSchema = z.object({

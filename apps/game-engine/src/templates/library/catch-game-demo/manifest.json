@@ -2,7 +2,7 @@
   "id": "catch-game-demo",
   "version": "0.1.0",
   "author": "Imported",
-  "previewUrl": "/previews/catch-game-demo.svg",
+  "previewUrl": "/previews/catch-game-demo.png",
   "status": "development",
   "label": "Catch Game Demo",
   "description": "Imported legacy Vite/Phaser project (controls mapped from public/config.json).",

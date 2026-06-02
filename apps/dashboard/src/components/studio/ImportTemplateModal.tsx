@@ -11,7 +11,11 @@ type LogLine = {
   detail?: string;
 };
 
-export function ImportTemplateModal() {
+export function ImportTemplateModal({
+  onInstalled,
+}: {
+  onInstalled?: (templateId: string) => void;
+}) {
   const formId = useId();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const logEndRef = useRef<HTMLDivElement>(null);
@@ -84,9 +88,10 @@ export function ImportTemplateModal() {
           `Installed "${event.templateId}"${modeNote}. Refresh the page; restart the game engine dev server if the preview does not load the new template.`,
         );
         resetForm();
+        onInstalled?.(event.templateId);
       }
     },
-    [appendLog, resetForm],
+    [appendLog, onInstalled, resetForm],
   );
 
   const runImport = async (overwrite: boolean) => {

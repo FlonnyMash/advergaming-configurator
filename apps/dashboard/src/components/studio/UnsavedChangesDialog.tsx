@@ -3,19 +3,27 @@
 import type { UnsavedChangeItem } from "@/lib/template-unsaved-changes";
 import { Loader2 } from "lucide-react";
 
-export function UnsavedChangesExportDialog({
+export function UnsavedChangesDialog({
   open,
   items,
   saving,
   error,
-  onSaveAllAndExport,
+  title = "Unsaved changes",
+  description,
+  primaryLabel,
+  cancelLabel = "Cancel",
+  onPrimary,
   onCancel,
 }: {
   open: boolean;
   items: UnsavedChangeItem[];
   saving: boolean;
   error: string | null;
-  onSaveAllAndExport: () => void;
+  title?: string;
+  description: string;
+  primaryLabel: string;
+  cancelLabel?: string;
+  onPrimary: () => void;
   onCancel: () => void;
 }) {
   if (!open) {
@@ -27,7 +35,7 @@ export function UnsavedChangesExportDialog({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-900/40 p-4"
+      className="fixed inset-0 z-[60] flex items-center justify-center bg-zinc-900/40 p-4"
       role="presentation"
       onMouseDown={(event) => {
         if (event.target === event.currentTarget) {
@@ -37,18 +45,15 @@ export function UnsavedChangesExportDialog({
     >
       <div
         role="dialog"
-        aria-labelledby="unsaved-export-title"
+        aria-labelledby="unsaved-changes-title"
         aria-modal="true"
         className="max-h-[min(90vh,32rem)] w-full max-w-md overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-xl"
       >
         <header className="border-b border-zinc-100 px-5 py-4">
-          <h2 id="unsaved-export-title" className="text-base font-semibold text-zinc-900">
-            Unsaved changes
+          <h2 id="unsaved-changes-title" className="text-base font-semibold text-zinc-900">
+            {title}
           </h2>
-          <p className="mt-1 text-sm text-zinc-600">
-            Save everything below to the template library before exporting, or cancel
-            the export.
-          </p>
+          <p className="mt-1 text-sm text-zinc-600">{description}</p>
         </header>
 
         <div className="max-h-64 overflow-y-auto px-5 py-4 text-sm">
@@ -96,18 +101,18 @@ export function UnsavedChangesExportDialog({
             disabled={saving}
             className="rounded-lg border border-zinc-200 px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50 disabled:opacity-60"
           >
-            Cancel export
+            {cancelLabel}
           </button>
           <button
             type="button"
-            onClick={onSaveAllAndExport}
+            onClick={onPrimary}
             disabled={saving}
             className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {saving ? (
               <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
             ) : null}
-            {saving ? "Saving…" : "Save all & export"}
+            {saving ? "Saving…" : primaryLabel}
           </button>
         </footer>
       </div>

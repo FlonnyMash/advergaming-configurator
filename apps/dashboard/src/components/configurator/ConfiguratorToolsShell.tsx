@@ -1,11 +1,13 @@
 "use client";
 
+import { CloudflareDeployButton } from "@/components/configurator/CloudflareDeployButton";
+import { ExitConfiguratorProjectButton } from "@/components/configurator/ExitConfiguratorProjectButton";
+import { SaveProjectButton } from "@/components/configurator/SaveProjectButton";
 import { DevToolkitMenu } from "@/components/studio/DevToolkitMenu";
 import {
   ConfiguratorDiagnostics,
   ConfiguratorTemplateCatalog,
 } from "@advergaming/configurator-engine";
-
 export function ConfiguratorToolsShell() {
   return (
     <aside className="flex h-full w-[360px] shrink-0 flex-col border-l border-zinc-200 bg-white">
@@ -22,8 +24,11 @@ export function ConfiguratorToolsShell() {
       </header>
 
       <div className="flex-1 space-y-8 overflow-y-auto px-6 py-6">
+        <SaveProjectButton />
+        <CloudflareDeployButton />
         <ConfiguratorTemplateCatalog />
         <ConfiguratorDiagnostics />
+        <ExitConfiguratorProjectButton />
       </div>
     </aside>
   );

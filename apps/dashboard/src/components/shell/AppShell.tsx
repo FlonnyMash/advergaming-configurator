@@ -3,6 +3,11 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { BrandMark } from "@/components/shell/BrandMark";
+import {
+  configuratorWorkspaceHref,
+  studioWorkspaceHref,
+  useWorkspaceSessionStore,
+} from "@/lib/workspace-session-store";
 
 const navLinkClass = (active: boolean) =>
   `rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
@@ -15,6 +20,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const isStudio = pathname.startsWith("/studio");
   const isConfigurator = pathname.startsWith("/configurator");
+  const activeStudioTemplateId = useWorkspaceSessionStore(
+    (s) => s.activeStudioTemplateId,
+  );
+  const activeConfiguratorProjectId = useWorkspaceSessionStore(
+    (s) => s.activeConfiguratorProjectId,
+  );
+  const studioHref = studioWorkspaceHref(activeStudioTemplateId);
+  const configuratorHref = configuratorWorkspaceHref(activeConfiguratorProjectId);
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -25,10 +38,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             className="flex gap-1 rounded-lg border border-zinc-200 bg-zinc-50 p-1"
             aria-label="Environment"
           >
-            <Link href="/studio" className={navLinkClass(isStudio)}>
+            <Link href={studioHref} className={navLinkClass(isStudio)}>
               Studio
             </Link>
-            <Link href="/configurator" className={navLinkClass(isConfigurator)}>
+            <Link href={configuratorHref} className={navLinkClass(isConfigurator)}>
               Configurator
             </Link>
           </nav>

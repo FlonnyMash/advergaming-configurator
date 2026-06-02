@@ -29,25 +29,35 @@ function Section({
 export function ConfiguratorTemplateCatalog() {
   const selectedTemplateId = useConfiguratorStore((s) => s.selectedTemplateId);
   const setSelectedTemplateId = useConfiguratorStore((s) => s.setSelectedTemplateId);
+  const projectMode = useConfiguratorStore((s) => s.projectMode);
+  const projectManifest = useConfiguratorStore((s) => s.projectManifest);
 
   const templateOptions = useMemo(() => getProductionTemplateOptions(), []);
   const selectedTemplate = templateOptions.find((t) => t.id === selectedTemplateId);
 
   return (
-    <Section title="Production Templates">
-      <select
-        value={selectedTemplateId}
-        onChange={(e) =>
-          setSelectedTemplateId(e.target.value as GameTemplateId)
-        }
-        className={controlInputClass}
-      >
-        {templateOptions.map((template) => (
-          <option key={template.id} value={template.id}>
-            {template.label}
-          </option>
-        ))}
-      </select>
+    <Section title={projectMode ? "Parent template (read-only)" : "Production Templates"}>
+      {projectMode ? (
+        <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+          Project <span className="font-medium">{projectManifest?.displayName}</span>{" "}
+          inherits from{" "}
+          <span className="font-mono">{projectManifest?.parentTemplateId}</span>
+        </p>
+      ) : (
+        <select
+          value={selectedTemplateId}
+          onChange={(e) =>
+            setSelectedTemplateId(e.target.value as GameTemplateId)
+          }
+          className={controlInputClass}
+        >
+          {templateOptions.map((template) => (
+            <option key={template.id} value={template.id}>
+              {template.label}
+            </option>
+          ))}
+        </select>
+      )}
       {selectedTemplate ? (
         <div className="flex gap-3 rounded-lg border border-zinc-200 bg-zinc-50 p-3">
           <img

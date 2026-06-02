@@ -5,7 +5,7 @@ import {
   collectUnsavedTemplateChanges,
   markAllTemplateChangesSaved,
 } from "@/lib/template-unsaved-changes";
-import { UnsavedChangesExportDialog } from "@/components/studio/UnsavedChangesExportDialog";
+import { UnsavedChangesDialog } from "@/components/studio/UnsavedChangesDialog";
 import { useStudioConfigStore } from "@advergaming/studio-engine";
 import { Download, Loader2 } from "lucide-react";
 import { useState } from "react";
@@ -114,12 +114,15 @@ export function ExportTemplateButton() {
         </p>
       ) : null}
 
-      <UnsavedChangesExportDialog
+      <UnsavedChangesDialog
         open={dialogOpen}
         items={unsavedItems}
         saving={savingBeforeExport}
         error={saveBeforeExportError}
-        onSaveAllAndExport={() => void handleSaveAllAndExport()}
+        description="Save everything below to the template library before exporting, or cancel the export."
+        primaryLabel="Save all & export"
+        cancelLabel="Cancel export"
+        onPrimary={() => void handleSaveAllAndExport()}
         onCancel={() => {
           if (!savingBeforeExport) {
             setDialogOpen(false);

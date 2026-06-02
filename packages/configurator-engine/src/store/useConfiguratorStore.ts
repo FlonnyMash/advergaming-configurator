@@ -2,10 +2,13 @@ import {
   assertPermission,
   buildConfigWithFrozenSystem,
   exportClientPayload,
+  enrichClientMeta,
   mergeBrandingPatch,
   type BrandingPatch,
   type BrandingSettings,
+  type ClientProjectPayload,
   type GameMasterConfig,
+  type GameProjectManifest,
   type GameTemplateId,
 } from "@advergaming/shared";
 import { DEFAULT_GAME_TEMPLATE_ID } from "@advergaming/shared";
@@ -23,15 +26,28 @@ function firstProductionTemplateId(): GameTemplateId {
   return options[0]?.id ?? DEFAULT_GAME_TEMPLATE_ID;
 }
 
-interface ConfiguratorStore {
+export interface ConfiguratorStore {
   config: GameMasterConfig;
   selectedTemplateId: GameTemplateId;
   systemReadonly: boolean;
+  projectId: string | null;
+  projectManifest: GameProjectManifest | null;
+  savedClient: ClientProjectPayload | null;
+  projectMode: boolean;
   setSelectedTemplateId: (id: GameTemplateId) => void;
   patchBranding: (patch: BrandingPatch) => void;
   patchBrandingPath: (path: string, value: unknown) => void;
   exportClientPayload: () => Pick<GameMasterConfig, "meta" | "branding">;
   resetBranding: () => void;
+  hydrateProject: (input: {
+    manifest: GameProjectManifest;
+    config: GameMasterConfig;
+    client: ClientProjectPayload;
+  }) => void;
+  clearProject: () => void;
+  markClientSaved: () => void;
+  updateProjectManifest: (manifest: GameProjectManifest) => void;
+  hasUnsavedClient: () => boolean;
 }
 
 function applyPath(
@@ -60,16 +76,31 @@ function buildConfiguratorConfig(templateId: GameTemplateId): GameMasterConfig {
 
 const initialTemplateId = firstProductionTemplateId();
 
+function clientPayloadEquals(
+  a: ClientProjectPayload,
+  b: ClientProjectPayload,
+): boolean {
+  return JSON.stringify(a) === JSON.stringify(b);
+}
+
 export const useConfiguratorStore = create<ConfiguratorStore>((set, get) => ({
   config: buildConfiguratorConfig(initialTemplateId),
   selectedTemplateId: initialTemplateId,
   systemReadonly: true,
+  projectId: null,
+  projectManifest: null,
+  savedClient: null,
+  projectMode: false,
 
   setSelectedTemplateId: (id) => {
+    if (get().projectMode) {
+      return;
+    }
     assertPermission(CONFIGURATOR_MODE, "template:library");
     set({
       selectedTemplateId: id,
       config: buildConfiguratorConfig(id),
+      savedClient: null,
     });
   },
 
@@ -92,11 +123,73 @@ export const useConfiguratorStore = create<ConfiguratorStore>((set, get) => ({
       };
     }),
 
-  exportClientPayload: () => exportClientPayload(get().config),
+  exportClientPayload: () => {
+    const state = get();
+    const payload = exportClientPayload(state.config);
+    if (state.projectManifest) {
+      return {
+        meta: enrichClientMeta(payload.meta, {
+          projectId: state.projectManifest.projectId,
+          parentTemplateId: state.projectManifest.parentTemplateId,
+          parentPinnedVersion: state.projectManifest.parentVersion,
+        }),
+        branding: payload.branding,
+      };
+    }
+    return payload;
+  },
 
   resetBranding: () => {
-    const { selectedTemplateId } = get();
+    const { selectedTemplateId, projectMode, projectManifest } = get();
+    if (projectMode && projectManifest) {
+      set({
+        config: buildConfiguratorConfig(projectManifest.parentTemplateId),
+      });
+      return;
+    }
     set({ config: buildConfiguratorConfig(selectedTemplateId) });
+  },
+
+  hydrateProject: ({ manifest, config, client }) => {
+    set({
+      projectId: manifest.projectId,
+      projectManifest: manifest,
+      selectedTemplateId: manifest.parentTemplateId,
+      config,
+      savedClient: client,
+      projectMode: true,
+      systemReadonly: true,
+    });
+  },
+
+  clearProject: () => {
+    const id = firstProductionTemplateId();
+    set({
+      projectId: null,
+      projectManifest: null,
+      savedClient: null,
+      projectMode: false,
+      selectedTemplateId: id,
+      config: buildConfiguratorConfig(id),
+    });
+  },
+
+  markClientSaved: () => {
+    const client = get().exportClientPayload();
+    set({ savedClient: client });
+  },
+
+  updateProjectManifest: (manifest) => {
+    set({ projectManifest: manifest });
+  },
+
+  hasUnsavedClient: () => {
+    const { savedClient, projectMode } = get();
+    if (!projectMode || !savedClient) {
+      return false;
+    }
+    const current = get().exportClientPayload();
+    return !clientPayloadEquals(savedClient, current);
   },
 }));
 

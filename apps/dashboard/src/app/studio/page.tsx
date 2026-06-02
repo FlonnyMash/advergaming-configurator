@@ -1,5 +1,6 @@
 "use client";
 
+import { StudioTemplateGate } from "@/components/studio/StudioTemplateGate";
 import { DevToolkitBridgeHost } from "@/components/studio/DevToolkitBridgeHost";
 import { StudioToolsPanel } from "@/components/studio/StudioToolsPanel";
 import { CenterWorkspace } from "@/components/shell/CenterWorkspace";
@@ -10,11 +11,10 @@ import {
   GAME_PREVIEW_PANE_ID,
   useWorkspaceCenterStore,
 } from "@/lib/workspace-center-store";
-import { getAppEnv } from "@/lib/env";
 import { StudioSidebar, useStudioConfigStore } from "@advergaming/studio-engine";
-import { useCallback, useEffect } from "react";
+import { Suspense, useCallback, useEffect } from "react";
 
-export default function StudioPage() {
+function StudioWorkspace() {
   const initialTemplateId = useStudioConfigStore.getState().selectedTemplateId;
   const selectedTemplateId = useStudioConfigStore(
     (state) => state.selectedTemplateId,
@@ -80,7 +80,23 @@ export default function StudioPage() {
         subscribe={subscribe}
         configUpdateMode="full"
       />
-      <StudioToolsPanel catalogEnv={getAppEnv()} />
+      <StudioToolsPanel />
     </div>
+  );
+}
+
+export default function StudioPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex flex-1 items-center justify-center text-sm text-zinc-500">
+          Loading…
+        </div>
+      }
+    >
+      <StudioTemplateGate>
+        <StudioWorkspace />
+      </StudioTemplateGate>
+    </Suspense>
   );
 }

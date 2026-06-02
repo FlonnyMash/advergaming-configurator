@@ -13,6 +13,8 @@ import { useDevToolkitStore } from "@/lib/dev-toolkit-store";
 import { useWorkspaceCenterStore } from "@/lib/workspace-center-store";
 import { useDevToolkitControls } from "@/hooks/useDevToolkitBridge";
 import type { DevToolkitAssetLayout, DevToolkitPickedAsset } from "@advergaming/shared";
+import { useActiveConfigPatch } from "@/hooks/useActiveConfigPatch";
+import { useConfiguratorStore } from "@advergaming/configurator-engine";
 import { useStudioConfigStore } from "@advergaming/studio-engine";
 import { Loader2, Redo2, Save, Undo2 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -45,10 +47,17 @@ export function AssetLayoutEditor({
   const binding = asset.configBinding;
   const editable = Boolean(binding);
 
-  const patchBrandingPath = useStudioConfigStore((state) => state.patchBrandingPath);
-  const patchSystemPath = useStudioConfigStore((state) => state.patchSystemPath);
-  const selectedTemplateId = useStudioConfigStore((state) => state.selectedTemplateId);
+  const {
+    patchBrandingPath,
+    patchSystemPath,
+    selectedTemplateId,
+    saveTarget,
+    saveLayout: saveLayoutToDisk,
+  } = useActiveConfigPatch();
   const savedConfig = useStudioConfigStore((state) => state.savedConfig);
+  const configuratorConfig = useConfiguratorStore((state) => state.config);
+  const projectMode = saveTarget === "project";
+  const baselineConfig = projectMode ? configuratorConfig : savedConfig;
   const setSavedLayout = useAssetLayoutSavedStore((state) => state.setSavedLayout);
   const updateAssetPane = useWorkspaceCenterStore((state) => state.updateAssetPane);
   const { sendFlags } = useDevToolkitControls();
@@ -81,11 +90,11 @@ export function AssetLayoutEditor({
       return;
     }
     const baseline =
-      readAssetLayoutFromStudioConfig(savedConfig, binding) ??
+      readAssetLayoutFromStudioConfig(baselineConfig, binding) ??
       asset.layout ??
       layoutDraft;
     setSavedLayout(key, baseline);
-  }, [asset.layout, binding, bindingKey, layoutDraft, savedConfig, setSavedLayout]);
+  }, [asset.layout, baselineConfig, binding, bindingKey, layoutDraft, setSavedLayout]);
 
   useEffect(() => {
     if (!isActive) {
@@ -209,35 +218,26 @@ export function AssetLayoutEditor({
       layoutDraft,
     );
 
-    const latestConfig = useStudioConfigStore.getState().config;
-
     try {
-      const response = await fetch(
-        `/api/templates/save-config?templateId=${encodeURIComponent(selectedTemplateId)}`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ config: latestConfig }),
-        },
-      );
-
-      const payload = (await response.json()) as {
-        ok?: boolean;
-        error?: string;
-      };
-
-      if (!response.ok || !payload.ok) {
-        setSaveError(payload.error ?? "Could not save layout to template.");
+      const ok = await saveLayoutToDisk();
+      if (!ok) {
+        setSaveError(
+          projectMode
+            ? "Could not save layout to project."
+            : "Could not save layout to template.",
+        );
         return;
       }
 
       setSavedLayout(assetBindingKey(binding), layoutDraft);
       setSaveMessage(
-        `Saved to apps/game-engine/src/templates/library/${selectedTemplateId}/public/config.json`,
+        projectMode
+          ? "Saved layout to project client.json"
+          : `Saved to apps/game-engine/src/templates/library/${selectedTemplateId}/public/config.json`,
       );
     } catch {
       setSaveError(
-        "Could not reach the save API. Run the dashboard locally to write template files.",
+        "Could not reach the save API. Run the dashboard locally to write files.",
       );
     } finally {
       setSaving(false);
@@ -247,6 +247,8 @@ export function AssetLayoutEditor({
     layoutDraft,
     patchBrandingPath,
     patchSystemPath,
+    projectMode,
+    saveLayoutToDisk,
     selectedTemplateId,
     setSavedLayout,
   ]);

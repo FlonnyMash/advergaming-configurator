@@ -14,7 +14,7 @@ export default function HomePage() {
       </div>
       <div className="flex gap-4">
         <Link
-          href="/studio"
+          href="/studio/templates"
           className="rounded-xl border border-zinc-200 bg-white px-8 py-4 text-center shadow-sm transition-shadow hover:shadow-md"
         >
           <span className="block text-sm font-semibold text-zinc-900">
@@ -25,14 +25,14 @@ export default function HomePage() {
           </span>
         </Link>
         <Link
-          href="/configurator"
+          href="/configurator/projects"
           className="rounded-xl border border-zinc-200 bg-white px-8 py-4 text-center shadow-sm transition-shadow hover:shadow-md"
         >
           <span className="block text-sm font-semibold text-zinc-900">
             Configurator
           </span>
           <span className="mt-1 block text-xs text-zinc-500">
-            Client branding & diagnostics
+            Client projects & branding
           </span>
         </Link>
       </div>

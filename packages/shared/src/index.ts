@@ -97,6 +97,35 @@ export {
 } from "./config-utils";
 
 export {
+  PROJECT_ID_PATTERN,
+  ClientProjectPayloadSchema,
+  GameProjectManifestSchema,
+  ParentDriftItemSchema,
+  ParentDriftReportSchema,
+  ParentLockSnapshotSchema,
+  type ClientProjectPayload,
+  type GameProjectManifest,
+  type ParentDriftItem,
+  type ParentDriftReport,
+  type ParentLockSnapshot,
+} from "./game-project";
+
+export {
+  controlsForMode,
+  listControlChanges,
+  listSchemaControlChanges,
+  type ControlChange,
+} from "./control-changes";
+
+export {
+  buildInitialClientPayload,
+  buildProjectConfigFromClient,
+  defaultProjectManifestFields,
+  enrichClientMeta,
+  slugifyProjectId,
+} from "./project-utils";
+
+export {
   groupControlsByElement,
   type ControlGroup,
 } from "./control-grouping";

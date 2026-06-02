@@ -1,6 +1,7 @@
 import AdmZip from "adm-zip";
 import { isTemplateManifest, type GameMasterConfig } from "@advergaming/shared";
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
+import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { mergeStudioConfigIntoLegacyConfig } from "@/lib/legacy-config-merge";
 import { TEMPLATE_ID_PATTERN } from "@/lib/template-import-normalize";
@@ -154,6 +155,84 @@ function buildConfigJsonForZip(
 export type BuildTemplateZipResult =
   | { ok: true; buffer: Buffer; fileCount: number }
   | { ok: false; error: string; status: number };
+
+export type ExportTemplateToDirectoryResult =
+  | { ok: true; fileCount: number; destDir: string }
+  | { ok: false; error: string; status: number };
+
+async function writeExportFile(
+  destDir: string,
+  relative: string,
+  content: string | Buffer,
+): Promise<void> {
+  const absolute = path.join(destDir, relative);
+  await mkdir(path.dirname(absolute), { recursive: true });
+  await writeFile(absolute, content);
+}
+
+export async function exportTemplateToDirectory(
+  templateId: string,
+  destDir: string,
+  studioConfig?: GameMasterConfig,
+): Promise<ExportTemplateToDirectoryResult> {
+  if (!TEMPLATE_ID_PATTERN.test(templateId)) {
+    return { ok: false, error: "Invalid template ID.", status: 400 };
+  }
+
+  const templateDir = path.join(libraryRoot, templateId);
+  if (!existsSync(templateDir) || !statSync(templateDir).isDirectory()) {
+    return {
+      ok: false,
+      error: `Template "${templateId}" is not installed in library/.`,
+      status: 404,
+    };
+  }
+
+  try {
+    let fileCount = 0;
+    const manifest = readManifest(templateDir, templateId);
+    await writeExportFile(
+      destDir,
+      "manifest.json",
+      `${JSON.stringify(manifest, null, 2)}\n`,
+    );
+    fileCount += 1;
+
+    const portableIndex = buildPortableIndexTs(
+      templateId,
+      detectPlaySceneImportPath(templateDir, templateId),
+    );
+    await writeExportFile(destDir, "index.ts", portableIndex);
+    fileCount += 1;
+
+    const configJson = buildConfigJsonForZip(templateDir, templateId, studioConfig);
+    if (configJson) {
+      await writeExportFile(destDir, "public/config.json", configJson);
+      fileCount += 1;
+    }
+
+    const relativeFiles = listFilesRecursive(templateDir, templateDir);
+    const skipFiles = new Set(["manifest.json", "index.ts", "public/config.json"]);
+
+    for (const relative of relativeFiles) {
+      if (skipFiles.has(relative.replace(/\\/g, "/"))) {
+        continue;
+      }
+      if (isNestedTemplateMirrorPath(relative, templateId)) {
+        continue;
+      }
+      const absolute = path.join(templateDir, relative);
+      await writeExportFile(destDir, relative, readFileSync(absolute));
+      fileCount += 1;
+    }
+
+    return { ok: true, fileCount, destDir };
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Failed to export template.";
+    return { ok: false, error: message, status: 500 };
+  }
+}
 
 export function buildTemplateZip(
   templateId: string,

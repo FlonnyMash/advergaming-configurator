@@ -5,6 +5,7 @@ export { ConfiguratorDiagnostics } from "./ui/ConfiguratorDiagnostics";
 export {
   useConfiguratorStore,
   selectConfiguratorConfig,
+  type ConfiguratorStore,
 } from "./store/useConfiguratorStore";
 export {
   getConfiguratorGameSchema,

@@ -15,6 +15,9 @@ import { useEffect, useMemo, useRef, useState } from "react";
 const GAME_ENGINE_URL =
   process.env.NEXT_PUBLIC_GAME_ENGINE_URL ?? "http://localhost:5173";
 
+const PHONE_FRAME_WIDTH = 390;
+const PHONE_FRAME_HEIGHT = 844;
+
 export interface DevicePreviewProps {
   appMode: AppMode;
   initialTemplateId: GameTemplateId;
@@ -37,8 +40,13 @@ export function DevicePreview({
 }: DevicePreviewProps) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const phoneScreenRef = useRef<HTMLDivElement>(null);
+  const previewContainerRef = useRef<HTMLDivElement>(null);
   const [previewTemplateId, setPreviewTemplateId] =
     useState<GameTemplateId>(initialTemplateId);
+  const [phoneFrameSize, setPhoneFrameSize] = useState({
+    width: PHONE_FRAME_WIDTH,
+    height: PHONE_FRAME_HEIGHT,
+  });
   const messenger = useMemo(
     () => createDashboardMessenger(appMode),
     [appMode],
@@ -170,22 +178,57 @@ export function DevicePreview({
     };
   }, [iframeSrc]);
 
+  useEffect(() => {
+    const container = previewContainerRef.current;
+    if (!container) return;
+
+    const updatePhoneFrameSize = () => {
+      const { width, height } = container.getBoundingClientRect();
+      const scale = Math.min(
+        width / PHONE_FRAME_WIDTH,
+        height / PHONE_FRAME_HEIGHT,
+        1,
+      );
+      setPhoneFrameSize({
+        width: Math.floor(PHONE_FRAME_WIDTH * scale),
+        height: Math.floor(PHONE_FRAME_HEIGHT * scale),
+      });
+    };
+
+    const observer = new ResizeObserver(updatePhoneFrameSize);
+    observer.observe(container);
+    updatePhoneFrameSize();
+
+    return () => observer.disconnect();
+  }, []);
+
   return (
-    <div className="flex min-h-0 flex-1 items-center justify-center overflow-auto p-8">
-      <div className="relative h-[min(90vh,844px)] w-[390px] max-w-full shrink-0">
-        <div className="absolute inset-0 rounded-[2.5rem] bg-zinc-900 p-3 shadow-2xl shadow-zinc-900/20">
-          <div className="absolute top-0 left-1/2 z-10 h-6 w-28 -translate-x-1/2 rounded-b-2xl bg-zinc-900" />
-          <div
-            ref={phoneScreenRef}
-            className="relative h-full min-h-0 overflow-hidden rounded-[2rem] bg-black"
-          >
-            <iframe
-              key={previewTemplateId}
-              ref={iframeRef}
-              src={iframeSrc}
-              title="Game preview"
-              className="block h-full min-h-[1px] w-full min-w-[1px] border-0"
-            />
+    <div className="flex min-h-0 flex-1 overflow-hidden p-4">
+      <div
+        ref={previewContainerRef}
+        className="flex min-h-0 min-w-0 flex-1 items-center justify-center overflow-hidden"
+      >
+        <div
+          className="relative shrink-0"
+          style={{
+            width: phoneFrameSize.width,
+            height: phoneFrameSize.height,
+          }}
+        >
+          <div className="absolute inset-0 rounded-[2.5rem] bg-zinc-900 p-3 shadow-2xl shadow-zinc-900/20">
+            <div className="absolute top-0 left-1/2 z-10 h-6 w-28 -translate-x-1/2 rounded-b-2xl bg-zinc-900" />
+            <div
+              ref={phoneScreenRef}
+              className="relative h-full min-h-0 overflow-hidden rounded-[2rem] bg-black"
+            >
+              <iframe
+                key={previewTemplateId}
+                ref={iframeRef}
+                src={iframeSrc}
+                title="Game preview"
+                className="block h-full min-h-[1px] w-full min-w-[1px] border-0"
+              />
+            </div>
           </div>
         </div>
       </div>
