@@ -17,8 +17,8 @@ import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
 import { existsSync, statSync } from "node:fs";
 import path from "node:path";
 import {
+  getWorkspaceRoot,
   PROJECT_FILES,
-  projectsRoot,
   resolveProjectDir,
   templateLibraryRoot,
 } from "@/lib/project-paths";
@@ -47,16 +47,21 @@ function buildParentLockSnapshot(
 }
 
 export async function listProjectIds(): Promise<string[]> {
-  if (!existsSync(projectsRoot)) {
+  const workspaceRoot = getWorkspaceRoot();
+  if (!existsSync(workspaceRoot)) {
     return [];
   }
-  const entries = await readdir(projectsRoot, { withFileTypes: true });
+  const entries = await readdir(workspaceRoot, { withFileTypes: true });
   const ids: string[] = [];
   for (const entry of entries) {
     if (!entry.isDirectory() || !PROJECT_ID_PATTERN.test(entry.name)) {
       continue;
     }
-    const manifestPath = path.join(projectsRoot, entry.name, PROJECT_FILES.manifest);
+    const manifestPath = path.join(
+      workspaceRoot,
+      entry.name,
+      PROJECT_FILES.manifest,
+    );
     if (existsSync(manifestPath)) {
       ids.push(entry.name);
     }

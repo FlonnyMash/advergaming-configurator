@@ -109,6 +109,9 @@ export class DebugOverlay {
 
       debugGraphic.clear();
       debugGraphic.destroy();
+      // Phaser's typings keep debugGraphic non-optional after destroy.
+      // We clear it so re-enabling debug recreates a fresh graphic.
+      // @ts-expect-error Reset runtime debug graphic reference.
       world.debugGraphic = undefined;
     });
   }
@@ -152,7 +155,7 @@ export class DebugOverlay {
 
       for (const child of scene.children.list) {
         if (!isTransformObject(child)) continue;
-        if (child === graphics) continue;
+        if ((child as unknown) === graphics) continue;
 
         const bounds = child.getBounds();
         const body = (child as { body?: Phaser.Physics.Arcade.Body }).body;

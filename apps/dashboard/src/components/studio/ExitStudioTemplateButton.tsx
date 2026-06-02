@@ -5,6 +5,7 @@ import { saveTemplateConfigNow } from "@/hooks/useSaveGameControls";
 import { useWorkspaceSessionStore } from "@/lib/workspace-session-store";
 import {
   collectUnsavedTemplateChanges,
+  discardStudioUnsavedChanges,
   markAllTemplateChangesSaved,
   type UnsavedChangeItem,
 } from "@/lib/template-unsaved-changes";
@@ -72,10 +73,17 @@ export function ExitStudioTemplateButton() {
         items={unsavedItems}
         saving={saving}
         error={error}
-        description="Save everything below to the template library before leaving, or stay in this template."
+        description="Save everything below to the template library before leaving, stay in this template, or leave without saving."
         primaryLabel="Save all & exit"
         cancelLabel="Stay in template"
+        discardLabel="Leave anyway"
         onPrimary={() => void handleSaveAllAndExit()}
+        onDiscard={() => {
+          if (!saving) {
+            discardStudioUnsavedChanges();
+            finishExit();
+          }
+        }}
         onCancel={() => {
           if (!saving) {
             setDialogOpen(false);

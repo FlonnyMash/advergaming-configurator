@@ -92,6 +92,24 @@ class DashboardMessenger {
     this.setTarget(contentWindow);
   }
 
+  /**
+   * Re-bind a preview iframe that stayed mounted while this messenger was suspended
+   * (e.g. switching Studio ↔ Configurator). Assumes the game is already running.
+   */
+  reactivateAttachedIframe(
+    contentWindow: Window | null,
+    templateId: GameTemplateId,
+  ): void {
+    this.expectedTemplateId = templateId;
+    this.targetWindow = contentWindow;
+    if (!contentWindow) {
+      this.iframeReady = false;
+      return;
+    }
+    this.iframeReady = true;
+    this.flush();
+  }
+
   onIframeNavigation(expectedTemplateId: GameTemplateId): void {
     this.iframeReady = false;
     this.targetWindow = null;

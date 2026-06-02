@@ -8,10 +8,22 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { getAppEnv } from "@/lib/env";
 import { useWorkspaceSessionStore } from "@/lib/workspace-session-store";
 
-export function StudioTemplateGate({ children }: { children: ReactNode }) {
+export function StudioTemplateGate({
+  children,
+  detached = false,
+}: {
+  children: ReactNode;
+  /** Keep template alive in the background when another route is active. */
+  detached?: boolean;
+}) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const templateParam = searchParams.get("template");
+  const activeSessionTemplateId = useWorkspaceSessionStore(
+    (s) => s.activeStudioTemplateId,
+  );
+  const effectiveTemplateId =
+    templateParam ?? (detached ? activeSessionTemplateId : null);
 
   const selectedTemplateId = useStudioConfigStore((s) => s.selectedTemplateId);
   const [ready, setReady] = useState(false);
@@ -23,36 +35,52 @@ export function StudioTemplateGate({ children }: { children: ReactNode }) {
   );
 
   useEffect(() => {
-    if (!templateParam) {
-      const active = useWorkspaceSessionStore.getState().activeStudioTemplateId;
-      if (active) {
-        router.replace(`/studio?template=${encodeURIComponent(active)}`);
-      } else {
+    if (!effectiveTemplateId) {
+      if (!detached) {
         router.replace("/studio/templates");
       }
       return;
     }
 
-    const known = templateOptions.some((t) => t.id === templateParam);
+    if (!detached && !templateParam && activeSessionTemplateId) {
+      router.replace(
+        `/studio?template=${encodeURIComponent(activeSessionTemplateId)}`,
+      );
+      return;
+    }
+
+    const known = templateOptions.some((t) => t.id === effectiveTemplateId);
     if (!known) {
-      setError(`Unknown template "${templateParam}". Import it or pick from the list.`);
+      setError(
+        `Unknown template "${effectiveTemplateId}". Import it or pick from the list.`,
+      );
       setReady(false);
       return;
     }
 
     setError(null);
-    useWorkspaceSessionStore.getState().setActiveStudioTemplate(templateParam);
+    useWorkspaceSessionStore
+      .getState()
+      .setActiveStudioTemplate(effectiveTemplateId);
 
-    if (selectedTemplateId !== templateParam) {
+    if (selectedTemplateId !== effectiveTemplateId) {
       useStudioConfigStore
         .getState()
-        .setSelectedTemplateId(templateParam as GameTemplateId);
+        .setSelectedTemplateId(effectiveTemplateId as GameTemplateId);
     }
 
     setReady(true);
-  }, [templateParam, selectedTemplateId, templateOptions, router]);
+  }, [
+    activeSessionTemplateId,
+    detached,
+    effectiveTemplateId,
+    selectedTemplateId,
+    templateOptions,
+    templateParam,
+    router,
+  ]);
 
-  if (!templateParam) {
+  if (!effectiveTemplateId) {
     return null;
   }
 

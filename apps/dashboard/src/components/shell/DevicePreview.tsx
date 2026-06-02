@@ -12,9 +12,6 @@ import {
 } from "@advergaming/shared";
 import { useEffect, useMemo, useRef, useState } from "react";
 
-const GAME_ENGINE_URL =
-  process.env.NEXT_PUBLIC_GAME_ENGINE_URL ?? "http://localhost:5173";
-
 const PHONE_FRAME_WIDTH = 390;
 const PHONE_FRAME_HEIGHT = 844;
 
@@ -29,6 +26,8 @@ export interface DevicePreviewProps {
     }) => void,
   ) => () => void;
   configUpdateMode?: ConfigUpdateMode;
+  /** Keep iframe mounted but pause dashboard ↔ game bridge (e.g. hidden workspace). */
+  suspended?: boolean;
 }
 
 export function DevicePreview({
@@ -37,6 +36,7 @@ export function DevicePreview({
   getConfig,
   subscribe,
   configUpdateMode = "full",
+  suspended = false,
 }: DevicePreviewProps) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const phoneScreenRef = useRef<HTMLDivElement>(null);
@@ -53,20 +53,31 @@ export function DevicePreview({
   );
 
   const iframeSrc = useMemo(() => {
-    const url = new URL(GAME_ENGINE_URL);
+    const url = new URL("/engine/index.html", window.location.origin);
     url.searchParams.set("game", previewTemplateId);
     url.searchParams.set("appMode", appMode);
     return url.toString();
   }, [previewTemplateId, appMode]);
 
   useEffect(() => {
-    const syncTarget = () => {
-      messenger.setTarget(iframeRef.current?.contentWindow ?? null);
-    };
+    if (suspended) {
+      return;
+    }
 
     useGameChromeOverlayStore.getState().setMessenger(messenger);
 
     let lastTemplateId = initialTemplateId;
+
+    const pushLiveConfig = (state: {
+      config: GameMasterConfig;
+      selectedTemplateId: GameTemplateId;
+    }) => {
+      if (configUpdateMode === "branding-patch") {
+        messenger.sendConfig(state.config.branding, "branding-patch");
+      } else {
+        messenger.sendConfig(state.config, "full");
+      }
+    };
 
     const unsubscribe = subscribe((state) => {
       const templateChanged = state.selectedTemplateId !== lastTemplateId;
@@ -79,11 +90,7 @@ export function DevicePreview({
         return;
       }
 
-      if (configUpdateMode === "branding-patch") {
-        messenger.sendConfig(state.config.branding, "branding-patch");
-      } else {
-        messenger.sendConfig(state.config, "full");
-      }
+      pushLiveConfig(state);
     });
 
     const onIframeMessage = (event: MessageEvent) => {
@@ -102,19 +109,40 @@ export function DevicePreview({
     });
 
     window.addEventListener("message", onIframeMessage);
-    syncTarget();
+
+    const iframe = iframeRef.current;
+    if (iframe?.contentWindow) {
+      messenger.reactivateAttachedIframe(
+        iframe.contentWindow,
+        previewTemplateId,
+      );
+      pushLiveConfig({
+        config: getConfig(),
+        selectedTemplateId: previewTemplateId,
+      });
+    }
 
     return () => {
       unsubscribe();
       offGameEvent();
-      useGameChromeOverlayStore.getState().setMessenger(null);
-      useGameChromeOverlayStore.getState().clearRegistry();
       window.removeEventListener("message", onIframeMessage);
       messenger.setTarget(null);
     };
-  }, [messenger, subscribe, configUpdateMode, initialTemplateId]);
+  }, [
+    messenger,
+    subscribe,
+    configUpdateMode,
+    initialTemplateId,
+    suspended,
+    previewTemplateId,
+    getConfig,
+  ]);
 
   useEffect(() => {
+    if (suspended) {
+      return;
+    }
+
     const iframe = iframeRef.current;
     if (!iframe) return;
 
@@ -143,9 +171,13 @@ export function DevicePreview({
     return () => {
       iframe.removeEventListener("load", onLoad);
     };
-  }, [iframeSrc, previewTemplateId, messenger, getConfig, configUpdateMode]);
+  }, [iframeSrc, previewTemplateId, messenger, getConfig, configUpdateMode, suspended]);
 
   useEffect(() => {
+    if (suspended) {
+      return;
+    }
+
     const screen = phoneScreenRef.current;
     const iframe = iframeRef.current;
     if (!screen || !iframe) return;
@@ -176,7 +208,7 @@ export function DevicePreview({
       observer.disconnect();
       iframe.removeEventListener("load", onLoad);
     };
-  }, [iframeSrc]);
+  }, [iframeSrc, suspended]);
 
   useEffect(() => {
     const container = previewContainerRef.current;

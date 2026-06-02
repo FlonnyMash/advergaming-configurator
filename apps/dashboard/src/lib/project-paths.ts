@@ -9,17 +9,20 @@ export const templateLibraryRoot = path.resolve(
     "../game-engine/src/templates/library",
 );
 
-export const projectsRoot = path.resolve(
-  dashboardRoot,
-  process.env.PROJECTS_ROOT ?? "../../games",
-);
+export function getWorkspaceRoot(): string {
+  if (process.env.WORKSPACE_DIR) {
+    return path.resolve(process.env.WORKSPACE_DIR);
+  }
+  return path.join(process.cwd(), "games");
+}
 
 export function resolveProjectDir(projectId: string): string {
   if (!PROJECT_ID_PATTERN.test(projectId)) {
     throw new Error("Invalid project ID.");
   }
-  const resolved = path.resolve(projectsRoot, projectId);
-  if (!resolved.startsWith(projectsRoot + path.sep) && resolved !== projectsRoot) {
+  const workspaceRoot = getWorkspaceRoot();
+  const resolved = path.resolve(workspaceRoot, projectId);
+  if (!resolved.startsWith(workspaceRoot + path.sep) && resolved !== workspaceRoot) {
     throw new Error("Invalid project path.");
   }
   return resolved;

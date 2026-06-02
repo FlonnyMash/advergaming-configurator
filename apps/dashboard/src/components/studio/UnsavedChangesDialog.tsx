@@ -12,8 +12,10 @@ export function UnsavedChangesDialog({
   description,
   primaryLabel,
   cancelLabel = "Cancel",
+  discardLabel,
   onPrimary,
   onCancel,
+  onDiscard,
 }: {
   open: boolean;
   items: UnsavedChangeItem[];
@@ -23,8 +25,11 @@ export function UnsavedChangesDialog({
   description: string;
   primaryLabel: string;
   cancelLabel?: string;
+  /** Destructive third action — leave without saving (workspace exit flows only). */
+  discardLabel?: string;
   onPrimary: () => void;
   onCancel: () => void;
+  onDiscard?: () => void;
 }) {
   if (!open) {
     return null;
@@ -94,12 +99,12 @@ export function UnsavedChangesDialog({
           </p>
         ) : null}
 
-        <footer className="flex flex-wrap justify-end gap-2 border-t border-zinc-100 px-5 py-4">
+        <footer className="flex flex-col gap-2 border-t border-zinc-100 px-5 py-4 sm:flex-row sm:flex-wrap sm:justify-end">
           <button
             type="button"
             onClick={onCancel}
             disabled={saving}
-            className="rounded-lg border border-zinc-200 px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50 disabled:opacity-60"
+            className="rounded-lg border border-zinc-200 px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50 disabled:opacity-60 sm:order-1"
           >
             {cancelLabel}
           </button>
@@ -107,13 +112,23 @@ export function UnsavedChangesDialog({
             type="button"
             onClick={onPrimary}
             disabled={saving}
-            className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-60"
+            className="inline-flex items-center justify-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-60 sm:order-2"
           >
             {saving ? (
               <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
             ) : null}
             {saving ? "Saving…" : primaryLabel}
           </button>
+          {onDiscard && discardLabel ? (
+            <button
+              type="button"
+              onClick={onDiscard}
+              disabled={saving}
+              className="rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm font-medium text-red-700 hover:bg-red-100 disabled:opacity-60 sm:order-3"
+            >
+              {discardLabel}
+            </button>
+          ) : null}
         </footer>
       </div>
     </div>

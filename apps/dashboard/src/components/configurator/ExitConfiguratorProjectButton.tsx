@@ -3,7 +3,10 @@
 import { UnsavedChangesDialog } from "@/components/studio/UnsavedChangesDialog";
 import { saveProjectClientNow } from "@/hooks/useSaveGameProject";
 import { useWorkspaceSessionStore } from "@/lib/workspace-session-store";
-import type { UnsavedChangeItem } from "@/lib/template-unsaved-changes";
+import {
+  discardConfiguratorUnsavedChanges,
+  type UnsavedChangeItem,
+} from "@/lib/template-unsaved-changes";
 import { useConfiguratorStore } from "@advergaming/configurator-engine";
 import { LogOut } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -76,10 +79,17 @@ export function ExitConfiguratorProjectButton() {
         items={unsavedItems}
         saving={saving}
         error={error}
-        description="Save client branding to disk before leaving, or stay in this project."
+        description="Save client branding to disk before leaving, stay in this project, or leave without saving."
         primaryLabel="Save & exit"
         cancelLabel="Stay in project"
+        discardLabel="Leave anyway"
         onPrimary={() => void handleSaveAndExit()}
+        onDiscard={() => {
+          if (!saving) {
+            discardConfiguratorUnsavedChanges();
+            finishExit();
+          }
+        }}
         onCancel={() => {
           if (!saving) {
             setDialogOpen(false);

@@ -56,14 +56,17 @@ export function useDevToolkitControls(options?: { relayToGame?: boolean }) {
 
 export interface UseDevToolkitBridgeOptions {
   relayToGame?: boolean;
+  /** When false, listeners are detached (background workspace). */
+  enabled?: boolean;
   /** When this value changes, dev tools and workspace panes reset (e.g. template id). */
   resetKey?: string;
 }
 
 /** Attach game + broadcast listeners. Call once per window (Studio host or popout). */
 export function useDevToolkitBridge(options?: UseDevToolkitBridgeOptions) {
-  const relayToGame = options?.relayToGame ?? true;
-  const resetKey = options?.resetKey;
+  const enabled = options?.enabled ?? true;
+  const relayToGame = (options?.relayToGame ?? true) && enabled;
+  const resetKey = enabled ? options?.resetKey : undefined;
   const controls = useDevToolkitControls({ relayToGame });
   const { resetFlags } = controls;
 
@@ -71,14 +74,18 @@ export function useDevToolkitBridge(options?: UseDevToolkitBridgeOptions) {
   const setFlags = useDevToolkitStore((state) => state.setFlags);
   const patchFlags = useDevToolkitStore((state) => state.patchFlags);
   useEffect(() => {
-    if (resetKey === undefined) {
+    if (!enabled || resetKey === undefined) {
       return;
     }
     resetFlags();
     useWorkspaceCenterStore.getState().reset();
-  }, [resetKey, resetFlags]);
+  }, [enabled, resetKey, resetFlags]);
 
   useEffect(() => {
+    if (!enabled) {
+      return;
+    }
+
     const onWindowMessage = (event: MessageEvent) => {
       if (event.origin !== gameEngineOrigin) return;
 
@@ -120,9 +127,13 @@ export function useDevToolkitBridge(options?: UseDevToolkitBridgeOptions) {
 
     window.addEventListener("message", onWindowMessage);
     return () => window.removeEventListener("message", onWindowMessage);
-  }, [setFlags]);
+  }, [enabled, setFlags]);
 
   useEffect(() => {
+    if (!enabled) {
+      return;
+    }
+
     const onSync = (message: DevToolkitSyncMessage) => {
       if (message.type === "state") {
         setFlags(message.flags);
@@ -148,7 +159,7 @@ export function useDevToolkitBridge(options?: UseDevToolkitBridgeOptions) {
     };
 
     return subscribeDevToolkitSync(onSync);
-  }, [messenger, patchFlags, relayToGame, setFlags]);
+  }, [enabled, messenger, patchFlags, relayToGame, setFlags]);
 
   return controls;
 }

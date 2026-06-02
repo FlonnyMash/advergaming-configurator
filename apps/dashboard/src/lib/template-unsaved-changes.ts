@@ -11,11 +11,13 @@ import {
   readAssetLayoutFromStudioConfig,
 } from "@/lib/patch-asset-layout";
 import {
+  cloneGameMasterConfig,
   getStudioGameSchema,
   hasUnsavedGameControls,
   listGameControlChanges,
   useStudioConfigStore,
 } from "@advergaming/studio-engine";
+import { useConfiguratorStore } from "@advergaming/configurator-engine";
 import type { DevToolkitAssetLayout } from "@advergaming/shared";
 
 export type UnsavedChangeItem = {
@@ -89,4 +91,49 @@ export function markAllTemplateChangesSaved(): void {
   }
 
   useAssetLayoutSavedStore.setState({ savedLayouts: nextLayouts });
+}
+
+/** Drop in-memory studio edits (does not write to disk). */
+export function discardStudioUnsavedChanges(): void {
+  const state = useStudioConfigStore.getState();
+  const savedConfig = state.savedConfig;
+
+  useStudioConfigStore.setState({
+    config: cloneGameMasterConfig(savedConfig),
+    controlHistoryPast: [],
+    controlHistoryFuture: [],
+  });
+
+  const panes = useWorkspaceCenterStore.getState().panes;
+  const nextLayouts = { ...useAssetLayoutSavedStore.getState().savedLayouts };
+
+  for (const pane of panes) {
+    if (pane.kind !== "asset" || !pane.asset.configBinding) {
+      continue;
+    }
+    const binding = pane.asset.configBinding;
+    const key = assetBindingKey(binding);
+    nextLayouts[key] = structuredClone(
+      readAssetLayoutFromStudioConfig(savedConfig, binding) ?? {},
+    );
+  }
+
+  useAssetLayoutSavedStore.setState({ savedLayouts: nextLayouts });
+}
+
+/** Drop in-memory configurator client edits (does not write to disk). */
+export function discardConfiguratorUnsavedChanges(): void {
+  const state = useConfiguratorStore.getState();
+  const savedClient = state.savedClient;
+  if (!savedClient) {
+    return;
+  }
+
+  useConfiguratorStore.setState({
+    config: {
+      ...state.config,
+      meta: { ...state.config.meta, ...savedClient.meta },
+      branding: structuredClone(savedClient.branding),
+    },
+  });
 }

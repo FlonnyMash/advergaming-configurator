@@ -39,8 +39,7 @@ const engineTemplatesRoot = path.resolve(
   "../game-engine/src/templates",
 );
 const libraryRoot = path.join(engineTemplatesRoot, "library");
-const SYNC_COMMAND =
-  "node --import tsx scripts/sync-manifest-registry.ts";
+const SYNC_COMMAND = "pnpm sync-manifest-registry";
 const SYNC_CWD = path.join(dashboardRoot, "../game-engine");
 
 function normalizeZipEntryName(name: string): string {
@@ -217,7 +216,7 @@ function runSyncManifestRegistry(emit: ProgressEmitter): {
     detail: `cwd: apps/game-engine`,
   });
 
-  const result = spawnSync("node", ["--import", "tsx", "scripts/sync-manifest-registry.ts"], {
+  const result = spawnSync("pnpm", ["sync-manifest-registry"], {
     cwd: SYNC_CWD,
     encoding: "utf8",
     shell: process.platform === "win32",

@@ -3,7 +3,7 @@ import {
   type TemplateManifest,
   type TemplateManifestStatus,
 } from "@advergaming/shared";
-import { spawnSync } from "node:child_process";
+import { openDirectoryInFileExplorer } from "@/lib/open-directory";
 import {
   existsSync,
   mkdirSync,
@@ -243,24 +243,5 @@ export function saveTemplatePreviewPng(
 export function openTemplateDirectory(
   directoryPath: string,
 ): { ok: true } | { ok: false; error: string } {
-  if (!existsSync(directoryPath)) {
-    return { ok: false, error: "Directory does not exist." };
-  }
-
-  const platform = process.platform;
-  let result;
-
-  if (platform === "win32") {
-    result = spawnSync("explorer.exe", [directoryPath], { shell: false });
-  } else if (platform === "darwin") {
-    result = spawnSync("open", [directoryPath], { shell: false });
-  } else {
-    result = spawnSync("xdg-open", [directoryPath], { shell: false });
-  }
-
-  if (result.error) {
-    return { ok: false, error: result.error.message };
-  }
-
-  return { ok: true };
+  return openDirectoryInFileExplorer(directoryPath);
 }

@@ -9,7 +9,10 @@ import {
 } from "@/lib/workspace-center-store";
 import { Gamepad2, ImageIcon, X } from "lucide-react";
 
-export function CenterWorkspace(props: DevicePreviewProps) {
+export function CenterWorkspace({
+  previewSuspended = false,
+  ...props
+}: DevicePreviewProps) {
   const activePaneId = useWorkspaceCenterStore((state) => state.activePaneId);
   const panes = useWorkspaceCenterStore((state) => state.panes);
   const setActivePane = useWorkspaceCenterStore((state) => state.setActivePane);
@@ -77,7 +80,7 @@ export function CenterWorkspace(props: DevicePreviewProps) {
               : "pointer-events-none absolute inset-0 flex min-h-0 flex-1 flex-col opacity-0"
           }
         >
-          <DevicePreview {...props} />
+          <DevicePreview {...props} suspended={previewSuspended} />
         </section>
 
         {assetPanes.map((pane) => {

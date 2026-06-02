@@ -2,9 +2,12 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BrandMark } from "@/components/shell/BrandMark";
+import { useLayoutEffect } from "react";
+import { BrandMarkHomeLink } from "@/components/shell/BrandMarkHomeLink";
+import { PersistentWorkspaces } from "@/components/shell/PersistentWorkspaces";
 import {
   configuratorWorkspaceHref,
+  rehydrateWorkspaceSessionFromStorage,
   studioWorkspaceHref,
   useWorkspaceSessionStore,
 } from "@/lib/workspace-session-store";
@@ -17,6 +20,10 @@ const navLinkClass = (active: boolean) =>
   }`;
 
 export function AppShell({ children }: { children: React.ReactNode }) {
+  useLayoutEffect(() => {
+    rehydrateWorkspaceSessionFromStorage();
+  }, []);
+
   const pathname = usePathname();
   const isStudio = pathname.startsWith("/studio");
   const isConfigurator = pathname.startsWith("/configurator");
@@ -33,7 +40,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     <div className="flex h-full min-h-0 flex-col">
       <header className="flex shrink-0 items-center justify-between border-b border-zinc-200 bg-white px-4 py-3">
         <div className="flex items-center gap-3">
-          <BrandMark />
+          <BrandMarkHomeLink />
           <nav
             className="flex gap-1 rounded-lg border border-zinc-200 bg-zinc-50 p-1"
             aria-label="Environment"
@@ -53,7 +60,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </p>
       </header>
       <main className="flex min-h-0 flex-1 flex-col overflow-hidden">
-        {children}
+        <PersistentWorkspaces>{children}</PersistentWorkspaces>
       </main>
     </div>
   );

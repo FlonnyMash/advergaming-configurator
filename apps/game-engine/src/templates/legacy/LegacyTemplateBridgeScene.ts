@@ -132,11 +132,6 @@ export function createLegacyBridgeScene(
       ) as LegacyGameConfig;
     }
 
-    private isPhysicsDebugEnabled(): boolean {
-      const physics = this.workingConfig.physics;
-      return isPlainObject(physics) && physics.debug === true;
-    }
-
     private getPlayScene(): LegacyPlaySceneLike | undefined {
       const scene = this.scene.get(sceneKey);
       return scene as LegacyPlaySceneLike | undefined;

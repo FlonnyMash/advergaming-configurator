@@ -4,7 +4,10 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build:engine": "pnpm --filter game-engine build && node -e \"const fs=require('node:fs');fs.rmSync('apps/dashboard/public/engine',{recursive:true,force:true});fs.cpSync('apps/game-engine/dist','apps/dashboard/public/engine',{recursive:true});\"",
+    "build:dashboard": "pnpm --filter dashboard build",
+    "build:desktop": "pnpm build:engine && pnpm build:dashboard && pnpm --filter desktop build"
   },
   "keywords": [],
   "author": "",

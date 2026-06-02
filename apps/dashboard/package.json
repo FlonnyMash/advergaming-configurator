@@ -5,7 +5,7 @@
   "scripts": {
     "predev": "pnpm --filter @advergaming/game-engine sync-manifest-registry",
     "dev": "next dev",
-    "build": "next build --webpack",
+    "build": "next build",
     "start": "next start",
     "lint": "eslint",
     "publish-template": "tsx scripts/publish-template.ts",

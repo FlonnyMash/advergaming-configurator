@@ -113,7 +113,6 @@ export class PlayScene extends Phaser.Scene implements TemplateScene {
   private isDebugFrozen = false;
   private textureSignature = '';
   private liveConfigReady = false;
-  private activePlayerTextureKey = PLAYER_TEXTURE_KEY;
   private readonly onPlayRequested = (): void => {
     this.startRound();
   };
@@ -229,7 +228,6 @@ export class PlayScene extends Phaser.Scene implements TemplateScene {
     try {
       applyCatchGameTextures(this, nextConfig.assets, {
         onPlayerTexture: (key) => {
-          this.activePlayerTextureKey = key;
           if (this.player?.active) {
             this.player.setTexture(key);
             this.player.setFrame(nextConfig.assets.playerSprite.walkAnimation.start);

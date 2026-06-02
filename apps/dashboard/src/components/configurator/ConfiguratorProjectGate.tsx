@@ -13,10 +13,21 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useWorkspaceSessionStore } from "@/lib/workspace-session-store";
 import { useEffect, useState, type ReactNode } from "react";
 
-export function ConfiguratorProjectGate({ children }: { children: ReactNode }) {
+export function ConfiguratorProjectGate({
+  children,
+  detached = false,
+}: {
+  children: ReactNode;
+  detached?: boolean;
+}) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const projectParam = searchParams.get("project");
+  const activeSessionProjectId = useWorkspaceSessionStore(
+    (s) => s.activeConfiguratorProjectId,
+  );
+  const effectiveProjectId =
+    projectParam ?? (detached ? activeSessionProjectId : null);
 
   const projectId = useConfiguratorStore((s) => s.projectId);
   const [loading, setLoading] = useState(Boolean(projectParam));
@@ -26,20 +37,25 @@ export function ConfiguratorProjectGate({ children }: { children: ReactNode }) {
   const [, setPreviewBlocked] = useState(false);
 
   useEffect(() => {
-    if (!projectParam) {
-      const active =
-        useWorkspaceSessionStore.getState().activeConfiguratorProjectId;
-      if (active) {
-        router.replace(`/configurator?project=${encodeURIComponent(active)}`);
-      } else {
+    if (!effectiveProjectId) {
+      if (!detached) {
         router.replace("/configurator/projects");
       }
       return;
     }
 
-    useWorkspaceSessionStore.getState().setActiveConfiguratorProject(projectParam);
+    if (!detached && !projectParam && activeSessionProjectId) {
+      router.replace(
+        `/configurator?project=${encodeURIComponent(activeSessionProjectId)}`,
+      );
+      return;
+    }
 
-    if (projectId === projectParam) {
+    useWorkspaceSessionStore
+      .getState()
+      .setActiveConfiguratorProject(effectiveProjectId);
+
+    if (projectId === effectiveProjectId) {
       setLoading(false);
       return;
     }
@@ -50,7 +66,7 @@ export function ConfiguratorProjectGate({ children }: { children: ReactNode }) {
       setLoading(true);
       setError(null);
       try {
-        const response = await fetch(`/api/projects/${projectParam}`);
+        const response = await fetch(`/api/projects/${effectiveProjectId}`);
         const data = (await response.json()) as {
           ok?: boolean;
           error?: string;
@@ -74,7 +90,7 @@ export function ConfiguratorProjectGate({ children }: { children: ReactNode }) {
         });
 
         const driftResponse = await fetch(
-          `/api/projects/${projectParam}/parent-drift`,
+          `/api/projects/${effectiveProjectId}/parent-drift`,
         );
         const driftData = (await driftResponse.json()) as {
           ok?: boolean;
@@ -104,9 +120,16 @@ export function ConfiguratorProjectGate({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, [projectParam, projectId, router]);
+  }, [
+    activeSessionProjectId,
+    detached,
+    effectiveProjectId,
+    projectId,
+    projectParam,
+    router,
+  ]);
 
-  if (!projectParam) {
+  if (!effectiveProjectId) {
     return null;
   }
 

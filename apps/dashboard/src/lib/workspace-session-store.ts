@@ -50,11 +50,23 @@ interface WorkspaceSessionStore extends SessionSnapshot {
   clearConfiguratorSession: () => void;
 }
 
-const initial = readStorage();
+const emptySession: SessionSnapshot = {
+  activeStudioTemplateId: null,
+  activeConfiguratorProjectId: null,
+};
+
+let hasRehydratedFromStorage = false;
+
+/** Restore session from sessionStorage after mount so SSR and the first client render match. */
+export function rehydrateWorkspaceSessionFromStorage(): void {
+  if (typeof window === "undefined" || hasRehydratedFromStorage) return;
+  hasRehydratedFromStorage = true;
+  useWorkspaceSessionStore.setState(readStorage());
+}
 
 export const useWorkspaceSessionStore = create<WorkspaceSessionStore>((set, get) => ({
-  activeStudioTemplateId: initial.activeStudioTemplateId,
-  activeConfiguratorProjectId: initial.activeConfiguratorProjectId,
+  activeStudioTemplateId: emptySession.activeStudioTemplateId,
+  activeConfiguratorProjectId: emptySession.activeConfiguratorProjectId,
 
   setActiveStudioTemplate: (templateId) => {
     const next = { ...get(), activeStudioTemplateId: templateId };
