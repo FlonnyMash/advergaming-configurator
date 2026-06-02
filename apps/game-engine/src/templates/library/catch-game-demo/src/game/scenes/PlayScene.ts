@@ -1,5 +1,10 @@
-import type { GameMasterConfig } from '@advergaming/shared';
+import {
+  DevToolkitAssetLayoutSchema,
+  type DevToolkitAssetLayout,
+  type GameMasterConfig,
+} from '@advergaming/shared';
 import Phaser from 'phaser';
+import { applyArcadeSpriteLayout } from '../../../../../../game/arcadeSpriteLayout.ts';
 import type { TemplateScene } from '../../../../../types.ts';
 import { PLAYER_TOUCH_EVENT, type PlayerTouchPayload } from '../../ui/touchControls';
 import { applyCatchGameTextures } from '../catchGameTextures';
@@ -12,31 +17,13 @@ interface SpriteFrameConfig {
   displayWidth?: number;
 }
 
-/** Collision box as fractions of the item's display size (0–1). Offsets are from the top-left. */
-interface ItemHitboxConfig {
-  width?: number;
-  height?: number;
-  offsetX?: number;
-  offsetY?: number;
-}
+type ItemLayoutConfig = Pick<
+  DevToolkitAssetLayout,
+  'hitbox' | 'centerOffset' | 'rotationAnchor'
+>;
 
-/** Shifts the collision center relative to the sprite center, as fractions of display size. */
-interface ItemCenterOffsetConfig {
-  x?: number;
-  y?: number;
-}
-
-/** Rotation pivot as fractions of the frame (0–1). Default center is 0.5, 0.5. */
-interface ItemRotationAnchorConfig {
-  x?: number;
-  y?: number;
-}
-
-interface GoodItemConfig extends SpriteFrameConfig {
+interface GoodItemConfig extends SpriteFrameConfig, ItemLayoutConfig {
   image: string;
-  hitbox?: ItemHitboxConfig;
-  centerOffset?: ItemCenterOffsetConfig;
-  rotationAnchor?: ItemRotationAnchorConfig;
 }
 
 interface BadItemConfig extends GoodItemConfig {
@@ -105,9 +92,6 @@ const PLAYER_WALK_ANIM_KEY = 'player-walk';
 const GROUND_TEXTURE_KEY = 'ground';
 const GOOD_TEXTURE_PREFIX = 'item-good-';
 const BAD_TEXTURE_PREFIX = 'item-bad-';
-const DEBUG_ROTATION_ANCHOR_KEY = 'debugRotationAnchor';
-const DEBUG_ROTATION_ANCHOR_COLOR = 0xff40aa;
-const DEBUG_ROTATION_ANCHOR_RADIUS = 6;
 
 export class PlayScene extends Phaser.Scene implements TemplateScene {
   private player!: Phaser.Physics.Arcade.Sprite;
@@ -234,6 +218,7 @@ export class PlayScene extends Phaser.Scene implements TemplateScene {
     }
 
     this.applyRuntimeSettings(nextConfig);
+    this.refreshActiveItemLayouts();
 
     const nextSignature = this.buildTextureSignature(nextConfig);
     if (nextSignature === this.textureSignature) {
@@ -377,10 +362,6 @@ export class PlayScene extends Phaser.Scene implements TemplateScene {
   }
 
   update(): void {
-    if (this.isPhysicsDebugEnabled()) {
-      this.syncRotationAnchorMarkers();
-    }
-
     if (!this.isPlaying || this.isSimulationFrozen() || !this.player?.active) {
       return;
     }
@@ -641,7 +622,7 @@ export class PlayScene extends Phaser.Scene implements TemplateScene {
     if (!this.isPlaying) {
       return;
     }
-    const { textureKey, itemConfig } = this.pickRandomItem(itemType);
+    const { textureKey, itemConfig, itemIndex } = this.pickRandomItem(itemType);
     const x = Phaser.Math.Between(24, Math.max(24, this.scale.width - 24));
     const y = -16;
 
@@ -653,11 +634,12 @@ export class PlayScene extends Phaser.Scene implements TemplateScene {
     item.setActive(true);
     item.setVisible(true);
     item.setFrame(0);
-    this.applyItemBodyLayout(item, itemConfig);
-    this.createRotationAnchorMarker(item);
+    this.applyItemLayout(item, itemConfig);
     item.setGravity(0, 0);
     item.setVelocityY(this.getFallSpeed(itemType, itemConfig));
     item.setData('type', itemType);
+    item.setData('catchItemType', itemType);
+    item.setData('catchItemIndex', itemIndex);
 
     if (itemType === 'bad') {
       this.applyBadItemFallRotation(item, itemConfig as BadItemConfig);
@@ -695,110 +677,24 @@ export class PlayScene extends Phaser.Scene implements TemplateScene {
     return item.y + item.displayHeight / 2;
   }
 
-  private createRotationAnchorMarker(item: Phaser.Physics.Arcade.Image): void {
-    if (!this.isPhysicsDebugEnabled()) {
-      return;
-    }
-
-    const radius = DEBUG_ROTATION_ANCHOR_RADIUS;
-    const marker = this.add.graphics();
-    marker.lineStyle(2, DEBUG_ROTATION_ANCHOR_COLOR, 1);
-    marker.strokeCircle(0, 0, radius);
-    marker.lineBetween(-radius - 3, 0, radius + 3, 0);
-    marker.lineBetween(0, -radius - 3, 0, radius + 3);
-    marker.fillStyle(DEBUG_ROTATION_ANCHOR_COLOR, 0.35);
-    marker.fillCircle(0, 0, 2);
-    marker.setPosition(item.x, item.y);
-    marker.setDepth(item.depth + 2);
-
-    item.setData(DEBUG_ROTATION_ANCHOR_KEY, marker);
-    item.once(Phaser.GameObjects.Events.DESTROY, () => {
-      marker.destroy();
+  private applyItemLayout(item: Phaser.Physics.Arcade.Image, itemConfig: GoodItemConfig): void {
+    applyArcadeSpriteLayout(item, {
+      frameWidth: itemConfig.frameWidth,
+      frameHeight: itemConfig.frameHeight,
+      displayWidth: itemConfig.displayWidth,
+      layout: {
+        hitbox: itemConfig.hitbox,
+        centerOffset: itemConfig.centerOffset,
+        rotationAnchor: itemConfig.rotationAnchor,
+      },
     });
   }
 
-  private syncRotationAnchorMarkers(): void {
-    this.itemGroup.getChildren().forEach((child) => {
-      const item = child as Phaser.Physics.Arcade.Image;
-      const marker = item.getData(DEBUG_ROTATION_ANCHOR_KEY) as Phaser.GameObjects.Graphics | undefined;
-      if (!marker?.active) {
-        return;
-      }
-
-      marker.setPosition(item.x, item.y);
-      marker.setRotation(item.rotation);
-    });
-  }
-
-  private applyItemBodyLayout(item: Phaser.Physics.Arcade.Image, itemConfig: GoodItemConfig): void {
-    const targetWidth = itemConfig.displayWidth ?? itemConfig.frameWidth;
-    const targetHeight = (targetWidth / itemConfig.frameWidth) * itemConfig.frameHeight;
-    item.setDisplaySize(targetWidth, targetHeight);
-
-    const rotationAnchor = itemConfig.rotationAnchor;
-    if (rotationAnchor) {
-      item.setOrigin(rotationAnchor.x ?? 0.5, rotationAnchor.y ?? 0.5);
-    }
-
-    item.refreshBody();
-
-    const body = item.body;
-    if (!body) {
-      return;
-    }
-
-    const frameW = item.width;
-    const frameH = item.height;
-    const displayW = item.displayWidth;
-    const displayH = item.displayHeight;
-
-    const toFrameX = (displayPx: number): number => (displayPx / displayW) * frameW;
-    const toFrameY = (displayPx: number): number => (displayPx / displayH) * frameH;
-
-    const centerOffsetX = (itemConfig.centerOffset?.x ?? 0) * displayW;
-    const centerOffsetY = (itemConfig.centerOffset?.y ?? 0) * displayH;
-    const hitbox = itemConfig.hitbox;
-    const widthFrac = hitbox?.width ?? 1;
-    const heightFrac = hitbox?.height ?? 1;
-    const hitDisplayW = displayW * widthFrac;
-    const hitDisplayH = displayH * heightFrac;
-
-    const offsetDisplayX =
-      (hitbox?.offsetX !== undefined ? hitbox.offsetX * displayW : (displayW - hitDisplayW) / 2) + centerOffsetX;
-    const offsetDisplayY =
-      (hitbox?.offsetY !== undefined ? hitbox.offsetY * displayH : (displayH - hitDisplayH) / 2) + centerOffsetY;
-
-    const hasCustomLayout =
-      Boolean(hitbox) ||
-      centerOffsetX !== 0 ||
-      centerOffsetY !== 0 ||
-      widthFrac !== 1 ||
-      heightFrac !== 1;
-
-    if (!hasCustomLayout) {
-      return;
-    }
-
-    const bodyW = toFrameX(hitDisplayW);
-    const bodyH = toFrameY(hitDisplayH);
-    const onlyShrinkCentered =
-      hitbox !== undefined &&
-      hitbox.offsetX === undefined &&
-      hitbox.offsetY === undefined &&
-      centerOffsetX === 0 &&
-      centerOffsetY === 0 &&
-      (widthFrac !== 1 || heightFrac !== 1);
-
-    if (onlyShrinkCentered) {
-      body.setSize(bodyW, bodyH, true);
-      return;
-    }
-
-    body.setSize(bodyW, bodyH);
-    body.setOffset(toFrameX(offsetDisplayX), toFrameY(offsetDisplayY));
-  }
-
-  private pickRandomItem(itemType: ItemType): { textureKey: string; itemConfig: GoodItemConfig | BadItemConfig } {
+  private pickRandomItem(itemType: ItemType): {
+    textureKey: string;
+    itemConfig: GoodItemConfig | BadItemConfig;
+    itemIndex: number;
+  } {
     const items = itemType === 'good' ? this.config.assets.goodItems : this.config.assets.badItems;
     const prefix = itemType === 'good' ? GOOD_TEXTURE_PREFIX : BAD_TEXTURE_PREFIX;
 
@@ -810,7 +706,32 @@ export class PlayScene extends Phaser.Scene implements TemplateScene {
     return {
       textureKey: `${prefix}${index}`,
       itemConfig: items[index],
+      itemIndex: index,
     };
+  }
+
+  private refreshActiveItemLayouts(): void {
+    if (!this.itemGroup) {
+      return;
+    }
+
+    for (const child of this.itemGroup.getChildren()) {
+      const item = child as Phaser.Physics.Arcade.Image;
+      const itemType = item.getData('catchItemType') as ItemType | undefined;
+      const itemIndex = item.getData('catchItemIndex') as number | undefined;
+      if (!itemType || itemIndex === undefined) {
+        continue;
+      }
+
+      const items =
+        itemType === 'good' ? this.config.assets.goodItems : this.config.assets.badItems;
+      const itemConfig = items[itemIndex];
+      if (!itemConfig) {
+        continue;
+      }
+
+      this.applyItemLayout(item, itemConfig);
+    }
   }
 
   private handleItemCaught(
@@ -894,65 +815,22 @@ export class PlayScene extends Phaser.Scene implements TemplateScene {
           typeof (item as GoodItemConfig).frameHeight === 'number' &&
           ((item as GoodItemConfig).displayWidth === undefined ||
             typeof (item as GoodItemConfig).displayWidth === 'number') &&
-          this.isValidItemHitbox((item as GoodItemConfig).hitbox) &&
-          this.isValidItemCenterOffset((item as GoodItemConfig).centerOffset) &&
-          this.isValidItemRotationAnchor((item as GoodItemConfig).rotationAnchor),
+          this.isValidItemLayoutFields(item as GoodItemConfig),
       )
     );
   }
 
-  private isValidItemRotationAnchor(anchor: unknown): boolean {
-    if (anchor === undefined) {
+  private isValidItemLayoutFields(item: GoodItemConfig): boolean {
+    const { hitbox, centerOffset, rotationAnchor } = item;
+    if (hitbox === undefined && centerOffset === undefined && rotationAnchor === undefined) {
       return true;
     }
 
-    if (typeof anchor !== 'object' || anchor === null) {
-      return false;
-    }
-
-    const isAnchorFraction = (value: unknown): boolean =>
-      value === undefined || (typeof value === 'number' && value >= 0 && value <= 1);
-
-    const a = anchor as ItemRotationAnchorConfig;
-    return isAnchorFraction(a.x) && isAnchorFraction(a.y);
-  }
-
-  private isValidItemCenterOffset(offset: unknown): boolean {
-    if (offset === undefined) {
-      return true;
-    }
-
-    if (typeof offset !== 'object' || offset === null) {
-      return false;
-    }
-
-    const isOffset = (value: unknown): boolean => value === undefined || typeof value === 'number';
-
-    const o = offset as ItemCenterOffsetConfig;
-    return isOffset(o.x) && isOffset(o.y);
-  }
-
-  private isValidItemHitbox(hitbox: unknown): boolean {
-    if (hitbox === undefined) {
-      return true;
-    }
-
-    if (typeof hitbox !== 'object' || hitbox === null) {
-      return false;
-    }
-
-    const isSizeFraction = (value: unknown): boolean =>
-      value === undefined || (typeof value === 'number' && value > 0 && value <= 1);
-    const isOffsetFraction = (value: unknown): boolean =>
-      value === undefined || (typeof value === 'number' && value >= 0 && value <= 1);
-
-    const h = hitbox as ItemHitboxConfig;
-    return (
-      isSizeFraction(h.width) &&
-      isSizeFraction(h.height) &&
-      isOffsetFraction(h.offsetX) &&
-      isOffsetFraction(h.offsetY)
-    );
+    return DevToolkitAssetLayoutSchema.safeParse({
+      hitbox,
+      centerOffset,
+      rotationAnchor,
+    }).success;
   }
 
   private isValidBadItems(items: unknown): items is BadItemConfig[] {

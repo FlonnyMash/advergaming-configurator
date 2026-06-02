@@ -10,6 +10,7 @@
   "dependencies": {
     "@advergaming/game-engine": "workspace:*",
     "@advergaming/shared": "workspace:*",
+    "lucide-react": "^1.17.0",
     "react": "^19.2.4",
     "zustand": "^5.0.14"
   },

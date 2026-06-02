@@ -46,7 +46,7 @@
               },
               "backgroundColor": {
                 "type": "string",
-                "default": "#00b9da",
+                "default": "#ff0080",
                 "x-control": {
                   "type": "color",
                   "label": "Background Color",
@@ -356,7 +356,7 @@
                   },
                   "hitboxWidth": {
                     "type": "number",
-                    "default": 0.5,
+                    "default": 0.6,
                     "minimum": 0,
                     "maximum": 1,
                     "x-control": {
@@ -398,7 +398,7 @@
                   },
                   "hitboxOffsetY": {
                     "type": "number",
-                    "default": 0.5,
+                    "default": 0.4,
                     "minimum": 0,
                     "maximum": 1,
                     "x-control": {
@@ -412,7 +412,7 @@
                   },
                   "centerOffsetX": {
                     "type": "number",
-                    "default": 0.01,
+                    "default": 0,
                     "minimum": -1,
                     "maximum": 1,
                     "x-control": {
@@ -426,7 +426,7 @@
                   },
                   "centerOffsetY": {
                     "type": "number",
-                    "default": -0.06,
+                    "default": 0.13,
                     "minimum": -1,
                     "maximum": 1,
                     "x-control": {

@@ -1,16 +1,27 @@
 "use client";
 
+import { saveTemplateConfigNow } from "@/hooks/useSaveGameControls";
+import {
+  collectUnsavedTemplateChanges,
+  markAllTemplateChangesSaved,
+} from "@/lib/template-unsaved-changes";
+import { UnsavedChangesExportDialog } from "@/components/studio/UnsavedChangesExportDialog";
 import { useStudioConfigStore } from "@advergaming/studio-engine";
 import { Download, Loader2 } from "lucide-react";
 import { useState } from "react";
 
 export function ExportTemplateButton() {
   const selectedTemplateId = useStudioConfigStore((s) => s.selectedTemplateId);
-  const config = useStudioConfigStore((s) => s.config);
   const [exporting, setExporting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [unsavedItems, setUnsavedItems] = useState<
+    ReturnType<typeof collectUnsavedTemplateChanges>
+  >([]);
+  const [saveBeforeExportError, setSaveBeforeExportError] = useState<string | null>(null);
+  const [savingBeforeExport, setSavingBeforeExport] = useState(false);
 
-  const handleExport = async () => {
+  const runExport = async () => {
     setExporting(true);
     setError(null);
 
@@ -20,7 +31,7 @@ export function ExportTemplateButton() {
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ config }),
+          body: JSON.stringify({ config: useStudioConfigStore.getState().config }),
         },
       );
 
@@ -50,12 +61,40 @@ export function ExportTemplateButton() {
     }
   };
 
+  const handleExport = () => {
+    const items = collectUnsavedTemplateChanges();
+    if (items.length > 0) {
+      setUnsavedItems(items);
+      setSaveBeforeExportError(null);
+      setDialogOpen(true);
+      return;
+    }
+    void runExport();
+  };
+
+  const handleSaveAllAndExport = async () => {
+    setSavingBeforeExport(true);
+    setSaveBeforeExportError(null);
+
+    const saveResult = await saveTemplateConfigNow();
+    if (!saveResult.ok) {
+      setSaveBeforeExportError(saveResult.error ?? "Save failed.");
+      setSavingBeforeExport(false);
+      return;
+    }
+
+    markAllTemplateChangesSaved();
+    setDialogOpen(false);
+    setSavingBeforeExport(false);
+    await runExport();
+  };
+
   return (
     <div className="space-y-2">
       <button
         type="button"
-        onClick={() => void handleExport()}
-        disabled={exporting}
+        onClick={handleExport}
+        disabled={exporting || savingBeforeExport}
         className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-zinc-200 bg-white px-4 py-2.5 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-60"
       >
         {exporting ? (
@@ -74,6 +113,19 @@ export function ExportTemplateButton() {
           {error}
         </p>
       ) : null}
+
+      <UnsavedChangesExportDialog
+        open={dialogOpen}
+        items={unsavedItems}
+        saving={savingBeforeExport}
+        error={saveBeforeExportError}
+        onSaveAllAndExport={() => void handleSaveAllAndExport()}
+        onCancel={() => {
+          if (!savingBeforeExport) {
+            setDialogOpen(false);
+          }
+        }}
+      />
     </div>
   );
 }

@@ -171,7 +171,7 @@ export function DevicePreview({
   }, [iframeSrc]);
 
   return (
-    <div className="flex min-h-0 flex-1 items-center justify-center overflow-auto bg-zinc-100 p-8">
+    <div className="flex min-h-0 flex-1 items-center justify-center overflow-auto p-8">
       <div className="relative h-[min(90vh,844px)] w-[390px] max-w-full shrink-0">
         <div className="absolute inset-0 rounded-[2.5rem] bg-zinc-900 p-3 shadow-2xl shadow-zinc-900/20">
           <div className="absolute top-0 left-1/2 z-10 h-6 w-28 -translate-x-1/2 rounded-b-2xl bg-zinc-900" />

@@ -1,14 +1,30 @@
 "use client";
 
+import { DevToolkitBridgeHost } from "@/components/studio/DevToolkitBridgeHost";
 import { StudioToolsPanel } from "@/components/studio/StudioToolsPanel";
-import { DevicePreview } from "@/components/shell/DevicePreview";
+import { CenterWorkspace } from "@/components/shell/CenterWorkspace";
 import { GameChromeOverlayPanel } from "@/components/shell/GameChromeOverlayPanel";
+import { useSaveGameControls } from "@/hooks/useSaveGameControls";
+import { useAssetLayoutSavedStore } from "@/lib/asset-layout-saved-store";
+import {
+  GAME_PREVIEW_PANE_ID,
+  useWorkspaceCenterStore,
+} from "@/lib/workspace-center-store";
 import { getAppEnv } from "@/lib/env";
 import { StudioSidebar, useStudioConfigStore } from "@advergaming/studio-engine";
-import { useCallback } from "react";
+import { useCallback, useEffect } from "react";
 
 export default function StudioPage() {
   const initialTemplateId = useStudioConfigStore.getState().selectedTemplateId;
+  const selectedTemplateId = useStudioConfigStore(
+    (state) => state.selectedTemplateId,
+  );
+  const activePaneId = useWorkspaceCenterStore((state) => state.activePaneId);
+  const { saveGameControls, saving, status, error } = useSaveGameControls();
+
+  useEffect(() => {
+    useAssetLayoutSavedStore.getState().clearSavedLayouts();
+  }, [selectedTemplateId]);
 
   const getConfig = useCallback(
     () => useStudioConfigStore.getState().config,
@@ -33,8 +49,31 @@ export default function StudioPage() {
 
   return (
     <div className="flex min-h-0 flex-1 overflow-hidden">
-      <StudioSidebar previewSlot={<GameChromeOverlayPanel />} />
-      <DevicePreview
+      <DevToolkitBridgeHost resetKey={selectedTemplateId} />
+      <StudioSidebar
+        previewSlot={
+          <>
+            <GameChromeOverlayPanel />
+            {status ? (
+              <p className="mt-4 text-[11px] text-emerald-700" role="status">
+                {status}
+              </p>
+            ) : null}
+            {error ? (
+              <p className="mt-2 text-[11px] text-red-600" role="alert">
+                {error}
+              </p>
+            ) : null}
+            {saving ? (
+              <p className="mt-2 text-[11px] text-zinc-500">Saving game controls…</p>
+            ) : null}
+          </>
+        }
+        historyShortcutsActive={activePaneId === GAME_PREVIEW_PANE_ID}
+        onSaveGameControls={saveGameControls}
+        savingGameControls={saving}
+      />
+      <CenterWorkspace
         appMode="studio"
         initialTemplateId={initialTemplateId}
         getConfig={getConfig}

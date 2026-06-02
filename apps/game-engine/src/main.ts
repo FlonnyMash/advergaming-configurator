@@ -97,26 +97,36 @@ function canLoadTemplate(id: GameTemplateId): boolean {
 }
 
 async function mountStudioToolkit(phaserGame: Phaser.Game): Promise<void> {
-  if (getEngineMode() !== "studio") return;
+  // Dashboard embeds the engine in an iframe; standalone play has no parent.
+  if (window.parent === window) return;
 
   const [
-    { setupDevToolkitBridge, postDevToolkitState },
+    { setupDevToolkitBridge, postDevToolkitState, postDevToolkitAssetPicked },
     { DevToolkitController },
+    { AssetPickerController },
     { DebugOverlay },
     { GameFreezeController },
   ] = await Promise.all([
     import("./bridge/dev-toolkit-bridge.ts"),
     import("./debug/dev-toolkit/DevToolkitController.ts"),
+    import("./debug/dev-toolkit/AssetPickerController.ts"),
     import("./debug/DebugOverlay.ts"),
     import("./debug/GameFreezeController.ts"),
   ]);
 
-  let controller: DevToolkitController | null = null;
+  let controller: InstanceType<typeof DevToolkitController> | null = null;
   const bridgeTeardown = setupDevToolkitBridge(() => controller);
 
   const overlay = new DebugOverlay(phaserGame);
   const freeze = new GameFreezeController(phaserGame);
-  controller = new DevToolkitController(overlay, freeze, () => {
+  const assetPicker = new AssetPickerController(
+    phaserGame,
+    (asset) => {
+      postDevToolkitAssetPicked(asset);
+    },
+    () => latestConfig,
+  );
+  controller = new DevToolkitController(overlay, freeze, assetPicker, () => {
     if (controller) {
       postDevToolkitState(controller.getState());
     }

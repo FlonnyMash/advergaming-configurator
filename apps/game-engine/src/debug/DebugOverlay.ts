@@ -155,22 +155,31 @@ export class DebugOverlay {
         if (child === graphics) continue;
 
         const bounds = child.getBounds();
+        const body = (child as { body?: Phaser.Physics.Arcade.Body }).body;
 
         if (this.flags.hitboxes) {
-          graphics.lineStyle(1, 0x22c55e, 1);
-          graphics.strokeRect(
-            bounds.x,
-            bounds.y,
-            bounds.width,
-            bounds.height,
-          );
+          graphics.lineStyle(2, 0x22c55e, 1);
+          if (body) {
+            graphics.strokeRect(body.left, body.top, body.width, body.height);
+          } else {
+            graphics.strokeRect(
+              bounds.x,
+              bounds.y,
+              bounds.width,
+              bounds.height,
+            );
+          }
         }
 
         if (this.flags.origins || this.flags.pivots) {
-          const x = "x" in child && typeof child.x === "number" ? child.x : bounds.centerX;
-          const y = "y" in child && typeof child.y === "number" ? child.y : bounds.centerY;
-          graphics.fillStyle(0xef4444, 1);
-          graphics.fillCircle(x, y, 4);
+          const pivotX =
+            "x" in child && typeof child.x === "number" ? child.x : bounds.centerX;
+          const pivotY =
+            "y" in child && typeof child.y === "number" ? child.y : bounds.centerY;
+          graphics.lineStyle(2, 0xef4444, 1);
+          graphics.strokeCircle(pivotX, pivotY, 6);
+          graphics.lineBetween(pivotX - 8, pivotY, pivotX + 8, pivotY);
+          graphics.lineBetween(pivotX, pivotY - 8, pivotX, pivotY + 8);
         }
       }
     }

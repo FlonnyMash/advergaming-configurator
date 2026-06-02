@@ -14,6 +14,12 @@ export {
   selectStudioConfig,
 } from "./store/useStudioConfigStore";
 export {
+  cloneGameMasterConfig,
+  hasUnsavedGameControls,
+  listGameControlChanges,
+  studioControlsForSchema,
+} from "./lib/game-controls-state";
+export {
   getStudioGameSchema,
   getStudioTemplateOptions,
   getStudioCatalogEntries,

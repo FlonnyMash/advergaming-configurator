@@ -1,10 +1,15 @@
 import type { DevToolkitFlags } from "@advergaming/shared";
 import { DEFAULT_DEV_TOOLKIT_FLAGS } from "@advergaming/shared";
+import type { AssetPickerController } from "./AssetPickerController.ts";
 import type { DebugOverlay } from "../DebugOverlay.ts";
 import type { GameFreezeController } from "../GameFreezeController.ts";
 
 export class DevToolkitController {
   private flags: DevToolkitFlags = { ...DEFAULT_DEV_TOOLKIT_FLAGS };
+  private readonly overlay: DebugOverlay;
+  private readonly freeze: GameFreezeController;
+  private readonly assetPicker: AssetPickerController;
+  private readonly notifyState: () => void;
   private readonly onFreezeChanged = (payload: { frozen?: boolean }) => {
     if (typeof payload?.frozen !== "boolean") {
       return;
@@ -17,10 +22,15 @@ export class DevToolkitController {
   };
 
   constructor(
-    private readonly overlay: DebugOverlay,
-    private readonly freeze: GameFreezeController,
-    private readonly notifyState: () => void,
+    overlay: DebugOverlay,
+    freeze: GameFreezeController,
+    assetPicker: AssetPickerController,
+    notifyState: () => void,
   ) {
+    this.overlay = overlay;
+    this.freeze = freeze;
+    this.assetPicker = assetPicker;
+    this.notifyState = notifyState;
     freeze.game.events.on("debugFreezeChanged", this.onFreezeChanged);
     this.notifyState();
   }
@@ -29,6 +39,7 @@ export class DevToolkitController {
     return {
       ...this.overlay.getFlags(),
       freeze: this.freeze.isFrozen(),
+      assetPicker: this.flags.assetPicker,
     };
   }
 
@@ -58,6 +69,14 @@ export class DevToolkitController {
       this.freeze.setFrozen(partial.freeze);
     }
 
+    if (typeof partial.assetPicker === "boolean") {
+      this.flags.assetPicker = partial.assetPicker;
+      this.assetPicker.setEnabled(partial.assetPicker);
+      if (partial.assetPicker && !this.freeze.isFrozen()) {
+        this.freeze.setFrozen(true);
+      }
+    }
+
     this.flags = this.getState();
     this.notifyState();
   }
@@ -68,6 +87,7 @@ export class DevToolkitController {
 
   destroy(): void {
     this.freeze.game.events.off("debugFreezeChanged", this.onFreezeChanged);
+    this.assetPicker.destroy();
     this.reset();
   }
 }

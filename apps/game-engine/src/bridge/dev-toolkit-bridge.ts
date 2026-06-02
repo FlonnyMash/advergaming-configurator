@@ -2,7 +2,9 @@ import {
   BRIDGE_MESSAGE_TYPE,
   DEV_TOOLKIT_BRIDGE_EVENTS,
   parseDevToolkitSetFlagsPayload,
+  sanitizeDevToolkitPickedAsset,
   type DevToolkitFlags,
+  type DevToolkitPickedAsset,
 } from "@advergaming/shared";
 import type { DevToolkitController } from "../debug/dev-toolkit/DevToolkitController.ts";
 
@@ -39,18 +41,45 @@ function isAllowedDashboardOrigin(origin: string): boolean {
   return origin === DEFAULT_DASHBOARD_ORIGIN;
 }
 
-export function postDevToolkitState(state: DevToolkitFlags): void {
+function postDevToolkitGameEvent(eventName: string, data: unknown): void {
   if (window.parent === window) {
     return;
   }
 
-  window.parent.postMessage(
-    {
-      type: BRIDGE_MESSAGE_TYPE.GAME_EVENT,
-      eventName: DEV_TOOLKIT_BRIDGE_EVENTS.STATE,
-      data: state,
-    },
-    getParentTargetOrigin(),
+  const message = {
+    type: BRIDGE_MESSAGE_TYPE.GAME_EVENT,
+    eventName,
+    data,
+  };
+
+  try {
+    window.parent.postMessage(message, getParentTargetOrigin());
+    return;
+  } catch (error) {
+    if (eventName !== DEV_TOOLKIT_BRIDGE_EVENTS.ASSET_PICKED) {
+      throw error;
+    }
+  }
+
+  const slim = sanitizeDevToolkitPickedAsset(data) as DevToolkitPickedAsset;
+  if (slim && typeof slim === "object") {
+    const fallback = { ...slim };
+    delete (fallback as { previewDataUrl?: string }).previewDataUrl;
+    window.parent.postMessage(
+      { ...message, data: fallback },
+      getParentTargetOrigin(),
+    );
+  }
+}
+
+export function postDevToolkitState(state: DevToolkitFlags): void {
+  postDevToolkitGameEvent(DEV_TOOLKIT_BRIDGE_EVENTS.STATE, state);
+}
+
+export function postDevToolkitAssetPicked(asset: DevToolkitPickedAsset): void {
+  postDevToolkitGameEvent(
+    DEV_TOOLKIT_BRIDGE_EVENTS.ASSET_PICKED,
+    sanitizeDevToolkitPickedAsset(asset),
   );
 }
 
