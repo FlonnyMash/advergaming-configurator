@@ -10,6 +10,30 @@ const templateLibraryRoot = path.join(
   "src/templates/library",
 );
 
+function copyTemplatePublicAssetsPlugin(): Plugin {
+  return {
+    name: "copy-template-public-assets",
+    closeBundle() {
+      const libraryEntries = fs.readdirSync(templateLibraryRoot, {
+        withFileTypes: true,
+      });
+      for (const entry of libraryEntries) {
+        if (!entry.isDirectory()) continue;
+        const publicDir = path.join(templateLibraryRoot, entry.name, "public");
+        if (!fs.existsSync(publicDir)) continue;
+        const targetDir = path.join(
+          gameEngineRoot,
+          "dist",
+          "template-assets",
+          entry.name,
+        );
+        fs.mkdirSync(targetDir, { recursive: true });
+        fs.cpSync(publicDir, targetDir, { recursive: true });
+      }
+    },
+  };
+}
+
 function templatePublicAssetsPlugin(): Plugin {
   return {
     name: "template-public-assets",
@@ -61,8 +85,13 @@ function templatePublicAssetsPlugin(): Plugin {
   };
 }
 
-export default defineConfig({
-  plugins: [tailwindcss(), templatePublicAssetsPlugin()],
+export default defineConfig(({ command }) => ({
+  base: command === "build" ? "/engine/" : "/",
+  plugins: [
+    tailwindcss(),
+    templatePublicAssetsPlugin(),
+    copyTemplatePublicAssetsPlugin(),
+  ],
   server: {
     port: 5173,
     strictPort: true,
@@ -70,4 +99,4 @@ export default defineConfig({
       allow: [gameEngineRoot],
     },
   },
-});
+}));

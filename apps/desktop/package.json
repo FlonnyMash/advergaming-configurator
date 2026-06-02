@@ -13,7 +13,7 @@
     "debug": "^4.4.3",
     "electron-updater": "^6.3.9",
     "fs-extra": "^11.2.0",
-    "get-port": "^7.1.0",
+    "get-port": "5.1.1",
     "graceful-fs": "^4.2.11",
     "js-yaml": "^4.1.1",
     "jsonfile": "^6.2.1",
@@ -39,26 +39,15 @@
     "asar": true,
     "files": [
       "main.js",
-      "package.json",
+      "package.json"
+    ],
+    "extraResources": [
       {
         "from": "../dashboard/.next/standalone",
         "to": "standalone",
         "filter": [
-          "**/*"
-        ]
-      },
-      {
-        "from": "../dashboard/.next/static",
-        "to": "standalone/apps/dashboard/.next/static",
-        "filter": [
-          "**/*"
-        ]
-      },
-      {
-        "from": "../dashboard/public",
-        "to": "standalone/apps/dashboard/public",
-        "filter": [
-          "**/*"
+          "**/*",
+          "!**/apps/game-engine/**"
         ]
       }
     ],

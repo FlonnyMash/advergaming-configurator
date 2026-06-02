@@ -1,6 +1,6 @@
 "use client";
 
-import { gameEngineOrigin } from "@/bridge/messenger";
+import { getGameEngineOrigin } from "@/bridge/messenger";
 import {
   publishDevToolkitSync,
   subscribeDevToolkitSync,
@@ -16,6 +16,7 @@ import {
   type DevToolkitSetFlagsPayload,
 } from "@advergaming/shared";
 import { useWorkspaceCenterStore } from "@/lib/workspace-center-store";
+import { useEditorStore } from "@/store/useEditorStore";
 import { useCallback, useEffect } from "react";
 
 export function useDevToolkitControls(options?: { relayToGame?: boolean }) {
@@ -87,7 +88,7 @@ export function useDevToolkitBridge(options?: UseDevToolkitBridgeOptions) {
     }
 
     const onWindowMessage = (event: MessageEvent) => {
-      if (event.origin !== gameEngineOrigin) return;
+      if (event.origin !== getGameEngineOrigin()) return;
 
       const data = event.data;
       if (
@@ -115,6 +116,9 @@ export function useDevToolkitBridge(options?: UseDevToolkitBridgeOptions) {
           useWorkspaceCenterStore.getState().openAssetPane(asset, {
             activate: true,
           });
+          if (asset.configBinding) {
+            useEditorStore.getState().openAssetInspector(asset.configBinding);
+          }
           publishDevToolkitSync({ type: "asset", asset });
         } else if (process.env.NODE_ENV === "development") {
           console.warn(
@@ -144,6 +148,9 @@ export function useDevToolkitBridge(options?: UseDevToolkitBridgeOptions) {
         useWorkspaceCenterStore.getState().openAssetPane(message.asset, {
           activate: true,
         });
+        if (message.asset.configBinding) {
+          useEditorStore.getState().openAssetInspector(message.asset.configBinding);
+        }
         return;
       }
 

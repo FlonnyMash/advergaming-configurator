@@ -1,4 +1,8 @@
 import { z } from "zod";
+import {
+  BridgePayloadSchema,
+  HitboxUpdatedMessageSchema,
+} from "./editor-bridge";
 
 // ---------------------------------------------------------------------------
 // Bridge message type constants
@@ -11,6 +15,7 @@ export const BRIDGE_MESSAGE_TYPE = {
   REQUEST_DIAGNOSTICS: "REQUEST_DIAGNOSTICS",
   DIAGNOSTICS_PAYLOAD: "DIAGNOSTICS_PAYLOAD",
   GAME_EVENT: "GAME_EVENT",
+  HITBOX_UPDATED: "HITBOX_UPDATED",
 } as const;
 
 // ---------------------------------------------------------------------------
@@ -255,7 +260,11 @@ export const IframeReadyMessageSchema = z.object({
 
 export const UpdateConfigMessageSchema = z.object({
   type: z.literal(BRIDGE_MESSAGE_TYPE.UPDATE_CONFIG),
-  payload: z.union([GameMasterConfigSchema, BrandingPatchSchema]),
+  payload: z.union([
+    BridgePayloadSchema,
+    GameMasterConfigSchema,
+    BrandingPatchSchema,
+  ]),
   updateMode: ConfigUpdateModeSchema,
   senderMode: AppModeSchema,
 });
@@ -291,6 +300,7 @@ export const BridgeMessageSchema = z.discriminatedUnion("type", [
   RequestDiagnosticsMessageSchema,
   DiagnosticsPayloadMessageSchema,
   GameEventMessageSchema,
+  HitboxUpdatedMessageSchema,
 ]);
 
 // ---------------------------------------------------------------------------

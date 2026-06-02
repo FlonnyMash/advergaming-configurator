@@ -81,3 +81,9 @@ export function parseBridgeMessage(data: unknown): BridgeMessage | null {
 }
 
 export { isBrandingPatchShape };
+export {
+  isHitboxUpdatedMessage,
+  parseHitboxUpdatedMessage,
+  type HitboxUpdatedMessage,
+  type HitboxUpdatePayload,
+} from "./editor-bridge";

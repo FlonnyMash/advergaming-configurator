@@ -3,8 +3,11 @@
 import {
   createDashboardMessenger,
   gameEngineOrigin,
+  getGameEngineOrigin,
 } from "@/bridge/messenger";
+import { useHitboxInboundBridge } from "@/hooks/useHitboxInboundBridge";
 import { useGameChromeOverlayStore } from "@/lib/game-chrome-overlay-store";
+import { useBridgeSync } from "@/store/useBridgeSync";
 import type { AppMode, ConfigUpdateMode, GameMasterConfig, GameTemplateId } from "@advergaming/shared";
 import {
   GAME_CHROME_BRIDGE_EVENTS,
@@ -59,39 +62,30 @@ export function DevicePreview({
     return url.toString();
   }, [previewTemplateId, appMode]);
 
+  useBridgeSync({
+    appMode,
+    getConfig,
+    subscribe,
+    messenger,
+    configUpdateMode,
+    suspended,
+    iframeRef,
+    previewTemplateId,
+    onTemplateChange: setPreviewTemplateId,
+  });
+
+  useHitboxInboundBridge({
+    messenger,
+    enabled: !suspended,
+    appMode,
+  });
+
   useEffect(() => {
     if (suspended) {
       return;
     }
 
     useGameChromeOverlayStore.getState().setMessenger(messenger);
-
-    let lastTemplateId = initialTemplateId;
-
-    const pushLiveConfig = (state: {
-      config: GameMasterConfig;
-      selectedTemplateId: GameTemplateId;
-    }) => {
-      if (configUpdateMode === "branding-patch") {
-        messenger.sendConfig(state.config.branding, "branding-patch");
-      } else {
-        messenger.sendConfig(state.config, "full");
-      }
-    };
-
-    const unsubscribe = subscribe((state) => {
-      const templateChanged = state.selectedTemplateId !== lastTemplateId;
-      if (templateChanged) {
-        lastTemplateId = state.selectedTemplateId;
-        setPreviewTemplateId(state.selectedTemplateId);
-        useGameChromeOverlayStore.getState().clearRegistry();
-        messenger.onIframeNavigation(state.selectedTemplateId);
-        // Iframe remounts via key + src; config is pushed on load.
-        return;
-      }
-
-      pushLiveConfig(state);
-    });
 
     const onIframeMessage = (event: MessageEvent) => {
       messenger.handleWindowMessage(event);
@@ -110,68 +104,12 @@ export function DevicePreview({
 
     window.addEventListener("message", onIframeMessage);
 
-    const iframe = iframeRef.current;
-    if (iframe?.contentWindow) {
-      messenger.reactivateAttachedIframe(
-        iframe.contentWindow,
-        previewTemplateId,
-      );
-      pushLiveConfig({
-        config: getConfig(),
-        selectedTemplateId: previewTemplateId,
-      });
-    }
-
     return () => {
-      unsubscribe();
       offGameEvent();
       window.removeEventListener("message", onIframeMessage);
       messenger.setTarget(null);
     };
-  }, [
-    messenger,
-    subscribe,
-    configUpdateMode,
-    initialTemplateId,
-    suspended,
-    previewTemplateId,
-    getConfig,
-  ]);
-
-  useEffect(() => {
-    if (suspended) {
-      return;
-    }
-
-    const iframe = iframeRef.current;
-    if (!iframe) return;
-
-    const pushPreviewConfig = () => {
-      const config = getConfig();
-      if (configUpdateMode === "branding-patch") {
-        messenger.sendConfig(config.branding, "branding-patch");
-      } else {
-        messenger.sendConfig(config, "full");
-      }
-    };
-
-    const onLoad = () => {
-      messenger.armIframe(iframe.contentWindow ?? null, previewTemplateId);
-      useGameChromeOverlayStore.getState().clearRegistry();
-      pushPreviewConfig();
-      // IFRAME_READY can arrive before the load event; retry once the engine is up.
-      window.setTimeout(pushPreviewConfig, 150);
-    };
-
-    iframe.addEventListener("load", onLoad);
-    if (iframe.contentDocument?.readyState === "complete") {
-      onLoad();
-    }
-
-    return () => {
-      iframe.removeEventListener("load", onLoad);
-    };
-  }, [iframeSrc, previewTemplateId, messenger, getConfig, configUpdateMode, suspended]);
+  }, [messenger, suspended]);
 
   useEffect(() => {
     if (suspended) {
@@ -268,4 +206,4 @@ export function DevicePreview({
   );
 }
 
-export { gameEngineOrigin };
+export { getGameEngineOrigin, gameEngineOrigin };

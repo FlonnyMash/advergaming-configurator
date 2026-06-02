@@ -5,8 +5,10 @@ import {
   type GameChromeOverlayDescriptor,
 } from "@advergaming/shared";
 import { getEngineMode } from "../env/app-mode.ts";
-
-const DEFAULT_DASHBOARD_ORIGIN = "http://localhost:3000";
+import {
+  getParentTargetOrigin,
+  isAllowedDashboardOrigin,
+} from "./dashboard-origin.ts";
 
 export type GameChromeOverlayRegistration = {
   id: string;
@@ -18,37 +20,6 @@ type RegisteredOverlay = GameChromeOverlayRegistration & {
   available: boolean;
   userVisible: boolean;
 };
-
-function getDashboardOrigin(): string | undefined {
-  const envOrigin = import.meta.env.VITE_DASHBOARD_ORIGIN;
-  if (typeof envOrigin === "string" && envOrigin.length > 0) {
-    return envOrigin;
-  }
-  return undefined;
-}
-
-function getParentTargetOrigin(): string {
-  if (document.referrer) {
-    try {
-      return new URL(document.referrer).origin;
-    } catch {
-      // fall through
-    }
-  }
-  return getDashboardOrigin() ?? "*";
-}
-
-function isAllowedDashboardOrigin(origin: string): boolean {
-  const configured = getDashboardOrigin();
-  if (configured) return origin === configured;
-  if (import.meta.env.DEV) {
-    return (
-      origin === DEFAULT_DASHBOARD_ORIGIN ||
-      origin === "http://127.0.0.1:3000"
-    );
-  }
-  return origin === DEFAULT_DASHBOARD_ORIGIN;
-}
 
 function isPreviewMode(): boolean {
   const mode = getEngineMode();

@@ -5,9 +5,11 @@ import {
   parseGameTemplateId,
   type GameMasterConfig,
   type GameTemplateId,
+  type EditorState,
 } from "@advergaming/shared";
 import Phaser from "phaser";
 import { setupBridge, setBridgeTemplateId } from "./bridge/messenger.ts";
+import { HitboxEditorController } from "./bridge/hitbox-editor-controller.ts";
 import {
   gameChromeOverlayManager,
   setupGameChromeBridge,
@@ -48,6 +50,7 @@ let latestConfig: GameMasterConfig = {
 
 let debugTeardown: (() => void) | null = null;
 let previewResizeTeardown: (() => void) | null = null;
+let hitboxEditor: HitboxEditorController | null = null;
 let gameBooting = false;
 setupGameChromeBridge();
 
@@ -149,6 +152,11 @@ function loadTemplate(id: GameTemplateId, config: GameMasterConfig): void {
     debugTeardown();
   }
 
+  if (hitboxEditor) {
+    hitboxEditor.destroy();
+    hitboxEditor = null;
+  }
+
   if (previewResizeTeardown) {
     previewResizeTeardown();
     previewResizeTeardown = null;
@@ -197,6 +205,9 @@ function loadTemplate(id: GameTemplateId, config: GameMasterConfig): void {
         updateDomOverlays(latestConfig);
       }
       updatePhaserMechanics(latestConfig, game);
+      if (!hitboxEditor) {
+        hitboxEditor = new HitboxEditorController(game, () => latestConfig);
+      }
       window.dispatchEvent(new Event("resize"));
       await mountStudioToolkit(game);
     }
@@ -241,6 +252,16 @@ function applyConfig(config: GameMasterConfig): void {
   }, 80);
 }
 
+function applyEditorState(state: EditorState): void {
+  if (!game) {
+    return;
+  }
+  if (!hitboxEditor) {
+    hitboxEditor = new HitboxEditorController(game, () => latestConfig);
+  }
+  hitboxEditor.applyEditorState(state);
+}
+
 function handleLoadTemplate(templateId: GameTemplateId): void {
   if (!canLoadTemplate(templateId)) return;
   if (configApplyTimer) {
@@ -260,9 +281,11 @@ window.addEventListener("GAME_START", () => {
 
 setupBridge({
   onUpdate: applyConfig,
+  onEditorState: applyEditorState,
   onLoadTemplate: handleLoadTemplate,
   getCurrentConfig: () => latestConfig,
   getCurrentTemplateId: () => currentTemplateId,
+  getGame: () => game,
 });
 
 applyConfig(latestConfig);

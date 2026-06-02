@@ -1,25 +1,26 @@
 const fs = require("node:fs");
+const http = require("node:http");
 const path = require("node:path");
-const { fork } = require("node:child_process");
-const { app, BrowserWindow } = require("electron");
+const { spawn } = require("node:child_process");
+const { app, BrowserWindow, dialog } = require("electron");
 const { autoUpdater } = require("electron-updater");
-const getPortImport = require("get-port");
-
-const getPort = getPortImport.default ?? getPortImport;
+const getPort = require("get-port");
 
 let mainWindow = null;
 let dashboardServer = null;
+let dashboardPort = null;
 
 function resolveStandaloneServerPath() {
   if (app.isPackaged) {
     return path.join(
-      app.getAppPath(),
+      process.resourcesPath,
       "standalone",
       "apps",
       "dashboard",
       "server.js",
     );
   }
+
   return path.resolve(
     __dirname,
     "../dashboard/.next/standalone/apps/dashboard/server.js",
@@ -67,6 +68,40 @@ function autoMigrateLegacyProjects(workspacePath) {
   fs.renameSync(legacyDir, backupPath);
 }
 
+function probeUrl(url) {
+  return new Promise((resolve) => {
+    const request = http.get(url, (response) => {
+      response.resume();
+      resolve(Boolean(response.statusCode && response.statusCode < 500));
+    });
+    request.on("error", () => resolve(false));
+    request.setTimeout(2000, () => {
+      request.destroy();
+      resolve(false);
+    });
+  });
+}
+
+async function waitForDashboardServer(port) {
+  const deadline = Date.now() + 30_000;
+  const urls = [
+    `http://127.0.0.1:${port}/`,
+    `http://127.0.0.1:${port}/engine/index.html`,
+  ];
+
+  while (Date.now() < deadline) {
+    const ready = await Promise.all(urls.map((url) => probeUrl(url)));
+    if (ready.every(Boolean)) {
+      return;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 250));
+  }
+
+  throw new Error(
+    `Dashboard server did not become ready on port ${port} (checked / and /engine/index.html)`,
+  );
+}
+
 async function spawnDashboardServer(workspacePath) {
   const port = await getPort();
   const serverEntry = resolveStandaloneServerPath();
@@ -74,17 +109,34 @@ async function spawnDashboardServer(workspacePath) {
     throw new Error(`Dashboard standalone server not found: ${serverEntry}`);
   }
 
-  dashboardServer = fork(serverEntry, [], {
+  dashboardServer = spawn(process.execPath, [serverEntry], {
+    cwd: path.dirname(serverEntry),
     env: {
       ...process.env,
+      ELECTRON_RUN_AS_NODE: "1",
       NODE_ENV: "production",
       HOSTNAME: "127.0.0.1",
       PORT: String(port),
       WORKSPACE_DIR: workspacePath,
     },
-    stdio: "inherit",
+    stdio: "pipe",
   });
 
+  dashboardServer.on("error", (error) => {
+    console.error("[dashboard-server] spawn error", error);
+  });
+  dashboardServer.stderr?.on("data", (chunk) => {
+    console.error("[dashboard-server]", chunk.toString());
+  });
+  dashboardServer.on("exit", (code, signal) => {
+    if (code !== 0 && code !== null) {
+      console.error(
+        `[dashboard-server] exited early code=${code} signal=${signal ?? ""}`,
+      );
+    }
+  });
+
+  await waitForDashboardServer(port);
   return port;
 }
 
@@ -102,7 +154,7 @@ function createMainWindow(port) {
     },
   });
 
-  mainWindow.loadURL(`http://127.0.0.1:${port}`);
+  mainWindow.loadURL(`http://127.0.0.1:${port}/`);
   mainWindow.on("closed", () => {
     mainWindow = null;
   });
@@ -135,7 +187,6 @@ function setupAutoUpdater() {
 function cleanupDashboardServer() {
   if (dashboardServer && !dashboardServer.killed) {
     try {
-      // Force kill to release Windows file locks instantly during NSIS updates
       dashboardServer.kill("SIGKILL");
     } catch (e) {
       console.error("[shutdown] Failed to kill dashboard server:", e);
@@ -155,15 +206,22 @@ app.whenReady().then(async () => {
   const workspacePath = getPersistentWorkspacePath();
   ensureWorkspaceDir(workspacePath);
   autoMigrateLegacyProjects(workspacePath);
-  const port = await spawnDashboardServer(workspacePath);
-  createMainWindow(port);
+  dashboardPort = await spawnDashboardServer(workspacePath);
+  createMainWindow(dashboardPort);
   setupAutoUpdater();
 
   app.on("activate", () => {
-    if (BrowserWindow.getAllWindows().length === 0) {
-      createMainWindow(port);
+    if (BrowserWindow.getAllWindows().length === 0 && dashboardPort !== null) {
+      createMainWindow(dashboardPort);
     }
   });
+}).catch((error) => {
+  console.error("[startup] failed", error);
+  dialog.showErrorBox(
+    "Advergaming Studio failed to start",
+    error instanceof Error ? error.message : String(error),
+  );
+  app.quit();
 });
 
 app.on("before-quit", cleanupDashboardServer);

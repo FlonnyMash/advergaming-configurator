@@ -13,12 +13,31 @@ export {
   isDiagnosticsPayloadMessage,
   isGameEventMessage,
   isGameMasterConfig,
+  isHitboxUpdatedMessage,
   isIframeReadyMessage,
   isLoadTemplateMessage,
   isRequestDiagnosticsMessage,
   isUpdateConfigMessage,
   parseBridgeMessage,
 } from "./bridge";
+
+export {
+  buildBridgePayload,
+  BridgePayloadSchema,
+  coerceUpdateConfigPayload,
+  DEFAULT_EDITOR_STATE,
+  EditorStateSchema,
+  encodeEntityId,
+  HitboxUpdatedMessageSchema,
+  HitboxUpdatePayloadSchema,
+  isBridgePayloadShape,
+  parseBridgePayload,
+  parseEntityId,
+  type BridgePayload,
+  type EditorState,
+  type HitboxUpdatedMessage,
+  type HitboxUpdatePayload,
+} from "./editor-bridge";
 
 export {
   AnimationClipMappingSchema,

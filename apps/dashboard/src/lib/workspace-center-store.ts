@@ -1,5 +1,6 @@
 "use client";
 
+import { useEditorStore } from "@/store/useEditorStore";
 import type { DevToolkitPickedAsset } from "@advergaming/shared";
 import { create } from "zustand";
 
@@ -71,6 +72,16 @@ export const useWorkspaceCenterStore = create<WorkspaceCenterStore>((set, get) =
     const activePaneId =
       get().activePaneId === paneId ? GAME_PREVIEW_PANE_ID : get().activePaneId;
 
+    const closedAssetPane = get().panes.find(
+      (pane) => pane.kind === "asset" && pane.id === paneId,
+    );
+    if (closedAssetPane?.kind === "asset") {
+      const remainingAssetPanes = panes.filter((pane) => pane.kind === "asset");
+      if (remainingAssetPanes.length === 0) {
+        useEditorStore.getState().closeAssetInspector();
+      }
+    }
+
     set({ panes, activePaneId });
   },
   updateAssetPane: (paneId, asset) => {
@@ -80,10 +91,12 @@ export const useWorkspaceCenterStore = create<WorkspaceCenterStore>((set, get) =
       ),
     });
   },
-  reset: () =>
+  reset: () => {
+    useEditorStore.getState().reset();
     set({
       activePaneId: GAME_PREVIEW_PANE_ID,
       panes: [...DEFAULT_PANES],
       nextAssetPaneSeq: 0,
-    }),
+    });
+  },
 }));

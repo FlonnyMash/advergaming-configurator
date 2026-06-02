@@ -6,40 +6,12 @@ import {
 } from "@advergaming/shared";
 import type Phaser from "phaser";
 import { getEngineMode } from "../env/app-mode.ts";
+import {
+  getParentTargetOrigin,
+  isAllowedDashboardOrigin,
+} from "./dashboard-origin.ts";
 
-const DEFAULT_DASHBOARD_ORIGIN = "http://localhost:3000";
 const PLAYER_TOUCH_EVENT = STUDIO_TOUCH_BRIDGE_EVENTS.PLAYER_TOUCH;
-
-function getDashboardOrigin(): string | undefined {
-  const envOrigin = import.meta.env.VITE_DASHBOARD_ORIGIN;
-  if (typeof envOrigin === "string" && envOrigin.length > 0) {
-    return envOrigin;
-  }
-  return undefined;
-}
-
-function getParentTargetOrigin(): string {
-  if (document.referrer) {
-    try {
-      return new URL(document.referrer).origin;
-    } catch {
-      // fall through
-    }
-  }
-  return getDashboardOrigin() ?? "*";
-}
-
-function isAllowedDashboardOrigin(origin: string): boolean {
-  const configured = getDashboardOrigin();
-  if (configured) return origin === configured;
-  if (import.meta.env.DEV) {
-    return (
-      origin === DEFAULT_DASHBOARD_ORIGIN ||
-      origin === "http://127.0.0.1:3000"
-    );
-  }
-  return origin === DEFAULT_DASHBOARD_ORIGIN;
-}
 
 function isPreviewMode(): boolean {
   const mode = getEngineMode();

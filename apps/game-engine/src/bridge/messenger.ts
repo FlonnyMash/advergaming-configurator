@@ -1,72 +1,40 @@
 import {
   BRIDGE_MESSAGE_TYPE,
-  normalizeGameMasterConfig,
+  EditorStateSchema,
+  HitboxUpdatePayloadSchema,
+  coerceUpdateConfigPayload,
   parseBridgeMessage,
-  type BrandingPatch,
+  type EditorState,
   type GameMasterConfig,
   type GameTemplateId,
+  type HitboxUpdatePayload,
   type IframeReadyMessage,
   type UpdateConfigMessage,
 } from "@advergaming/shared";
+import type Phaser from "phaser";
 import { supportsExternalTouchControls } from "./studio-touch-bridge.ts";
 import { allowsSystemMutation, getEngineMode } from "../env/app-mode.ts";
 import { applyBrandingPatch } from "../configurator/applyBrandingOnly.ts";
 import { getPublishedSystemDefaults } from "../templates/schema-index.ts";
-
-const DEFAULT_DASHBOARD_ORIGIN = "http://localhost:3000";
+import {
+  getParentTargetOrigin,
+  isAllowedDashboardOrigin,
+} from "./dashboard-origin.ts";
 
 let currentTemplateId: GameTemplateId = "dice-poker";
 
-function getDashboardOrigin(): string | undefined {
-  const envOrigin = import.meta.env.VITE_DASHBOARD_ORIGIN;
-  if (typeof envOrigin === "string" && envOrigin.length > 0) {
-    return envOrigin;
-  }
-  return undefined;
-}
-
-function getParentTargetOrigin(): string {
-  if (document.referrer) {
-    try {
-      return new URL(document.referrer).origin;
-    } catch {
-      // fall through
-    }
-  }
-  return getDashboardOrigin() ?? "*";
-}
-
-function isAllowedDashboardMessage(event: MessageEvent): boolean {
-  if (event.source !== window.parent) return false;
-
-  const configured = getDashboardOrigin();
-  if (configured) return event.origin === configured;
-
-  if (import.meta.env.DEV) return true;
-
-  return (
-    event.origin === DEFAULT_DASHBOARD_ORIGIN ||
-    event.origin === "http://127.0.0.1:3000"
-  );
-}
-
-function resolveConfigUpdate(
+function resolveGameConfig(
   message: UpdateConfigMessage,
+  bridgePayload: { gameConfig: GameMasterConfig; editorState: EditorState },
   previous: GameMasterConfig,
 ): GameMasterConfig {
   const engineMode = getEngineMode();
 
   if (message.updateMode === "branding-patch") {
-    const patch = message.payload as BrandingPatch;
-    return applyBrandingPatch(previous, patch);
+    return applyBrandingPatch(previous, bridgePayload.gameConfig.branding);
   }
 
-  const normalized = normalizeGameMasterConfig(
-    message.payload,
-    currentTemplateId,
-  );
-  if (!normalized) return previous;
-
+  const normalized = bridgePayload.gameConfig;
   if (engineMode === "configurator" || message.senderMode === "configurator") {
     const frozen = getPublishedSystemDefaults(currentTemplateId);
     return {
@@ -81,9 +49,11 @@ function resolveConfigUpdate(
 
 export function setupBridge(handlers: {
   onUpdate: (config: GameMasterConfig) => void;
+  onEditorState: (state: EditorState) => void;
   onLoadTemplate: (templateId: GameTemplateId) => void;
   getCurrentConfig: () => GameMasterConfig;
   getCurrentTemplateId: () => GameTemplateId;
+  getGame: () => Phaser.Game | null;
 }): void {
   const postReady = () => {
     const iframeReadyMessage: IframeReadyMessage = {
@@ -103,7 +73,8 @@ export function setupBridge(handlers: {
   postReady();
 
   window.addEventListener("message", (event: MessageEvent) => {
-    if (!isAllowedDashboardMessage(event)) return;
+    if (event.source !== window.parent) return;
+    if (!isAllowedDashboardOrigin(event.origin)) return;
 
     const message = parseBridgeMessage(event.data);
     if (!message) {
@@ -116,7 +87,29 @@ export function setupBridge(handlers: {
     switch (message.type) {
       case BRIDGE_MESSAGE_TYPE.UPDATE_CONFIG: {
         const previous = handlers.getCurrentConfig();
-        handlers.onUpdate(resolveConfigUpdate(message, previous));
+        const bridgePayload = coerceUpdateConfigPayload(
+          message.payload,
+          currentTemplateId,
+          previous,
+        );
+        if (!bridgePayload) {
+          break;
+        }
+
+        const editorParse = EditorStateSchema.safeParse(bridgePayload.editorState);
+        const editorState = editorParse.success
+          ? editorParse.data
+          : bridgePayload.editorState;
+
+        const resolvedConfig = resolveGameConfig(message, bridgePayload, previous);
+        handlers.onUpdate(resolvedConfig);
+        handlers.onEditorState(editorState);
+
+        const game = handlers.getGame();
+        if (game) {
+          game.events.emit("bridge:editor-state", editorState);
+          game.events.emit("bridge:config-update", resolvedConfig);
+        }
         break;
       }
       case BRIDGE_MESSAGE_TYPE.LOAD_TEMPLATE: {
@@ -144,6 +137,28 @@ export function setupBridge(handlers: {
         break;
     }
   });
+}
+
+export function postHitboxUpdated(payload: HitboxUpdatePayload): void {
+  if (window.parent === window) {
+    return;
+  }
+
+  const parsed = HitboxUpdatePayloadSchema.safeParse(payload);
+  if (!parsed.success) {
+    if (import.meta.env.DEV) {
+      console.warn("[HitboxEditor] Invalid HITBOX_UPDATED payload", payload);
+    }
+    return;
+  }
+
+  window.parent.postMessage(
+    {
+      type: BRIDGE_MESSAGE_TYPE.HITBOX_UPDATED,
+      payload: parsed.data,
+    },
+    getParentTargetOrigin(),
+  );
 }
 
 export function setBridgeTemplateId(id: GameTemplateId): void {
