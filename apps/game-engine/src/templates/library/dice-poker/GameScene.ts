@@ -1,6 +1,6 @@
 import { getPrimaryBrandColor, type GameMasterConfig } from "@mashedgames/shared";
 import Phaser from "phaser";
-import { reloadBase64Texture } from "../../../game/reloadBase64Texture.ts";
+import { reloadTexture } from "../../../utils/AssetLoader.ts";
 import type { TemplateScene } from "../../types.ts";
 
 export const DICE_POKER_SCENE_KEY = "DicePoker";
@@ -89,11 +89,12 @@ export class DicePokerScene extends Phaser.Scene implements TemplateScene {
     if (playerTexture === this.lastPlayerTexture) return;
     this.lastPlayerTexture = playerTexture;
 
-    reloadBase64Texture({
+    reloadTexture({
       scene: this,
       textureKey: CUSTOM_PLAYER_KEY,
-      dataUrl: playerTexture,
+      src: playerTexture,
       fallbackTextureKey: DEFAULT_BOX_KEY,
+      projectId: payload.meta.projectId,
       onApplied: (textureKey) => {
         this.playerSprite.setTexture(textureKey);
         this.playerSprite.setDisplaySize(

@@ -12,6 +12,7 @@ const {
   WORKSPACE_DIR_NAME,
   LEGACY_WORKSPACE_DIR_NAME,
   STUDIO_ASSET_PROTOCOL,
+  PROJECT_ID_PATTERN,
 } = require("./constants");
 
 const STUDIO_PROTOCOL = STUDIO_ASSET_PROTOCOL;
@@ -160,6 +161,70 @@ function absolutePathFromStudioProtocolUrl(requestUrl) {
   return filePath;
 }
 
+function isSafeProjectRelativeAssetPath(relativePath) {
+  if (!relativePath || relativePath.includes("..")) {
+    return false;
+  }
+  const normalized = relativePath.replace(/^\//, "").replace(/\\/g, "/");
+  return normalized.startsWith("assets/");
+}
+
+function resolveRelativeStudioProtocolPath(requestUrl, workspacePath) {
+  let parsed;
+  try {
+    parsed = new URL(requestUrl);
+  } catch {
+    return null;
+  }
+
+  if (parsed.protocol !== `${STUDIO_PROTOCOL}:`) {
+    return null;
+  }
+
+  const projectId = parsed.searchParams.get("project");
+  if (!projectId || !PROJECT_ID_PATTERN.test(projectId)) {
+    return null;
+  }
+
+  let relativePath = parsed.pathname;
+  try {
+    relativePath = decodeURIComponent(relativePath);
+  } catch {
+    return null;
+  }
+
+  if (relativePath.startsWith("/")) {
+    relativePath = relativePath.slice(1);
+  }
+
+  relativePath = relativePath.replace(/\\/g, "/");
+  if (!isSafeProjectRelativeAssetPath(relativePath)) {
+    return null;
+  }
+
+  const resolved = path.normalize(
+    path.join(workspacePath, PROJECTS_DIR_NAME, projectId, relativePath),
+  );
+
+  if (!isPathInsideWorkspace(resolved, workspacePath)) {
+    return null;
+  }
+
+  return resolved;
+}
+
+function resolveStudioProtocolRequest(requestUrl, workspacePath) {
+  const relativeResolved = resolveRelativeStudioProtocolPath(
+    requestUrl,
+    workspacePath,
+  );
+  if (relativeResolved) {
+    return relativeResolved;
+  }
+
+  return absolutePathFromStudioProtocolUrl(requestUrl);
+}
+
 function isPathInsideWorkspace(filePath, workspacePath) {
   const resolvedFile = path.resolve(filePath);
   const resolvedWorkspace = path.resolve(workspacePath);
@@ -182,7 +247,7 @@ function registerStudioProtocol(workspacePath) {
       });
     }
 
-    const filePath = absolutePathFromStudioProtocolUrl(request.url);
+    const filePath = resolveStudioProtocolRequest(request.url, workspacePath);
     if (!filePath) {
       return new Response("Bad Request", {
         status: 400,

@@ -45,10 +45,12 @@ Per project `{workspace}/Projects/{projectId}/`:
 
 | Runtime | Upload | Engine texture URL |
 |---------|--------|-------------------|
-| **Electron** (`NEXT_PUBLIC_WORKSPACE_DESKTOP=1`) | `POST /api/projects/{id}/import-asset` → copy to `assets/` | `mashedgames-studio://` via `getOSAssetUrl()` in `apps/game-engine/src/bridge/asset-loader.ts` + `?v=` cache bust |
-| **Web / `next dev`** | `FileReader` → base64 in Zustand → `UPDATE_CONFIG` | `data:` URLs + `reloadBase64Texture` |
+| **Electron** (`NEXT_PUBLIC_WORKSPACE_DESKTOP=1`) | `POST /api/projects/{id}/import-asset` → copy to `assets/` | `mashedgames-studio:///assets/{file}?project={projectId}` via `getStudioAssetUrl()` in `apps/game-engine/src/bridge/asset-loader.ts` + `&v=` cache bust |
+| **Web / `next dev`** | `FileReader` → base64 in Zustand → `UPDATE_CONFIG` | `data:` URLs + `reloadTexture()` in `apps/game-engine/src/utils/AssetLoader.ts` |
 
-Electron protocol handler: `apps/desktop/main.js` (`absolutePathFromStudioProtocolUrl`). URLs must encode the path in **pathname** form (`mashedgames-studio://` + `encodeURIComponent('/C:/...')`) to match the handler.
+Electron protocol handler: `apps/desktop/main.js` (`resolveStudioProtocolRequest`). Relative URLs resolve to `{workspace}/Projects/{projectId}/assets/...` with traversal guards; legacy absolute-path URLs remain supported during migration.
+
+Runtime asset coercion: `packages/shared/src/asset-reference.ts` (`coerceAssetReference`, `parseAssetReference`). Persisted config keeps plain strings (`assets/foo.png` or `data:...`).
 
 Bridge asset messages (see `packages/shared/src/asset-bridge.ts`):
 
@@ -73,7 +75,7 @@ Preview messenger store: `apps/dashboard/src/lib/preview-bridge-store.ts` (runti
 * **Separation of concerns:** Dashboard owns state and disk; game-engine is a receiver + renderer. All cross-app contracts live in `@mashedgames/shared`.
 * **DOM over canvas (strict):** Phaser = gameplay/physics/sprites only. Start screens, forms, CTAs, highscores = HTML/Tailwind over the canvas (`apps/game-engine/src/overlays/`). Configurator edits these via JSON `domOverlay`.
 * **Schema-driven UI:** Template `manifest.json` `x-control` fields drive `SchemaControlPanel` (`type: image|slider|color|...`, `targetPath`). Patch branding paths in Zustand; never mutate frozen system in Configurator mode.
-* **Texture hygiene:** Remove/replace textures on reload (`reloadBase64Texture`, loader queue in `catchGameTextures.ts`) to avoid GPU leaks.
+* **Texture hygiene:** Remove/replace textures on reload (`reloadTexture` in `utils/AssetLoader.ts`, loader queue in `catchGameTextures.ts`) to avoid GPU leaks.
 * **SaaS UX:** Premium, minimal Tailwind (Vercel/Webflow bar). Prefer file inputs on image controls; workspace-file mode only when desktop flag is set.
 * **Plans & code:** Exact paths, Zod types, and data flow before large diffs. Call out perf and security (protocol scoped to workspace, 4MB image cap).
 

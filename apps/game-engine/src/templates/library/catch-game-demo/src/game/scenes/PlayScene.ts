@@ -228,6 +228,7 @@ export class PlayScene extends Phaser.Scene implements TemplateScene {
     this.textureSignature = nextSignature;
 
     try {
+      const projectId = this.game.registry.get("projectId") as string | undefined;
       applyCatchGameTextures(this, nextConfig.assets, {
         onPlayerTexture: (key) => {
           if (this.player?.active) {
@@ -243,7 +244,7 @@ export class PlayScene extends Phaser.Scene implements TemplateScene {
             this.groundCollider.setTexture(groundKey);
           }
         },
-      });
+      }, { projectId });
     } catch (error) {
       if (import.meta.env.DEV) {
         console.warn("[PlayScene] Texture live reload failed:", error);
@@ -254,10 +255,12 @@ export class PlayScene extends Phaser.Scene implements TemplateScene {
   preload(): void {
     this.config = this.getConfig();
     const runtimeAssets = getRuntimeAssets();
+    const projectId = this.game.registry.get("projectId") as string | undefined;
+    const resolveContext = { projectId, runtimeAssets };
     const { frameWidth, frameHeight } = this.config.assets.playerSprite;
     this.load.spritesheet(
       PLAYER_TEXTURE_KEY,
-      resolveTextureUrl(this.config.assets.player, runtimeAssets),
+      resolveTextureUrl(this.config.assets.player, resolveContext),
       {
         frameWidth,
         frameHeight,
@@ -267,7 +270,7 @@ export class PlayScene extends Phaser.Scene implements TemplateScene {
     this.config.assets.goodItems.forEach((item, index) => {
       this.load.spritesheet(
         `${GOOD_TEXTURE_PREFIX}${index}`,
-        resolveTextureUrl(item.image, runtimeAssets),
+        resolveTextureUrl(item.image, resolveContext),
         {
           frameWidth: item.frameWidth,
           frameHeight: item.frameHeight,
@@ -278,7 +281,7 @@ export class PlayScene extends Phaser.Scene implements TemplateScene {
     this.config.assets.badItems.forEach((item, index) => {
       this.load.spritesheet(
         `${BAD_TEXTURE_PREFIX}${index}`,
-        resolveTextureUrl(item.image, runtimeAssets),
+        resolveTextureUrl(item.image, resolveContext),
         {
           frameWidth: item.frameWidth,
           frameHeight: item.frameHeight,
@@ -288,7 +291,7 @@ export class PlayScene extends Phaser.Scene implements TemplateScene {
 
     this.load.image(
       GROUND_TEXTURE_KEY,
-      resolveTextureUrl(this.config.assets.ground.image, runtimeAssets),
+      resolveTextureUrl(this.config.assets.ground.image, resolveContext),
     );
   }
 

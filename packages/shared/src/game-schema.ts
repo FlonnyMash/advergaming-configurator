@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { NullableAssetStringSchema } from "./asset-reference";
 import {
   AssetReadyPayloadSchema,
   LoadExternalAssetPayloadSchema,
@@ -162,9 +163,9 @@ export const BrandingSettingsSchema = z
     theme: z.object({
       primaryColor: hexColorSchema,
       secondaryColor: hexColorSchema,
-      logoTexture: z.string().nullable(),
+      logoTexture: NullableAssetStringSchema,
       fontFamily: z.string(),
-      playerTexture: z.string().nullable(),
+      playerTexture: NullableAssetStringSchema,
     }),
     localization: z.object({
       defaultLocale: z.string(),
@@ -198,9 +199,9 @@ export const BrandingPatchSchema = z
       .object({
         primaryColor: hexColorSchema.optional(),
         secondaryColor: hexColorSchema.optional(),
-        logoTexture: z.string().nullable().optional(),
+        logoTexture: NullableAssetStringSchema.optional(),
         fontFamily: z.string().optional(),
-        playerTexture: z.string().nullable().optional(),
+        playerTexture: NullableAssetStringSchema.optional(),
       })
       .optional(),
     localization: z

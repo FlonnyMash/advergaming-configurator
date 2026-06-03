@@ -1,5 +1,7 @@
 import type { GameMasterConfig } from "@mashedgames/shared";
 import { getDomOverlayForUi } from "@mashedgames/shared";
+import { resolveTextureUrl } from "../bridge/asset-loader.ts";
+import { getRuntimeAssets } from "../bridge/runtime-assets.ts";
 
 export type UIConfig = ReturnType<typeof getDomOverlayForUi>;
 
@@ -100,7 +102,10 @@ export function updateDomOverlays(config: GameMasterConfig): void {
     "lead-form-bg",
   ) as HTMLImageElement | null;
   if (leadFormBackground && theme.logoTexture) {
-    leadFormBackground.src = theme.logoTexture;
+    leadFormBackground.src = resolveTextureUrl(theme.logoTexture, {
+      projectId: config.meta.projectId,
+      runtimeAssets: getRuntimeAssets(),
+    });
   }
 
   updateUI(config);

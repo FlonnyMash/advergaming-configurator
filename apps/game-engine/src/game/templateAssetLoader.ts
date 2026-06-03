@@ -75,9 +75,14 @@ export function preloadTemplateAssets(
     urls.add(`assets/${rel.replace(/^\//, "")}`);
   }
 
+  const resolveContext = {
+    projectId: config.meta.projectId,
+    runtimeAssets,
+  };
+
   const entries = [...urls].map((src, index) => ({
     key: textureKeyFromUrl(src, index),
-    url: resolveTextureUrl(src, runtimeAssets),
+    url: resolveTextureUrl(src, resolveContext),
   }));
 
   if (entries.length === 0) {

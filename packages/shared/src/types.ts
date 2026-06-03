@@ -90,7 +90,10 @@ export interface PublishedTemplateBundle {
 // Legacy flat config (migration)
 // ---------------------------------------------------------------------------
 
-/** @deprecated Use `branding.theme` */
+/**
+ * @deprecated Use `branding.theme`
+ * `playerTexture` is a persisted plain string; coerce at runtime via `coerceAssetReference`.
+ */
 export interface ThemeConfig {
   primaryColor: string;
   playerTexture: string | null;

@@ -8,6 +8,18 @@ export {
 } from "./asset-bridge";
 
 export {
+  AssetReferenceSchema,
+  NullableAssetStringSchema,
+  coerceAssetReference,
+  isDataUrlAsset,
+  isProjectRelativeAssetPath,
+  isStudioAssetUrl,
+  isValidPersistedAssetString,
+  parseAssetReference,
+  type AssetReference,
+} from "./asset-reference";
+
+export {
   BRIDGE_MESSAGE_TYPE,
   type AssetReadyMessage,
   type BridgeMessage,

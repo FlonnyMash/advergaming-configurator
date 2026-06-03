@@ -162,6 +162,7 @@ export function createLegacyBridgeScene(
 
     updateConfig(config: GameMasterConfig): void {
       this.workingConfig = mergeLegacyConfigFromMaster(baseConfig, config);
+      this.game.registry.set("projectId", config.meta.projectId ?? null);
       this.syncRegistry();
 
       const playScene = this.getPlayScene();

@@ -1,16 +1,12 @@
-import { resolveTextureUrl } from "../../../../../bridge/asset-loader.ts";
-import { getRuntimeAssets } from "../../../../../bridge/runtime-assets.ts";
-import { reloadBase64Texture } from "../../../../../game/reloadBase64Texture.ts";
+import { isDataUrlAsset } from "@mashedgames/shared";
 import Phaser from "phaser";
+import { getRuntimeAssets } from "../../../../../bridge/runtime-assets.ts";
+import { reloadTexture } from "../../../../../utils/AssetLoader.ts";
 
 const PLAYER_TEXTURE_KEY = "player";
 const GROUND_TEXTURE_KEY = "ground";
 const GOOD_TEXTURE_PREFIX = "item-good-";
 const BAD_TEXTURE_PREFIX = "item-bad-";
-
-function isDataUrl(src: string): boolean {
-  return src.startsWith("data:");
-}
 
 type ItemConfig = {
   image: string;
@@ -31,6 +27,10 @@ type CatchGameTextureHooks = {
   onGroundReady: () => void;
 };
 
+type CatchGameTextureContext = {
+  projectId?: string;
+};
+
 function whenLoaderIdle(scene: Phaser.Scene, run: () => void): void {
   const loader = scene.load;
   if (!loader.isLoading()) {
@@ -45,8 +45,9 @@ function applyCatchGameTexturesNow(
   scene: Phaser.Scene,
   assets: CatchGameAssets,
   hooks: CatchGameTextureHooks,
+  context: CatchGameTextureContext,
 ): void {
-  const loader = scene.load;
+  const runtimeAssets = getRuntimeAssets();
   let pendingLoads = 0;
   let finished = false;
 
@@ -56,90 +57,77 @@ function applyCatchGameTexturesNow(
     hooks.onGroundReady();
   };
 
-  const queueLoad = () => {
+  const trackPathLoad = (src: string) => {
+    if (isDataUrlAsset(src)) {
+      return;
+    }
     pendingLoads += 1;
   };
 
-  const finishLoad = () => {
+  const onPathApplied = () => {
     pendingLoads = Math.max(0, pendingLoads - 1);
     maybeFinish();
   };
 
-  const applyPlayer = (src: string) => {
-    if (isDataUrl(src)) {
-      reloadBase64Texture({
-        scene,
-        textureKey: `${PLAYER_TEXTURE_KEY}-custom`,
-        dataUrl: src,
-        fallbackTextureKey: PLAYER_TEXTURE_KEY,
-        onApplied: hooks.onPlayerTexture,
-      });
-      return;
-    }
-
-    if (scene.textures.exists(PLAYER_TEXTURE_KEY)) {
-      scene.textures.remove(PLAYER_TEXTURE_KEY);
-    }
-    queueLoad();
-    loader.spritesheet(
-      PLAYER_TEXTURE_KEY,
-      resolveTextureUrl(src, getRuntimeAssets()),
-      {
-        frameWidth: assets.playerSprite.frameWidth,
-        frameHeight: assets.playerSprite.frameHeight,
-      },
-    );
+  const sharedOptions = {
+    scene,
+    projectId: context.projectId,
+    runtimeAssets,
   };
 
-  const applyGround = (src: string) => {
-    if (isDataUrl(src)) {
-      reloadBase64Texture({
-        scene,
-        textureKey: `${GROUND_TEXTURE_KEY}-custom`,
-        dataUrl: src,
-        fallbackTextureKey: GROUND_TEXTURE_KEY,
-        onApplied: () => undefined,
-      });
-      return;
-    }
+  const wrapPathApplied =
+    (src: string, onApplied: (key: string) => void) => (key: string) => {
+      if (!isDataUrlAsset(src)) {
+        onPathApplied();
+      }
+      onApplied(key);
+    };
 
-    if (scene.textures.exists(GROUND_TEXTURE_KEY)) {
-      scene.textures.remove(GROUND_TEXTURE_KEY);
-    }
-    queueLoad();
-    loader.image(
-      GROUND_TEXTURE_KEY,
-      resolveTextureUrl(src, getRuntimeAssets()),
-    );
-  };
+  trackPathLoad(assets.player);
+  reloadTexture({
+    ...sharedOptions,
+    textureKey: isDataUrlAsset(assets.player)
+      ? `${PLAYER_TEXTURE_KEY}-custom`
+      : PLAYER_TEXTURE_KEY,
+    src: assets.player,
+    fallbackTextureKey: PLAYER_TEXTURE_KEY,
+    loaderKind: "spritesheet",
+    spritesheetFrame: {
+      frameWidth: assets.playerSprite.frameWidth,
+      frameHeight: assets.playerSprite.frameHeight,
+    },
+    onApplied: wrapPathApplied(assets.player, hooks.onPlayerTexture),
+  });
+
+  trackPathLoad(assets.ground.image);
+  reloadTexture({
+    ...sharedOptions,
+    textureKey: isDataUrlAsset(assets.ground.image)
+      ? `${GROUND_TEXTURE_KEY}-custom`
+      : GROUND_TEXTURE_KEY,
+    src: assets.ground.image,
+    fallbackTextureKey: GROUND_TEXTURE_KEY,
+    loaderKind: "image",
+    onApplied: wrapPathApplied(assets.ground.image, () => undefined),
+  });
 
   const applyItemSheet = (prefix: string, index: number, item: ItemConfig) => {
     const key = `${prefix}${index}`;
-    const src = item.image;
-
-    if (isDataUrl(src)) {
-      reloadBase64Texture({
-        scene,
-        textureKey: `${key}-custom`,
-        dataUrl: src,
-        fallbackTextureKey: key,
-        onApplied: () => undefined,
-      });
-      return;
-    }
-
-    if (scene.textures.exists(key)) {
-      scene.textures.remove(key);
-    }
-    queueLoad();
-    loader.spritesheet(key, resolveTextureUrl(src, getRuntimeAssets()), {
-      frameWidth: item.frameWidth,
-      frameHeight: item.frameHeight,
+    trackPathLoad(item.image);
+    reloadTexture({
+      ...sharedOptions,
+      textureKey: isDataUrlAsset(item.image) ? `${key}-custom` : key,
+      src: item.image,
+      fallbackTextureKey: key,
+      loaderKind: "spritesheet",
+      spritesheetFrame: {
+        frameWidth: item.frameWidth,
+        frameHeight: item.frameHeight,
+      },
+      onApplied: wrapPathApplied(item.image, () => undefined),
     });
   };
 
-  applyPlayer(assets.player);
-  applyGround(assets.ground.image);
   assets.goodItems.forEach((item, index) =>
     applyItemSheet(GOOD_TEXTURE_PREFIX, index, item),
   );
@@ -147,10 +135,7 @@ function applyCatchGameTexturesNow(
     applyItemSheet(BAD_TEXTURE_PREFIX, index, item),
   );
 
-  if (pendingLoads > 0) {
-    loader.once(Phaser.Loader.Events.COMPLETE, finishLoad);
-    loader.start();
-  } else {
+  if (pendingLoads === 0) {
     maybeFinish();
   }
 }
@@ -159,6 +144,9 @@ export function applyCatchGameTextures(
   scene: Phaser.Scene,
   assets: CatchGameAssets,
   hooks: CatchGameTextureHooks,
+  context: CatchGameTextureContext = {},
 ): void {
-  whenLoaderIdle(scene, () => applyCatchGameTexturesNow(scene, assets, hooks));
+  whenLoaderIdle(scene, () =>
+    applyCatchGameTexturesNow(scene, assets, hooks, context),
+  );
 }

@@ -1,10 +1,15 @@
 import {
   AssetReadyPayloadSchema,
   BRIDGE_MESSAGE_TYPE,
+  isProjectRelativeAssetPath,
 } from "@mashedgames/shared";
 import Phaser from "phaser";
 import type { Game as PhaserGame } from "phaser";
-import { getOSAssetUrl, withCacheBust } from "./asset-loader.ts";
+import {
+  getOSAssetUrl,
+  getStudioAssetUrl,
+  withCacheBust,
+} from "./asset-loader.ts";
 import { getParentTargetOrigin } from "./dashboard-origin.ts";
 
 function findLoadableScene(game: PhaserGame): Phaser.Scene | null {
@@ -13,16 +18,32 @@ function findLoadableScene(game: PhaserGame): Phaser.Scene | null {
   return game.scene.scenes.find((s) => Boolean(s.load)) ?? null;
 }
 
+function resolveExternalAssetUrl(
+  absolutePath: string,
+  projectId?: string | null,
+): string {
+  const normalized = absolutePath.replace(/\\/g, "/");
+  const assetsIndex = normalized.toLowerCase().indexOf("/assets/");
+  if (projectId && assetsIndex >= 0) {
+    const relativePath = normalized.slice(assetsIndex + 1);
+    if (isProjectRelativeAssetPath(relativePath)) {
+      return withCacheBust(getStudioAssetUrl(relativePath, projectId));
+    }
+  }
+  return withCacheBust(getOSAssetUrl(absolutePath));
+}
+
 export function loadExternalAsset(
   game: PhaserGame,
   key: string,
   absolutePath: string,
+  projectId?: string | null,
 ): boolean {
   const scene = findLoadableScene(game);
   if (!scene) return false;
 
   const loader = scene.load;
-  const url = withCacheBust(getOSAssetUrl(absolutePath));
+  const url = resolveExternalAssetUrl(absolutePath, projectId);
 
   if (scene.textures.exists(key)) {
     scene.textures.remove(key);

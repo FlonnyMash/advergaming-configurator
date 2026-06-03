@@ -142,7 +142,12 @@ export function setupBridge(handlers: {
         if (!parsed.success) break;
         const game = handlers.getGame();
         if (!game) break;
-        loadExternalAsset(game, parsed.data.key, parsed.data.absolutePath);
+        loadExternalAsset(
+          game,
+          parsed.data.key,
+          parsed.data.absolutePath,
+          handlers.getCurrentConfig().meta.projectId,
+        );
         break;
       }
       case BRIDGE_MESSAGE_TYPE.SET_RUNTIME_ASSETS: {
