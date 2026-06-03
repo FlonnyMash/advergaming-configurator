@@ -18,6 +18,8 @@ export const GameProjectManifestSchema = z.object({
   lastParentAckAt: z.string(),
   createdAt: z.string(),
   deployRepoUrl: z.string().url().optional(),
+  /** Relative asset path (e.g. assets/logo.png) → absolute OS path for Electron preview. */
+  runtimeAssets: z.record(z.string(), z.string()).optional(),
 });
 
 export type GameProjectManifest = z.infer<typeof GameProjectManifestSchema>;

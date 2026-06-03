@@ -1,12 +1,24 @@
 export {
+  AssetReadyPayloadSchema,
+  LoadExternalAssetPayloadSchema,
+  SetRuntimeAssetsPayloadSchema,
+  type AssetReadyPayload,
+  type LoadExternalAssetPayload,
+  type SetRuntimeAssetsPayload,
+} from "./asset-bridge";
+
+export {
   BRIDGE_MESSAGE_TYPE,
+  type AssetReadyMessage,
   type BridgeMessage,
   type ConfigUpdateMode,
   type DiagnosticsPayloadMessage,
   type GameEventMessage,
   type IframeReadyMessage,
+  type LoadExternalAssetMessage,
   type LoadTemplateMessage,
   type RequestDiagnosticsMessage,
+  type SetRuntimeAssetsMessage,
   type UpdateConfigMessage,
   isBrandingPatch,
   isBrandingPatchShape,
@@ -70,6 +82,15 @@ export {
   type PlayerTouchBridgePayload,
   type TouchControlsStatePayload,
 } from "./studio-touch-bridge";
+
+export {
+  DEFAULT_PLATFORM_CONFIG,
+  PlatformConfigSchema,
+  PlatformFeaturesSchema,
+  parsePlatformConfig,
+  type PlatformConfig,
+  type PlatformFeatures,
+} from "./platform-schema";
 
 export {
   DEFAULT_DEV_TOOLKIT_FLAGS,
@@ -164,10 +185,16 @@ export {
   gameSchemaFromManifest,
   gameSchemaFromManifestForMode,
   isTemplateManifest,
+  normalizeTemplateManifest,
+  parseTemplateManifest,
+  resolvePhaserSceneKeys,
+  TemplateConfigJsonSchemaSchema,
+  TemplateManifestSchema,
   type JsonSchemaControlExtension,
   type TemplateCatalogEntry,
   type TemplateConfigJsonSchema,
   type TemplateManifest,
+  type TemplateManifestInput,
   type TemplateManifestStatus,
 } from "./template-manifest";
 

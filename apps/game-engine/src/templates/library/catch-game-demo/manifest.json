@@ -6,6 +6,8 @@
   "status": "development",
   "label": "Catch Game Demo",
   "description": "Imported legacy Vite/Phaser project (controls mapped from public/config.json).",
+  "phaserScenes": ["catch-game-demo-legacy-bridge"],
+  "uiOverlayComponents": [],
   "schema": {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "type": "object",

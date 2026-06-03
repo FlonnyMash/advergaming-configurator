@@ -1,5 +1,6 @@
 import {
   isTemplateManifest,
+  parseTemplateManifest,
   type TemplateManifest,
   type TemplateManifestStatus,
 } from "@advergaming/shared";
@@ -40,7 +41,7 @@ function readManifestFile(manifestPath: string): TemplateManifest | null {
   if (!existsSync(manifestPath)) return null;
   try {
     const parsed: unknown = JSON.parse(readFileSync(manifestPath, "utf8"));
-    return isTemplateManifest(parsed) ? parsed : null;
+    return parseTemplateManifest(parsed);
   } catch {
     return null;
   }

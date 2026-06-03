@@ -10,29 +10,25 @@ import {
 import Phaser from "phaser";
 import { setupBridge, setBridgeTemplateId } from "./bridge/messenger.ts";
 import { HitboxEditorController } from "./bridge/hitbox-editor-controller.ts";
-import {
-  gameChromeOverlayManager,
-  setupGameChromeBridge,
-} from "./bridge/game-chrome-bridge.ts";
+import { setupGameChromeBridge } from "./bridge/game-chrome-bridge.ts";
 import { getEngineMode } from "./env/app-mode.ts";
 import { createGameConfig } from "./game/config.ts";
 import { bindGamePreviewResize } from "./game/previewResize.ts";
 import { updatePhaserMechanics } from "./game/applyMechanics.ts";
 import {
-  initUIInteractions,
-  restoreEngineDefaultOverlay,
-  updateDomOverlays,
-} from "./overlays/ui-manager.ts";
+  findSceneWithStart,
+  MainScene,
+  MAIN_SCENE_KEY,
+} from "./game/scenes/MainScene.ts";
+import { initUIInteractions, updateDomOverlays } from "./overlays/ui-manager.ts";
 import {
   getCatalogEntry,
   getPublishedSystemDefaults,
 } from "./templates/schema-index.ts";
 import {
-  getTemplateDefinition,
   isRegisteredTemplate,
   TEMPLATE_CATALOG_IDS,
 } from "./templates/registry.ts";
-import type { TemplateScene } from "./templates/types.ts";
 
 let currentTemplateId: GameTemplateId = parseGameTemplateId(
   new URLSearchParams(window.location.search).get("game"),
@@ -40,6 +36,7 @@ let currentTemplateId: GameTemplateId = parseGameTemplateId(
 );
 setBridgeTemplateId(currentTemplateId);
 let game: Phaser.Game | null = null;
+let mainScene: MainScene | null = null;
 let latestConfig: GameMasterConfig = {
   ...DEFAULT_GAME_MASTER_CONFIG,
   meta: {
@@ -49,9 +46,7 @@ let latestConfig: GameMasterConfig = {
 };
 
 let debugTeardown: (() => void) | null = null;
-let previewResizeTeardown: (() => void) | null = null;
 let hitboxEditor: HitboxEditorController | null = null;
-let gameBooting = false;
 setupGameChromeBridge();
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -69,16 +64,6 @@ function resolveGameBackgroundColor(config: GameMasterConfig): string {
     }
   }
   return getPrimaryBrandColor(config);
-}
-
-function findSceneWithStart(gameInstance: Phaser.Game): TemplateScene | undefined {
-  for (const scene of gameInstance.scene.scenes) {
-    const typed = scene as TemplateScene;
-    if (typeof typed.start === "function") {
-      return typed;
-    }
-  }
-  return undefined;
 }
 
 function applyLegacyArcadeDebug(config: GameMasterConfig): void {
@@ -99,8 +84,13 @@ function canLoadTemplate(id: GameTemplateId): boolean {
   return entry?.manifest.status === "production";
 }
 
+function getMainScene(): MainScene | null {
+  if (!game) return null;
+  const scene = game.scene.getScene(MAIN_SCENE_KEY) as MainScene | undefined;
+  return scene ?? null;
+}
+
 async function mountStudioToolkit(phaserGame: Phaser.Game): Promise<void> {
-  // Dashboard embeds the engine in an iframe; standalone play has no parent.
   if (window.parent === window) return;
 
   const [
@@ -145,32 +135,44 @@ async function mountStudioToolkit(phaserGame: Phaser.Game): Promise<void> {
   };
 }
 
+function ensureGame(): void {
+  if (game) return;
+
+  game = new Phaser.Game(
+    createGameConfig({
+      parent: "game-container",
+      backgroundColor: resolveGameBackgroundColor(latestConfig),
+      scene: MainScene,
+    }),
+  );
+
+  bindGamePreviewResize(game);
+
+  game.events.once("ready", async () => {
+    mainScene = getMainScene();
+    if (!mainScene) return;
+
+    mainScene.setOnLoadComplete(() => {
+      applyLegacyArcadeDebug(latestConfig);
+      if (game) {
+        if (!hitboxEditor) {
+          hitboxEditor = new HitboxEditorController(game, () => latestConfig);
+        }
+        window.dispatchEvent(new Event("resize"));
+        void mountStudioToolkit(game);
+      }
+    });
+
+    void mainScene.loadTemplate(currentTemplateId, latestConfig);
+  });
+}
+
 function loadTemplate(id: GameTemplateId, config: GameMasterConfig): void {
   if (!canLoadTemplate(id)) return;
 
   if (debugTeardown) {
     debugTeardown();
-  }
-
-  if (hitboxEditor) {
-    hitboxEditor.destroy();
-    hitboxEditor = null;
-  }
-
-  if (previewResizeTeardown) {
-    previewResizeTeardown();
-    previewResizeTeardown = null;
-  }
-
-  gameChromeOverlayManager.clear();
-
-  if (currentTemplateId === "catch-game-demo" && id !== "catch-game-demo") {
-    restoreEngineDefaultOverlay();
-  }
-
-  if (game) {
-    game.destroy(true);
-    game = null;
+    debugTeardown = null;
   }
 
   currentTemplateId = id;
@@ -184,34 +186,12 @@ function loadTemplate(id: GameTemplateId, config: GameMasterConfig): void {
     latestConfig.system = structuredClone(getPublishedSystemDefaults(id));
   }
 
-  gameBooting = true;
+  ensureGame();
 
-  const { Scene } = getTemplateDefinition(id);
-  game = new Phaser.Game(
-    createGameConfig({
-      parent: "game-container",
-      backgroundColor: resolveGameBackgroundColor(latestConfig),
-      scene: Scene,
-    }),
-  );
-
-  previewResizeTeardown = bindGamePreviewResize(game);
-
-  game.events.once("ready", async () => {
-    gameBooting = false;
-    applyLegacyArcadeDebug(latestConfig);
-    if (game) {
-      if (currentTemplateId !== "catch-game-demo") {
-        updateDomOverlays(latestConfig);
-      }
-      updatePhaserMechanics(latestConfig, game);
-      if (!hitboxEditor) {
-        hitboxEditor = new HitboxEditorController(game, () => latestConfig);
-      }
-      window.dispatchEvent(new Event("resize"));
-      await mountStudioToolkit(game);
-    }
-  });
+  const scene = getMainScene();
+  if (scene) {
+    void scene.loadTemplate(id, latestConfig);
+  }
 }
 
 let configApplyTimer: ReturnType<typeof setTimeout> | null = null;
@@ -225,6 +205,13 @@ function applyConfigNow(config: GameMasterConfig): void {
     return;
   }
 
+  ensureGame();
+
+  const scene = getMainScene();
+  if (scene?.isLoading) {
+    return;
+  }
+
   if (currentTemplateId !== "catch-game-demo") {
     updateDomOverlays(config);
   }
@@ -234,12 +221,12 @@ function applyConfigNow(config: GameMasterConfig): void {
     return;
   }
 
-  if (gameBooting) {
-    return;
-  }
-
   applyLegacyArcadeDebug(config);
-  updatePhaserMechanics(config, game);
+  if (scene) {
+    scene.updateConfig(config);
+  } else {
+    updatePhaserMechanics(config, game);
+  }
 }
 
 function applyConfig(config: GameMasterConfig): void {
@@ -288,5 +275,5 @@ setupBridge({
   getGame: () => game,
 });
 
-applyConfig(latestConfig);
+loadTemplate(currentTemplateId, latestConfig);
 initUIInteractions();

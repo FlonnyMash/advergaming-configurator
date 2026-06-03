@@ -1,7 +1,7 @@
 import {
   buildConfigWithFrozenSystem,
   gameSchemaFromManifestForMode,
-  isTemplateManifest,
+  parseTemplateManifest,
   type GameMasterConfig,
   type GameTemplateId,
   type SystemSettings,
@@ -23,10 +23,11 @@ export function readParentManifest(
     throw new Error(`Parent template "${parentTemplateId}" not found.`);
   }
   const raw: unknown = JSON.parse(readFileSync(manifestPath, "utf8"));
-  if (!isTemplateManifest(raw)) {
+  const manifest = parseTemplateManifest(raw);
+  if (!manifest) {
     throw new Error(`Invalid manifest for "${parentTemplateId}".`);
   }
-  return raw;
+  return manifest;
 }
 
 export function loadPublishedSystemFromDisk(

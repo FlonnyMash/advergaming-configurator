@@ -177,6 +177,8 @@ export function normalizeScaffoldManifest(
     description:
       typeof raw.description === "string" ? raw.description : undefined,
     schema: buildSchemaFromScaffold(raw),
+    phaserScenes: [],
+    uiOverlayComponents: [],
   };
 }
 

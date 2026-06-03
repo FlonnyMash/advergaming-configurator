@@ -7,6 +7,8 @@ import Phaser from 'phaser';
 import { applyArcadeSpriteLayout } from '../../../../../../game/arcadeSpriteLayout.ts';
 import type { TemplateScene } from '../../../../../types.ts';
 import { PLAYER_TOUCH_EVENT, type PlayerTouchPayload } from '../../ui/touchControls';
+import { resolveTextureUrl } from '../../../../../../bridge/asset-loader.ts';
+import { getRuntimeAssets } from '../../../../../../bridge/runtime-assets.ts';
 import { applyCatchGameTextures } from '../catchGameTextures';
 
 type ItemType = 'good' | 'bad';
@@ -251,27 +253,43 @@ export class PlayScene extends Phaser.Scene implements TemplateScene {
 
   preload(): void {
     this.config = this.getConfig();
+    const runtimeAssets = getRuntimeAssets();
     const { frameWidth, frameHeight } = this.config.assets.playerSprite;
-    this.load.spritesheet(PLAYER_TEXTURE_KEY, this.config.assets.player, {
-      frameWidth,
-      frameHeight,
-    });
+    this.load.spritesheet(
+      PLAYER_TEXTURE_KEY,
+      resolveTextureUrl(this.config.assets.player, runtimeAssets),
+      {
+        frameWidth,
+        frameHeight,
+      },
+    );
 
     this.config.assets.goodItems.forEach((item, index) => {
-      this.load.spritesheet(`${GOOD_TEXTURE_PREFIX}${index}`, item.image, {
-        frameWidth: item.frameWidth,
-        frameHeight: item.frameHeight,
-      });
+      this.load.spritesheet(
+        `${GOOD_TEXTURE_PREFIX}${index}`,
+        resolveTextureUrl(item.image, runtimeAssets),
+        {
+          frameWidth: item.frameWidth,
+          frameHeight: item.frameHeight,
+        },
+      );
     });
 
     this.config.assets.badItems.forEach((item, index) => {
-      this.load.spritesheet(`${BAD_TEXTURE_PREFIX}${index}`, item.image, {
-        frameWidth: item.frameWidth,
-        frameHeight: item.frameHeight,
-      });
+      this.load.spritesheet(
+        `${BAD_TEXTURE_PREFIX}${index}`,
+        resolveTextureUrl(item.image, runtimeAssets),
+        {
+          frameWidth: item.frameWidth,
+          frameHeight: item.frameHeight,
+        },
+      );
     });
 
-    this.load.image(GROUND_TEXTURE_KEY, this.config.assets.ground.image);
+    this.load.image(
+      GROUND_TEXTURE_KEY,
+      resolveTextureUrl(this.config.assets.ground.image, runtimeAssets),
+    );
   }
 
   create(): void {

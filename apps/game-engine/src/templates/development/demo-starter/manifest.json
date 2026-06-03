@@ -6,6 +6,8 @@
   "status": "development",
   "label": "Demo Starter",
   "description": "Boilerplate template for rapid demo development.",
+  "phaserScenes": ["DemoStarter"],
+  "uiOverlayComponents": [],
   "schema": {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "type": "object",

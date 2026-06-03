@@ -1,5 +1,10 @@
 import { z } from "zod";
 import {
+  AssetReadyPayloadSchema,
+  LoadExternalAssetPayloadSchema,
+  SetRuntimeAssetsPayloadSchema,
+} from "./asset-bridge";
+import {
   BridgePayloadSchema,
   HitboxUpdatedMessageSchema,
 } from "./editor-bridge";
@@ -16,6 +21,9 @@ export const BRIDGE_MESSAGE_TYPE = {
   DIAGNOSTICS_PAYLOAD: "DIAGNOSTICS_PAYLOAD",
   GAME_EVENT: "GAME_EVENT",
   HITBOX_UPDATED: "HITBOX_UPDATED",
+  LOAD_EXTERNAL_ASSET: "LOAD_EXTERNAL_ASSET",
+  ASSET_READY: "ASSET_READY",
+  SET_RUNTIME_ASSETS: "SET_RUNTIME_ASSETS",
 } as const;
 
 // ---------------------------------------------------------------------------
@@ -293,6 +301,21 @@ export const GameEventMessageSchema = z.object({
   data: z.unknown(),
 });
 
+export const LoadExternalAssetMessageSchema = z.object({
+  type: z.literal(BRIDGE_MESSAGE_TYPE.LOAD_EXTERNAL_ASSET),
+  payload: LoadExternalAssetPayloadSchema,
+});
+
+export const AssetReadyMessageSchema = z.object({
+  type: z.literal(BRIDGE_MESSAGE_TYPE.ASSET_READY),
+  payload: AssetReadyPayloadSchema,
+});
+
+export const SetRuntimeAssetsMessageSchema = z.object({
+  type: z.literal(BRIDGE_MESSAGE_TYPE.SET_RUNTIME_ASSETS),
+  payload: SetRuntimeAssetsPayloadSchema,
+});
+
 export const BridgeMessageSchema = z.discriminatedUnion("type", [
   IframeReadyMessageSchema,
   UpdateConfigMessageSchema,
@@ -301,6 +324,9 @@ export const BridgeMessageSchema = z.discriminatedUnion("type", [
   DiagnosticsPayloadMessageSchema,
   GameEventMessageSchema,
   HitboxUpdatedMessageSchema,
+  LoadExternalAssetMessageSchema,
+  AssetReadyMessageSchema,
+  SetRuntimeAssetsMessageSchema,
 ]);
 
 // ---------------------------------------------------------------------------
@@ -335,6 +361,13 @@ export type DiagnosticsPayloadMessage = z.infer<
   typeof DiagnosticsPayloadMessageSchema
 >;
 export type GameEventMessage = z.infer<typeof GameEventMessageSchema>;
+export type LoadExternalAssetMessage = z.infer<
+  typeof LoadExternalAssetMessageSchema
+>;
+export type AssetReadyMessage = z.infer<typeof AssetReadyMessageSchema>;
+export type SetRuntimeAssetsMessage = z.infer<
+  typeof SetRuntimeAssetsMessageSchema
+>;
 export type BridgeMessage = z.infer<typeof BridgeMessageSchema>;
 
 // ---------------------------------------------------------------------------

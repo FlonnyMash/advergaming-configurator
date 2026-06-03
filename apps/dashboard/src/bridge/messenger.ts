@@ -1,13 +1,17 @@
 import {
+  AssetReadyPayloadSchema,
   BRIDGE_MESSAGE_TYPE,
   DEFAULT_EDITOR_STATE,
   DiagnosticsPayloadMessageSchema,
   IframeReadyMessageSchema,
+  LoadExternalAssetPayloadSchema,
+  SetRuntimeAssetsPayloadSchema,
   buildBridgePayload,
   isDiagnosticsPayloadMessage,
   isGameEventMessage,
   isHitboxUpdatedMessage,
   isIframeReadyMessage,
+  type AssetReadyPayload,
   type BridgePayload,
   type GameEventMessage,
   type HitboxUpdatePayload,
@@ -89,6 +93,8 @@ class DashboardMessenger {
   private gameEventHandler: ((message: GameEventMessage) => void) | null =
     null;
   private hitboxUpdatedHandler: ((payload: HitboxUpdatePayload) => void) | null =
+    null;
+  private assetReadyHandler: ((payload: AssetReadyPayload) => void) | null =
     null;
   private iframeReadyHandler:
     | ((capabilities: IframeReadyMessage["capabilities"]) => void)
@@ -190,6 +196,22 @@ class DashboardMessenger {
       return;
     }
 
+    if (
+      typeof event.data === "object" &&
+      event.data !== null &&
+      "type" in event.data &&
+      event.data.type === BRIDGE_MESSAGE_TYPE.ASSET_READY &&
+      "payload" in event.data
+    ) {
+      const parsed = AssetReadyPayloadSchema.safeParse(
+        (event.data as { payload: unknown }).payload,
+      );
+      if (parsed.success) {
+        this.assetReadyHandler?.(parsed.data);
+      }
+      return;
+    }
+
     if (isDiagnosticsPayloadMessage(event.data)) {
       warnIfInvalid(
         DiagnosticsPayloadMessageSchema,
@@ -231,6 +253,39 @@ class DashboardMessenger {
         this.hitboxUpdatedHandler = null;
       }
     };
+  }
+
+  onAssetReady(handler: (payload: AssetReadyPayload) => void): () => void {
+    this.assetReadyHandler = handler;
+    return () => {
+      if (this.assetReadyHandler === handler) {
+        this.assetReadyHandler = null;
+      }
+    };
+  }
+
+  sendLoadExternalAsset(key: string, absolutePath: string): void {
+    if (!this.iframeReady || !this.targetWindow) return;
+    const message = {
+      type: BRIDGE_MESSAGE_TYPE.LOAD_EXTERNAL_ASSET,
+      payload: { key, absolutePath },
+    };
+    if (isDev) {
+      LoadExternalAssetPayloadSchema.safeParse(message.payload);
+    }
+    this.targetWindow.postMessage(message, getGameEngineOrigin());
+  }
+
+  sendRuntimeAssets(assets: Record<string, string>): void {
+    if (!this.iframeReady || !this.targetWindow) return;
+    const message = {
+      type: BRIDGE_MESSAGE_TYPE.SET_RUNTIME_ASSETS,
+      payload: { assets },
+    };
+    if (isDev) {
+      SetRuntimeAssetsPayloadSchema.safeParse(message.payload);
+    }
+    this.targetWindow.postMessage(message, getGameEngineOrigin());
   }
 
   sendBridgePayload(

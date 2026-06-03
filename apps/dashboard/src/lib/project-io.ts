@@ -1,4 +1,5 @@
 import {
+  applyPath,
   buildInitialClientPayload,
   buildProjectConfigFromClient,
   ClientProjectPayloadSchema,
@@ -13,11 +14,18 @@ import {
   type GameTemplateId,
   type ParentLockSnapshot,
 } from "@advergaming/shared";
+import { textureKeyForTargetPath } from "@/lib/catch-game-texture-keys";
+import {
+  migrateClientBrandingAssets,
+  persistBufferToProjectAssets,
+} from "@/lib/project-assets";
+import { isWorkspaceDesktop } from "@/lib/runtime-env";
 import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
 import { existsSync, statSync } from "node:fs";
 import path from "node:path";
 import {
-  getWorkspaceRoot,
+  ensureWorkspaceExists,
+  getProjectsRoot,
   PROJECT_FILES,
   resolveProjectDir,
   templateLibraryRoot,
@@ -47,18 +55,19 @@ function buildParentLockSnapshot(
 }
 
 export async function listProjectIds(): Promise<string[]> {
-  const workspaceRoot = getWorkspaceRoot();
-  if (!existsSync(workspaceRoot)) {
+  ensureWorkspaceExists();
+  const projectsRoot = getProjectsRoot();
+  if (!existsSync(projectsRoot)) {
     return [];
   }
-  const entries = await readdir(workspaceRoot, { withFileTypes: true });
+  const entries = await readdir(projectsRoot, { withFileTypes: true });
   const ids: string[] = [];
   for (const entry of entries) {
     if (!entry.isDirectory() || !PROJECT_ID_PATTERN.test(entry.name)) {
       continue;
     }
     const manifestPath = path.join(
-      workspaceRoot,
+      projectsRoot,
       entry.name,
       PROJECT_FILES.manifest,
     );
@@ -79,6 +88,7 @@ export async function createProject(input: {
     client: ClientProjectPayload;
   }>
 > {
+  ensureWorkspaceExists();
   const parentTemplateId = input.parentTemplateId;
   const parentDir = path.join(templateLibraryRoot, parentTemplateId);
   if (!existsSync(parentDir) || !statSync(parentDir).isDirectory()) {
@@ -156,9 +166,11 @@ export async function loadProject(projectId: string): Promise<
     client: ClientProjectPayload;
     config: GameMasterConfig;
     parentLock: ParentLockSnapshot | null;
+    runtimeAssets: Record<string, string>;
   }>
 > {
   try {
+    ensureWorkspaceExists();
     const projectDir = resolveProjectDir(projectId);
     if (!existsSync(projectDir)) {
       return { ok: false, error: `Project "${projectId}" not found.`, status: 404 };
@@ -209,6 +221,7 @@ export async function loadProject(projectId: string): Promise<
         client: clientParsed.data,
         config,
         parentLock,
+        runtimeAssets: manifest.runtimeAssets ?? {},
       },
     };
   } catch (error) {
@@ -218,11 +231,102 @@ export async function loadProject(projectId: string): Promise<
   }
 }
 
+export async function importProjectAsset(
+  projectId: string,
+  targetPath: string,
+  input: { fileName: string; buffer: Buffer },
+): Promise<
+  ProjectIoResult<{
+    relativePath: string;
+    absolutePath: string;
+    textureKey: string | null;
+    client: ClientProjectPayload;
+    manifest: GameProjectManifest;
+  }>
+> {
+  try {
+    if (!isWorkspaceDesktop()) {
+      return {
+        ok: false,
+        error: "OS asset import is only available in the desktop app.",
+        status: 400,
+      };
+    }
+
+    ensureWorkspaceExists();
+    const projectDir = resolveProjectDir(projectId);
+    if (!existsSync(projectDir)) {
+      return { ok: false, error: `Project "${projectId}" not found.`, status: 404 };
+    }
+
+    const manifestRaw = JSON.parse(
+      await readFile(path.join(projectDir, PROJECT_FILES.manifest), "utf8"),
+    );
+    const manifestParsed = GameProjectManifestSchema.safeParse(manifestRaw);
+    if (!manifestParsed.success) {
+      return { ok: false, error: "Invalid project.json.", status: 500 };
+    }
+
+    const clientRaw = JSON.parse(
+      await readFile(path.join(projectDir, PROJECT_FILES.client), "utf8"),
+    );
+    const clientParsed = ClientProjectPayloadSchema.safeParse(clientRaw);
+    if (!clientParsed.success) {
+      return { ok: false, error: "Invalid client.json.", status: 500 };
+    }
+
+    const { relativePath, absolutePath } = await persistBufferToProjectAssets(
+      projectId,
+      input.buffer,
+      input.fileName,
+    );
+
+    const branding = structuredClone(
+      clientParsed.data.branding,
+    ) as Record<string, unknown>;
+    applyPath(branding, targetPath, relativePath);
+
+    const runtimeAssets = {
+      ...(manifestParsed.data.runtimeAssets ?? {}),
+      [relativePath]: absolutePath,
+    };
+
+    const client: ClientProjectPayload = {
+      ...clientParsed.data,
+      branding: branding as ClientProjectPayload["branding"],
+    };
+
+    const manifest: GameProjectManifest = {
+      ...manifestParsed.data,
+      runtimeAssets,
+    };
+
+    await writeJson(path.join(projectDir, PROJECT_FILES.client), client);
+    await writeJson(path.join(projectDir, PROJECT_FILES.manifest), manifest);
+
+    return {
+      ok: true,
+      data: {
+        relativePath,
+        absolutePath,
+        textureKey: textureKeyForTargetPath(targetPath),
+        client,
+        manifest,
+      },
+    };
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Failed to import asset.";
+    return { ok: false, error: message, status: 500 };
+  }
+}
+
 export async function saveProjectClient(
   projectId: string,
   client: ClientProjectPayload,
 ): Promise<ProjectIoResult<{ projectId: string }>> {
   try {
+    ensureWorkspaceExists();
     const projectDir = resolveProjectDir(projectId);
     if (!existsSync(projectDir)) {
       return { ok: false, error: `Project "${projectId}" not found.`, status: 404 };
@@ -233,7 +337,43 @@ export async function saveProjectClient(
       return { ok: false, error: "Invalid client payload.", status: 400 };
     }
 
-    await writeJson(path.join(projectDir, PROJECT_FILES.client), parsed.data);
+    let clientToSave = parsed.data;
+    let manifestUpdate: GameProjectManifest | null = null;
+
+    if (isWorkspaceDesktop()) {
+      const manifestRaw = JSON.parse(
+        await readFile(path.join(projectDir, PROJECT_FILES.manifest), "utf8"),
+      );
+      const manifestParsed = GameProjectManifestSchema.safeParse(manifestRaw);
+      if (!manifestParsed.success) {
+        return { ok: false, error: "Invalid project.json.", status: 500 };
+      }
+
+      const migrated = await migrateClientBrandingAssets(
+        projectId,
+        parsed.data.branding,
+        manifestParsed.data.runtimeAssets ?? {},
+      );
+
+      clientToSave = {
+        ...parsed.data,
+        branding: migrated.branding,
+      };
+
+      manifestUpdate = {
+        ...manifestParsed.data,
+        runtimeAssets: migrated.runtimeAssets,
+      };
+    }
+
+    await writeJson(path.join(projectDir, PROJECT_FILES.client), clientToSave);
+    if (manifestUpdate) {
+      await writeJson(
+        path.join(projectDir, PROJECT_FILES.manifest),
+        manifestUpdate,
+      );
+    }
+
     return { ok: true, data: { projectId } };
   } catch (error) {
     const message =
@@ -249,6 +389,7 @@ export async function ackParentLock(projectId: string): Promise<
   }>
 > {
   try {
+    ensureWorkspaceExists();
     const loaded = await loadProject(projectId);
     if (!loaded.ok) {
       return loaded;

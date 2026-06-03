@@ -153,14 +153,23 @@ function SliderControl({
   );
 }
 
+export type ImageUploadMode = "base64" | "workspace-file";
+
 function SchemaControl({
   schema,
   value,
   onChange,
+  imageUploadMode = "base64",
+  onImageFile,
 }: {
   schema: ControlFieldSchema;
   value: ControlValue;
   onChange: (value: ControlValue) => void;
+  imageUploadMode?: ImageUploadMode;
+  onImageFile?: (
+    file: File,
+    control: ControlFieldSchema,
+  ) => void | Promise<void>;
 }) {
   const textureInputRef = useRef<HTMLInputElement>(null);
 
@@ -239,6 +248,12 @@ function SchemaControl({
             onChange={(event) => {
               const file = event.target.files?.[0];
               if (!file || file.size > MAX_TEXTURE_BYTES) return;
+              if (imageUploadMode === "workspace-file" && onImageFile) {
+                void Promise.resolve(onImageFile(file, schema)).finally(() => {
+                  event.target.value = "";
+                });
+                return;
+              }
               const reader = new FileReader();
               reader.onload = () => {
                 if (typeof reader.result === "string") onChange(reader.result);
@@ -259,12 +274,19 @@ export interface SchemaControlPanelProps {
   schema: GameSchema;
   config: GameMasterConfig;
   onControlChange: (control: ControlFieldSchema, value: ControlValue) => void;
+  imageUploadMode?: ImageUploadMode;
+  onImageFile?: (
+    file: File,
+    control: ControlFieldSchema,
+  ) => void | Promise<void>;
 }
 
 export function SchemaControlPanel({
   schema,
   config,
   onControlChange,
+  imageUploadMode = "base64",
+  onImageFile,
 }: SchemaControlPanelProps) {
   const brandingControls = schema.controls.filter(
     (control) => control.targetCategory === "branding",
@@ -288,6 +310,8 @@ export function SchemaControlPanel({
               schema={control}
               value={getConfigValue(config, control)}
               onChange={(value) => onControlChange(control, value)}
+              imageUploadMode={imageUploadMode}
+              onImageFile={onImageFile}
             />
           ))}
         </CollapsibleGroup>

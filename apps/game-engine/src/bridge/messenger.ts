@@ -2,6 +2,8 @@ import {
   BRIDGE_MESSAGE_TYPE,
   EditorStateSchema,
   HitboxUpdatePayloadSchema,
+  LoadExternalAssetPayloadSchema,
+  SetRuntimeAssetsPayloadSchema,
   coerceUpdateConfigPayload,
   parseBridgeMessage,
   type EditorState,
@@ -11,6 +13,8 @@ import {
   type IframeReadyMessage,
   type UpdateConfigMessage,
 } from "@advergaming/shared";
+import { loadExternalAsset } from "./external-asset-loader.ts";
+import { setRuntimeAssets } from "./runtime-assets.ts";
 import type Phaser from "phaser";
 import { supportsExternalTouchControls } from "./studio-touch-bridge.ts";
 import { allowsSystemMutation, getEngineMode } from "../env/app-mode.ts";
@@ -131,6 +135,20 @@ export function setupBridge(handlers: {
           },
           event.origin,
         );
+        break;
+      }
+      case BRIDGE_MESSAGE_TYPE.LOAD_EXTERNAL_ASSET: {
+        const parsed = LoadExternalAssetPayloadSchema.safeParse(message.payload);
+        if (!parsed.success) break;
+        const game = handlers.getGame();
+        if (!game) break;
+        loadExternalAsset(game, parsed.data.key, parsed.data.absolutePath);
+        break;
+      }
+      case BRIDGE_MESSAGE_TYPE.SET_RUNTIME_ASSETS: {
+        const parsed = SetRuntimeAssetsPayloadSchema.safeParse(message.payload);
+        if (!parsed.success) break;
+        setRuntimeAssets(parsed.data.assets);
         break;
       }
       default:

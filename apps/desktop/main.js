@@ -1,14 +1,31 @@
 const fs = require("node:fs");
 const http = require("node:http");
 const path = require("node:path");
+const { pathToFileURL } = require("node:url");
 const { spawn } = require("node:child_process");
-const { app, BrowserWindow, dialog } = require("electron");
+const { app, BrowserWindow, dialog, net, protocol } = require("electron");
 const { autoUpdater } = require("electron-updater");
 const getPort = require("get-port");
+
+const STUDIO_PROTOCOL = "mashedgames-studio";
+const STUDIO_PROTOCOL_PREFIX = `${STUDIO_PROTOCOL}://`;
 
 let mainWindow = null;
 let dashboardServer = null;
 let dashboardPort = null;
+
+protocol.registerSchemesAsPrivileged([
+  {
+    scheme: STUDIO_PROTOCOL,
+    privileges: {
+      standard: true,
+      secure: true,
+      supportFetchAPI: true,
+      stream: true,
+      corsEnabled: true,
+    },
+  },
+]);
 
 function resolveStandaloneServerPath() {
   if (app.isPackaged) {
@@ -27,12 +44,24 @@ function resolveStandaloneServerPath() {
   );
 }
 
-function getPersistentWorkspacePath() {
-  return path.join(app.getPath("documents"), "AdvergamingStudio", "Projects");
+function getAdvergamingWorkspacePath() {
+  return path.join(app.getPath("documents"), "AdvergamingStudio");
 }
 
-function ensureWorkspaceDir(workspacePath) {
-  fs.mkdirSync(workspacePath, { recursive: true });
+function getProjectsPath(workspacePath) {
+  return path.join(workspacePath, "Projects");
+}
+
+function ensureWorkspaceStructure(workspacePath) {
+  const projectsPath = getProjectsPath(workspacePath);
+  try {
+    fs.mkdirSync(projectsPath, { recursive: true });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    throw new Error(
+      `Failed to create workspace at "${projectsPath}": ${message}`,
+    );
+  }
 }
 
 function pickLegacyGamesDir() {
@@ -66,6 +95,119 @@ function autoMigrateLegacyProjects(workspacePath) {
     backupPath = `${backupBase}_${Date.now()}`;
   }
   fs.renameSync(legacyDir, backupPath);
+}
+
+function absolutePathFromStudioProtocolUrl(requestUrl) {
+  let parsed;
+  try {
+    parsed = new URL(requestUrl);
+  } catch {
+    return null;
+  }
+
+  if (parsed.protocol !== `${STUDIO_PROTOCOL}:`) {
+    return null;
+  }
+
+  let filePath;
+  if (parsed.hostname && /^[a-zA-Z]$/.test(parsed.hostname)) {
+    filePath = `${parsed.hostname}:${parsed.pathname}`;
+  } else if (parsed.hostname) {
+    filePath = `//${parsed.hostname}${parsed.pathname}`;
+  } else {
+    filePath = parsed.pathname;
+  }
+
+  try {
+    filePath = decodeURIComponent(filePath);
+  } catch {
+    return null;
+  }
+
+  if (process.platform === "win32" && /^\/[a-zA-Z]:/.test(filePath)) {
+    filePath = filePath.slice(1);
+  }
+
+  filePath = path.normalize(filePath);
+  if (!path.isAbsolute(filePath)) {
+    return null;
+  }
+
+  return filePath;
+}
+
+function isPathInsideWorkspace(filePath, workspacePath) {
+  const resolvedFile = path.resolve(filePath);
+  const resolvedWorkspace = path.resolve(workspacePath);
+  const relative = path.relative(resolvedWorkspace, resolvedFile);
+  if (!relative || relative === "") {
+    return true;
+  }
+  if (relative.startsWith("..") || path.isAbsolute(relative)) {
+    return false;
+  }
+  return true;
+}
+
+function registerStudioProtocol(workspacePath) {
+  protocol.handle(STUDIO_PROTOCOL, async (request) => {
+    if (!request.url.startsWith(STUDIO_PROTOCOL_PREFIX)) {
+      return new Response("Bad Request", {
+        status: 400,
+        headers: { "content-type": "text/plain" },
+      });
+    }
+
+    const filePath = absolutePathFromStudioProtocolUrl(request.url);
+    if (!filePath) {
+      return new Response("Bad Request", {
+        status: 400,
+        headers: { "content-type": "text/plain" },
+      });
+    }
+
+    if (!isPathInsideWorkspace(filePath, workspacePath)) {
+      return new Response("Forbidden", {
+        status: 403,
+        headers: { "content-type": "text/plain" },
+      });
+    }
+
+    if (!fs.existsSync(filePath)) {
+      return new Response("Not Found", {
+        status: 404,
+        headers: { "content-type": "text/plain" },
+      });
+    }
+
+    let stat;
+    try {
+      stat = fs.statSync(filePath);
+    } catch (error) {
+      console.error("[studio-protocol] stat failed", filePath, error);
+      return new Response("Not Found", {
+        status: 404,
+        headers: { "content-type": "text/plain" },
+      });
+    }
+
+    if (!stat.isFile()) {
+      return new Response("Not Found", {
+        status: 404,
+        headers: { "content-type": "text/plain" },
+      });
+    }
+
+    try {
+      return await net.fetch(pathToFileURL(filePath).href);
+    } catch (error) {
+      console.error("[studio-protocol] fetch failed", filePath, error);
+      return new Response("Not Found", {
+        status: 404,
+        headers: { "content-type": "text/plain" },
+      });
+    }
+  });
 }
 
 function probeUrl(url) {
@@ -102,7 +244,7 @@ async function waitForDashboardServer(port) {
   );
 }
 
-async function spawnDashboardServer(workspacePath) {
+async function spawnDashboardServer(workspaceBasePath) {
   const port = await getPort();
   const serverEntry = resolveStandaloneServerPath();
   if (!fs.existsSync(serverEntry)) {
@@ -117,7 +259,8 @@ async function spawnDashboardServer(workspacePath) {
       NODE_ENV: "production",
       HOSTNAME: "127.0.0.1",
       PORT: String(port),
-      WORKSPACE_DIR: workspacePath,
+      ADVERGAMING_WORKSPACE_PATH: workspaceBasePath,
+      NEXT_PUBLIC_WORKSPACE_DESKTOP: "1",
     },
     stdio: "pipe",
   });
@@ -203,9 +346,10 @@ function cleanupDashboardServer() {
 }
 
 app.whenReady().then(async () => {
-  const workspacePath = getPersistentWorkspacePath();
-  ensureWorkspaceDir(workspacePath);
-  autoMigrateLegacyProjects(workspacePath);
+  const workspacePath = getAdvergamingWorkspacePath();
+  ensureWorkspaceStructure(workspacePath);
+  registerStudioProtocol(workspacePath);
+  autoMigrateLegacyProjects(getProjectsPath(workspacePath));
   dashboardPort = await spawnDashboardServer(workspacePath);
   createMainWindow(dashboardPort);
   setupAutoUpdater();

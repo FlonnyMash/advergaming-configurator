@@ -1,18 +1,22 @@
 import {
   gameSchemaFromManifest,
-  isTemplateManifest,
+  parseTemplateManifest,
+  resolvePhaserSceneKeys,
   type GameSchema,
   type GameTemplateId,
   type TemplateCatalogEntry,
-  type TemplateManifest,
 } from "@advergaming/shared";
 import type { Types } from "phaser";
+import {
+  registerPhaserSceneMap,
+} from "../game/scenes/PhaserSceneRegistry.ts";
 
 export type AppEnvironment = "dev" | "prod";
 
 interface TemplateModule {
-  manifest: TemplateManifest;
+  manifest: unknown;
   Scene: Types.Scenes.SceneType;
+  phaserSceneMap?: Record<string, Types.Scenes.SceneType>;
 }
 
 const libraryModules = import.meta.glob<TemplateModule>("./library/*/index.ts", {
@@ -51,8 +55,8 @@ function loadCatalogFromGlob(
     const parsed = parseTemplatePath(path);
     if (!parsed || parsed.source !== source) continue;
 
-    const manifest = mod.manifest;
-    if (!isTemplateManifest(manifest)) {
+    const manifest = parseTemplateManifest(mod.manifest);
+    if (!manifest) {
       console.warn(`[catalog] Invalid manifest in ${path}`);
       continue;
     }
@@ -140,9 +144,35 @@ export function buildSceneRegistry(): Record<
 
   for (const [path, mod] of Object.entries(allModules)) {
     const parsed = parseTemplatePath(path);
-    if (!parsed || !isTemplateManifest(mod.manifest)) continue;
-    registry[mod.manifest.id] = mod.Scene;
+    const manifest = parseTemplateManifest(mod.manifest);
+    if (!parsed || !manifest) continue;
+    registry[manifest.id] = mod.Scene;
   }
 
   return registry;
 }
+
+/** Register all Phaser scene classes from template modules into PhaserSceneRegistry. */
+export function buildPhaserSceneRegistry(): void {
+  const allModules = {
+    ...libraryModules,
+    ...developmentModules,
+  } as Record<string, TemplateModule>;
+
+  for (const [path, mod] of Object.entries(allModules)) {
+    const parsed = parseTemplatePath(path);
+    const manifest = parseTemplateManifest(mod.manifest);
+    if (!parsed || !manifest) continue;
+
+    if (mod.phaserSceneMap && Object.keys(mod.phaserSceneMap).length > 0) {
+      registerPhaserSceneMap(mod.phaserSceneMap);
+      continue;
+    }
+
+    const keys = resolvePhaserSceneKeys(manifest);
+    const primaryKey = keys[0] ?? manifest.id;
+    registerPhaserSceneMap({ [primaryKey]: mod.Scene });
+  }
+}
+
+buildPhaserSceneRegistry();

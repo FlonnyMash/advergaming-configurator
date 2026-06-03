@@ -30,5 +30,10 @@ const Scene = createLegacyBridgeScene({
   },
 });
 
+export const phaserSceneMap = {
+  [`${manifest.id}-legacy-bridge`]: Scene,
+  PlayScene,
+};
+
 export { manifest };
 export { Scene };

@@ -1,3 +1,5 @@
+import { resolveTextureUrl } from "../../../../../bridge/asset-loader.ts";
+import { getRuntimeAssets } from "../../../../../bridge/runtime-assets.ts";
 import { reloadBase64Texture } from "../../../../../game/reloadBase64Texture.ts";
 import Phaser from "phaser";
 
@@ -79,10 +81,14 @@ function applyCatchGameTexturesNow(
       scene.textures.remove(PLAYER_TEXTURE_KEY);
     }
     queueLoad();
-    loader.spritesheet(PLAYER_TEXTURE_KEY, src, {
-      frameWidth: assets.playerSprite.frameWidth,
-      frameHeight: assets.playerSprite.frameHeight,
-    });
+    loader.spritesheet(
+      PLAYER_TEXTURE_KEY,
+      resolveTextureUrl(src, getRuntimeAssets()),
+      {
+        frameWidth: assets.playerSprite.frameWidth,
+        frameHeight: assets.playerSprite.frameHeight,
+      },
+    );
   };
 
   const applyGround = (src: string) => {
@@ -101,7 +107,10 @@ function applyCatchGameTexturesNow(
       scene.textures.remove(GROUND_TEXTURE_KEY);
     }
     queueLoad();
-    loader.image(GROUND_TEXTURE_KEY, src);
+    loader.image(
+      GROUND_TEXTURE_KEY,
+      resolveTextureUrl(src, getRuntimeAssets()),
+    );
   };
 
   const applyItemSheet = (prefix: string, index: number, item: ItemConfig) => {
@@ -123,7 +132,7 @@ function applyCatchGameTexturesNow(
       scene.textures.remove(key);
     }
     queueLoad();
-    loader.spritesheet(key, src, {
+    loader.spritesheet(key, resolveTextureUrl(src, getRuntimeAssets()), {
       frameWidth: item.frameWidth,
       frameHeight: item.frameHeight,
     });

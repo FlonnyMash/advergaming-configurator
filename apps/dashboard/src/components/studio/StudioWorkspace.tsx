@@ -2,6 +2,7 @@
 
 import { DevToolkitBridgeHost } from "@/components/studio/DevToolkitBridgeHost";
 import { StudioToolsPanel } from "@/components/studio/StudioToolsPanel";
+import { TemplateOverlayLayer } from "@/components/studio/TemplateOverlayLayer";
 import { CenterWorkspace } from "@/components/shell/CenterWorkspace";
 import { GameChromeOverlayPanel } from "@/components/shell/GameChromeOverlayPanel";
 import { useSaveGameControls } from "@/hooks/useSaveGameControls";
@@ -10,8 +11,9 @@ import {
   GAME_PREVIEW_PANE_ID,
   useWorkspaceCenterStore,
 } from "@/lib/workspace-center-store";
+import { getCatalogEntry } from "@advergaming/game-engine/templates/schemas";
 import { StudioSidebar, useStudioConfigStore } from "@advergaming/studio-engine";
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 
 export function StudioWorkspace({ suspended = false }: { suspended?: boolean }) {
   const initialTemplateId = useStudioConfigStore.getState().selectedTemplateId;
@@ -44,6 +46,15 @@ export function StudioWorkspace({ suspended = false }: { suspended?: boolean }) 
         }),
       ),
     [],
+  );
+
+  const activeManifest = useMemo(
+    () => getCatalogEntry(selectedTemplateId)?.manifest ?? null,
+    [selectedTemplateId],
+  );
+
+  const templateOverlaySlot = (
+    <TemplateOverlayLayer manifest={activeManifest} getConfig={getConfig} />
   );
 
   return (
@@ -82,6 +93,7 @@ export function StudioWorkspace({ suspended = false }: { suspended?: boolean }) 
         subscribe={subscribe}
         configUpdateMode="full"
         previewSuspended={suspended}
+        overlaySlot={templateOverlaySlot}
       />
       <StudioToolsPanel />
     </div>

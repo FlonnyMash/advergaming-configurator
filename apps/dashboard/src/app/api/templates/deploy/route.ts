@@ -1,4 +1,5 @@
 import { loadProject } from "@/lib/project-io";
+import { PROJECT_FILES, resolveProjectDir } from "@/lib/project-paths";
 import { exportTemplateToDirectory } from "@/lib/template-export";
 import {
   normalizeGameMasterConfig,
@@ -72,7 +73,17 @@ export async function POST(request: NextRequest) {
 
     tempDir = await mkdtemp(path.join(os.tmpdir(), "advergaming-deploy-"));
 
-    const exported = await exportTemplateToDirectory(templateId, tempDir, config);
+    const projectAssetsDir =
+      body.projectId !== undefined
+        ? path.join(
+            resolveProjectDir(body.projectId),
+            PROJECT_FILES.assetsDir,
+          )
+        : undefined;
+
+    const exported = await exportTemplateToDirectory(templateId, tempDir, config, {
+      projectAssetsDir,
+    });
     if (!exported.ok) {
       return Response.json(
         { ok: false, error: exported.error },

@@ -1,3 +1,4 @@
+import { z } from "zod";
 import type { AppMode } from "./types";
 import { filterSchemaControls } from "./permissions";
 import type {
@@ -37,6 +38,55 @@ export interface TemplateConfigJsonSchema {
   maximum?: number;
 }
 
+export const TemplateConfigJsonSchemaSchema: z.ZodType<TemplateConfigJsonSchema> =
+  z
+    .object({
+      $schema: z.string().optional(),
+      type: z.string().optional(),
+      title: z.string().optional(),
+      description: z.string().optional(),
+      properties: z.record(z.string(), z.lazy(() => TemplateConfigJsonSchemaSchema)).optional(),
+      "x-control": z.custom<JsonSchemaControlExtension>().optional(),
+      default: z.unknown().optional(),
+      minimum: z.number().optional(),
+      maximum: z.number().optional(),
+    })
+    .passthrough();
+
+export const TemplateManifestSchema = z
+  .object({
+    id: z.string().min(1),
+    name: z.string().min(1).optional(),
+    label: z.string().min(1).optional(),
+    version: z.string().min(1),
+    author: z.string(),
+    previewUrl: z.string(),
+    status: z.enum(["development", "production"]),
+    description: z.string().optional(),
+    phaserScenes: z.array(z.string().min(1)).default([]),
+    uiOverlayComponents: z.array(z.string().min(1)).default([]),
+    exposedConfigSchema: TemplateConfigJsonSchemaSchema.optional(),
+    schema: TemplateConfigJsonSchemaSchema.optional(),
+  })
+  .superRefine((m, ctx) => {
+    if (!m.label && !m.name) {
+      ctx.addIssue({
+        code: "custom",
+        message: "label or name is required",
+        path: ["label"],
+      });
+    }
+    if (!m.schema && !m.exposedConfigSchema) {
+      ctx.addIssue({
+        code: "custom",
+        message: "schema or exposedConfigSchema is required",
+        path: ["schema"],
+      });
+    }
+  });
+
+export type TemplateManifestInput = z.input<typeof TemplateManifestSchema>;
+
 export interface TemplateManifest {
   id: string;
   version: string;
@@ -46,6 +96,40 @@ export interface TemplateManifest {
   label: string;
   description?: string;
   schema: TemplateConfigJsonSchema;
+  phaserScenes: string[];
+  uiOverlayComponents: string[];
+}
+
+/** Normalize manifest JSON (aliases, defaults) to canonical TemplateManifest. */
+export function normalizeTemplateManifest(raw: TemplateManifestInput): TemplateManifest {
+  const label = raw.label ?? raw.name ?? raw.id;
+  const schema = (raw.schema ?? raw.exposedConfigSchema)!;
+  return {
+    id: raw.id,
+    version: raw.version,
+    author: raw.author,
+    previewUrl: raw.previewUrl,
+    status: raw.status,
+    label,
+    description: raw.description,
+    schema,
+    phaserScenes: raw.phaserScenes ?? [],
+    uiOverlayComponents: raw.uiOverlayComponents ?? [],
+  };
+}
+
+/** Resolve Phaser scene keys from manifest, with optional template default. */
+export function resolvePhaserSceneKeys(
+  manifest: TemplateManifest,
+  defaultSceneKey?: string,
+): string[] {
+  if (manifest.phaserScenes.length > 0) {
+    return manifest.phaserScenes;
+  }
+  if (defaultSceneKey) {
+    return [defaultSceneKey];
+  }
+  return [`${manifest.id}-legacy-bridge`];
 }
 
 export interface TemplateCatalogEntry {
@@ -54,18 +138,14 @@ export interface TemplateCatalogEntry {
 }
 
 export function isTemplateManifest(value: unknown): value is TemplateManifest {
-  if (typeof value !== "object" || value === null) return false;
-  const m = value as Record<string, unknown>;
-  return (
-    typeof m.id === "string" &&
-    typeof m.version === "string" &&
-    typeof m.author === "string" &&
-    typeof m.previewUrl === "string" &&
-    (m.status === "development" || m.status === "production") &&
-    typeof m.label === "string" &&
-    typeof m.schema === "object" &&
-    m.schema !== null
-  );
+  const parsed = TemplateManifestSchema.safeParse(value);
+  return parsed.success;
+}
+
+export function parseTemplateManifest(value: unknown): TemplateManifest | null {
+  const parsed = TemplateManifestSchema.safeParse(value);
+  if (!parsed.success) return null;
+  return normalizeTemplateManifest(parsed.data);
 }
 
 const LEGACY_CATEGORY_MAP: Record<

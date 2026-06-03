@@ -330,6 +330,7 @@ export async function generateTemplateZip({
   folder.file("manifest.json", JSON.stringify(manifest, null, 2));
   folder.file("index.ts", buildIndexTs());
   folder.file("GameScene.ts", buildGameSceneTs(sceneKey));
+  folder.file("public/assets/.gitkeep", "");
   folder.file("CURSOR.md", buildCursorInstructions(displayName, templateId, sceneKey));
 
   return zip.generateAsync({ type: "blob" });

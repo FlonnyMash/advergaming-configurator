@@ -3,12 +3,22 @@
 import type { ControlFieldSchema, ControlValue } from "@advergaming/shared";
 import { getConfiguratorGameSchema } from "../registry/productionSchemaRegistry";
 import { useConfiguratorStore } from "../store/useConfiguratorStore";
-import { SchemaControlPanel } from "./SchemaControlPanel";
+import {
+  SchemaControlPanel,
+  type ImageUploadMode,
+} from "./SchemaControlPanel";
 
 export function ConfiguratorSidebar({
   previewSlot,
+  imageUploadMode = "base64",
+  onImageFile,
 }: {
   previewSlot?: React.ReactNode;
+  imageUploadMode?: ImageUploadMode;
+  onImageFile?: (
+    file: File,
+    control: ControlFieldSchema,
+  ) => void | Promise<void>;
 }) {
   const selectedTemplateId = useConfiguratorStore((s) => s.selectedTemplateId);
   const config = useConfiguratorStore((s) => s.config);
@@ -44,6 +54,8 @@ export function ConfiguratorSidebar({
           schema={gameSchema}
           config={config}
           onControlChange={handleControlChange}
+          imageUploadMode={imageUploadMode}
+          onImageFile={onImageFile}
         />
         {previewSlot}
       </div>

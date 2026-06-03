@@ -1,0 +1,10 @@
+{
+  "appName": "Mashed Games Configurator",
+  "primaryColor": "#4f46e5",
+  "logoPath": "/mashed-games-logo.png",
+  "features": {
+    "enableLeadGen": false,
+    "enableCustomCSS": true,
+    "maxTemplates": 10
+  }
+}

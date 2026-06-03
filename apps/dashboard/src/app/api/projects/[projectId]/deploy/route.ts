@@ -1,4 +1,5 @@
 import { loadProject } from "@/lib/project-io";
+import { PROJECT_FILES, resolveProjectDir } from "@/lib/project-paths";
 import { exportTemplateToDirectory } from "@/lib/template-export";
 import { mkdtemp, rm } from "node:fs/promises";
 import os from "node:os";
@@ -42,10 +43,16 @@ export async function POST(request: NextRequest, context: RouteContext) {
 
     tempDir = await mkdtemp(path.join(os.tmpdir(), "advergaming-deploy-"));
 
+    const projectAssetsDir = path.join(
+      resolveProjectDir(projectId),
+      PROJECT_FILES.assetsDir,
+    );
+
     const exported = await exportTemplateToDirectory(
       manifest.parentTemplateId,
       tempDir,
       config,
+      { projectAssetsDir },
     );
 
     if (!exported.ok) {

@@ -11,7 +11,7 @@ import {
   buildConfigFromSchema,
   DEFAULT_GAME_TEMPLATE_ID,
   gameSchemaFromManifest,
-  isTemplateManifest,
+  parseTemplateManifest,
 } from "@advergaming/shared";
 import {
   DEVELOPMENT_MANIFESTS,
@@ -27,8 +27,9 @@ function entriesFromManifests(
 ): TemplateCatalogEntry[] {
   const entries: TemplateCatalogEntry[] = [];
 
-  for (const manifest of manifests) {
-    if (!isTemplateManifest(manifest)) {
+  for (const raw of manifests) {
+    const manifest = parseTemplateManifest(raw);
+    if (!manifest) {
       console.warn(`[schema-index] Invalid manifest for source ${source}`);
       continue;
     }

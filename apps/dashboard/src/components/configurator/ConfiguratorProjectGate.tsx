@@ -10,6 +10,10 @@ import type {
 } from "@advergaming/shared";
 import { Loader2 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
+import {
+  pushRuntimeAssetsToPreview,
+  usePreviewBridgeStore,
+} from "@/lib/preview-bridge-store";
 import { useWorkspaceSessionStore } from "@/lib/workspace-session-store";
 import { useEffect, useState, type ReactNode } from "react";
 
@@ -73,6 +77,7 @@ export function ConfiguratorProjectGate({
           manifest?: GameProjectManifest;
           config?: GameMasterConfig;
           client?: ClientProjectPayload;
+          runtimeAssets?: Record<string, string>;
         };
 
         if (!response.ok || !data.ok || !data.manifest || !data.config || !data.client) {
@@ -88,6 +93,11 @@ export function ConfiguratorProjectGate({
           config: data.config,
           client: data.client,
         });
+
+        usePreviewBridgeStore
+          .getState()
+          .setRuntimeAssets(data.runtimeAssets ?? data.manifest.runtimeAssets ?? {});
+        pushRuntimeAssetsToPreview();
 
         const driftResponse = await fetch(
           `/api/projects/${effectiveProjectId}/parent-drift`,

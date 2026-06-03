@@ -6,6 +6,8 @@
   "status": "production",
   "label": "Clicker",
   "description": "Tap-to-score promo game with custom sprite and CTA.",
+  "phaserScenes": ["Clicker"],
+  "uiOverlayComponents": ["StartScreen"],
   "schema": {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "type": "object",

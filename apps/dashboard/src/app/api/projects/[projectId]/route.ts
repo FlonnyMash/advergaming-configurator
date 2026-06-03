@@ -22,5 +22,6 @@ export async function GET(_request: NextRequest, context: RouteContext) {
     client: result.data.client,
     config: result.data.config,
     parentLock: result.data.parentLock,
+    runtimeAssets: result.data.runtimeAssets,
   });
 }

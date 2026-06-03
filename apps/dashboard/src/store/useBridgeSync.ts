@@ -1,7 +1,9 @@
 "use client";
 
+import { pushRuntimeAssetsToPreview } from "@/lib/preview-bridge-store";
 import { useGameChromeOverlayStore } from "@/lib/game-chrome-overlay-store";
 import { useEditorStore } from "@/store/useEditorStore";
+import { useTemplateBridgeStore } from "@/store/useTemplateBridgeStore";
 import {
   buildBridgePayload,
   type AppMode,
@@ -17,12 +19,16 @@ type DashboardMessenger = {
     contentWindow: Window | null,
     templateId: GameTemplateId,
   ) => void;
-  onIframeNavigation: (expectedTemplateId: GameTemplateId) => void;
   sendBridgePayload: (
     payload: ReturnType<typeof buildBridgePayload>,
     updateMode?: ConfigUpdateMode,
   ) => void;
+  sendLoadTemplate: (templateId: GameTemplateId) => void;
+  sendRuntimeAssets?: (assets: Record<string, string>) => void;
   setTarget: (contentWindow: Window | null) => void;
+  onIframeReady: (
+    handler: (capabilities: { templateId: GameTemplateId }) => void,
+  ) => () => void;
 };
 
 export interface UseBridgeSyncOptions {
@@ -38,8 +44,8 @@ export interface UseBridgeSyncOptions {
   configUpdateMode?: ConfigUpdateMode;
   suspended?: boolean;
   iframeRef: React.RefObject<HTMLIFrameElement | null>;
+  /** Initial template id before subscribe delivers state. */
   previewTemplateId: GameTemplateId;
-  onTemplateChange?: (templateId: GameTemplateId) => void;
 }
 
 export function useBridgeSync({
@@ -51,7 +57,6 @@ export function useBridgeSync({
   suspended = false,
   iframeRef,
   previewTemplateId,
-  onTemplateChange,
 }: UseBridgeSyncOptions): void {
   const previewTemplateIdRef = useRef(previewTemplateId);
 
@@ -68,7 +73,21 @@ export function useBridgeSync({
       return;
     }
 
+    const offReady = messenger.onIframeReady((capabilities) => {
+      useTemplateBridgeStore
+        .getState()
+        .completeTemplateChange(capabilities.templateId);
+      messenger.reactivateAttachedIframe(
+        iframeRef.current?.contentWindow ?? null,
+        capabilities.templateId,
+      );
+      previewTemplateIdRef.current = capabilities.templateId;
+    });
+
     const pushBridgePayload = () => {
+      if (useTemplateBridgeStore.getState().templateChangeInProgress) {
+        return;
+      }
       const payload = buildBridgePayload(
         useEditorStore.getState(),
         getConfig(),
@@ -77,17 +96,33 @@ export function useBridgeSync({
       messenger.sendBridgePayload(payload, configUpdateMode);
     };
 
-    let lastTemplateId = previewTemplateId;
+    let lastTemplateId = previewTemplateIdRef.current;
 
     const unsubscribeConfig = subscribe((state) => {
       const templateChanged = state.selectedTemplateId !== lastTemplateId;
       if (templateChanged) {
         lastTemplateId = state.selectedTemplateId;
         previewTemplateIdRef.current = state.selectedTemplateId;
-        onTemplateChange?.(state.selectedTemplateId);
         useEditorStore.getState().reset();
         useGameChromeOverlayStore.getState().clearRegistry();
-        messenger.onIframeNavigation(state.selectedTemplateId);
+        useTemplateBridgeStore
+          .getState()
+          .beginTemplateChange(state.selectedTemplateId);
+
+        messenger.sendLoadTemplate(state.selectedTemplateId);
+
+        const payload = buildBridgePayload(
+          useEditorStore.getState(),
+          {
+            ...state.config,
+            meta: {
+              ...state.config.meta,
+              templateId: state.selectedTemplateId,
+            },
+          },
+          appMode,
+        );
+        messenger.sendBridgePayload(payload, configUpdateMode);
         return;
       }
 
@@ -108,6 +143,7 @@ export function useBridgeSync({
     }
 
     return () => {
+      offReady();
       unsubscribeConfig();
       unsubscribeEditor();
     };
@@ -117,7 +153,6 @@ export function useBridgeSync({
     getConfig,
     iframeRef,
     messenger,
-    onTemplateChange,
     previewTemplateId,
     subscribe,
     suspended,
@@ -134,6 +169,9 @@ export function useBridgeSync({
     }
 
     const pushBridgePayload = () => {
+      if (useTemplateBridgeStore.getState().templateChangeInProgress) {
+        return;
+      }
       const payload = buildBridgePayload(
         useEditorStore.getState(),
         getConfig(),
@@ -149,7 +187,11 @@ export function useBridgeSync({
       );
       useGameChromeOverlayStore.getState().clearRegistry();
       pushBridgePayload();
-      window.setTimeout(pushBridgePayload, 150);
+      pushRuntimeAssetsToPreview();
+      window.setTimeout(() => {
+        pushBridgePayload();
+        pushRuntimeAssetsToPreview();
+      }, 150);
     };
 
     iframe.addEventListener("load", onLoad);

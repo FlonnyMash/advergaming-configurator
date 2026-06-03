@@ -7,13 +7,14 @@ import {
 } from "@/bridge/messenger";
 import { useHitboxInboundBridge } from "@/hooks/useHitboxInboundBridge";
 import { useGameChromeOverlayStore } from "@/lib/game-chrome-overlay-store";
+import { usePreviewBridgeStore } from "@/lib/preview-bridge-store";
 import { useBridgeSync } from "@/store/useBridgeSync";
 import type { AppMode, ConfigUpdateMode, GameMasterConfig, GameTemplateId } from "@advergaming/shared";
 import {
   GAME_CHROME_BRIDGE_EVENTS,
   parseGameChromeOverlaysRegistryPayload,
 } from "@advergaming/shared";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
 const PHONE_FRAME_WIDTH = 390;
 const PHONE_FRAME_HEIGHT = 844;
@@ -31,6 +32,10 @@ export interface DevicePreviewProps {
   configUpdateMode?: ConfigUpdateMode;
   /** Keep iframe mounted but pause dashboard ↔ game bridge (e.g. hidden workspace). */
   suspended?: boolean;
+  /** @deprecated Alias for `suspended` used by CenterWorkspace. */
+  previewSuspended?: boolean;
+  /** React overlays mounted above the game iframe (studio template manifest). */
+  overlaySlot?: ReactNode;
 }
 
 export function DevicePreview({
@@ -39,13 +44,15 @@ export function DevicePreview({
   getConfig,
   subscribe,
   configUpdateMode = "full",
-  suspended = false,
+  suspended: suspendedProp = false,
+  previewSuspended,
+  overlaySlot,
 }: DevicePreviewProps) {
+  const suspended = previewSuspended ?? suspendedProp;
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const phoneScreenRef = useRef<HTMLDivElement>(null);
   const previewContainerRef = useRef<HTMLDivElement>(null);
-  const [previewTemplateId, setPreviewTemplateId] =
-    useState<GameTemplateId>(initialTemplateId);
+  const bootTemplateIdRef = useRef(initialTemplateId);
   const [phoneFrameSize, setPhoneFrameSize] = useState({
     width: PHONE_FRAME_WIDTH,
     height: PHONE_FRAME_HEIGHT,
@@ -57,10 +64,10 @@ export function DevicePreview({
 
   const iframeSrc = useMemo(() => {
     const url = new URL("/engine/index.html", window.location.origin);
-    url.searchParams.set("game", previewTemplateId);
+    url.searchParams.set("game", bootTemplateIdRef.current);
     url.searchParams.set("appMode", appMode);
     return url.toString();
-  }, [previewTemplateId, appMode]);
+  }, [appMode]);
 
   useBridgeSync({
     appMode,
@@ -70,8 +77,7 @@ export function DevicePreview({
     configUpdateMode,
     suspended,
     iframeRef,
-    previewTemplateId,
-    onTemplateChange: setPreviewTemplateId,
+    previewTemplateId: initialTemplateId,
   });
 
   useHitboxInboundBridge({
@@ -86,6 +92,7 @@ export function DevicePreview({
     }
 
     useGameChromeOverlayStore.getState().setMessenger(messenger);
+    usePreviewBridgeStore.getState().setMessenger(messenger);
 
     const onIframeMessage = (event: MessageEvent) => {
       messenger.handleWindowMessage(event);
@@ -108,6 +115,7 @@ export function DevicePreview({
       offGameEvent();
       window.removeEventListener("message", onIframeMessage);
       messenger.setTarget(null);
+      usePreviewBridgeStore.getState().setMessenger(null);
     };
   }, [messenger, suspended]);
 
@@ -192,12 +200,12 @@ export function DevicePreview({
               className="relative h-full min-h-0 overflow-hidden rounded-[2rem] bg-black"
             >
               <iframe
-                key={previewTemplateId}
                 ref={iframeRef}
                 src={iframeSrc}
                 title="Game preview"
                 className="block h-full min-h-[1px] w-full min-w-[1px] border-0"
               />
+              {overlaySlot}
             </div>
           </div>
         </div>

@@ -23,15 +23,27 @@ import {
 
 export { BRIDGE_MESSAGE_TYPE };
 export type {
+  AssetReadyMessage,
   BridgeMessage,
   ConfigUpdateMode,
   DiagnosticsPayloadMessage,
   GameEventMessage,
   IframeReadyMessage,
+  LoadExternalAssetMessage,
   LoadTemplateMessage,
   RequestDiagnosticsMessage,
+  SetRuntimeAssetsMessage,
   UpdateConfigMessage,
 } from "./game-schema";
+
+export {
+  AssetReadyPayloadSchema,
+  LoadExternalAssetPayloadSchema,
+  SetRuntimeAssetsPayloadSchema,
+  type AssetReadyPayload,
+  type LoadExternalAssetPayload,
+  type SetRuntimeAssetsPayload,
+} from "./asset-bridge";
 
 export function isGameMasterConfig(data: unknown): data is GameMasterConfig {
   return normalizeGameMasterConfig(data) !== null;

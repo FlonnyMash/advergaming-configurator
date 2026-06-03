@@ -1,5 +1,7 @@
 import { PROJECT_ID_PATTERN } from "@advergaming/shared";
+import { mkdirSync } from "node:fs";
 import path from "node:path";
+import { getWorkspacePath } from "@/lib/env";
 
 const dashboardRoot = path.resolve(process.cwd());
 
@@ -9,22 +11,41 @@ export const templateLibraryRoot = path.resolve(
     "../game-engine/src/templates/library",
 );
 
-export function getWorkspaceRoot(): string {
-  if (process.env.WORKSPACE_DIR) {
-    return path.resolve(process.env.WORKSPACE_DIR);
+export const PROJECTS_DIR_NAME = "Projects" as const;
+
+export function getProjectsRoot(): string {
+  return path.join(getWorkspacePath(), PROJECTS_DIR_NAME);
+}
+
+export function ensureWorkspaceExists(): void {
+  const workspacePath = getWorkspacePath();
+  const projectsPath = getProjectsRoot();
+
+  try {
+    mkdirSync(projectsPath, { recursive: true });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    throw new Error(
+      `Failed to initialize workspace "${workspacePath}" (projects: "${projectsPath}"): ${message}`,
+    );
   }
-  return path.join(process.cwd(), "games");
 }
 
 export function resolveProjectDir(projectId: string): string {
   if (!PROJECT_ID_PATTERN.test(projectId)) {
     throw new Error("Invalid project ID.");
   }
-  const workspaceRoot = getWorkspaceRoot();
-  const resolved = path.resolve(workspaceRoot, projectId);
-  if (!resolved.startsWith(workspaceRoot + path.sep) && resolved !== workspaceRoot) {
+
+  const projectsRoot = path.resolve(getProjectsRoot());
+  const resolved = path.resolve(projectsRoot, projectId);
+
+  if (
+    !resolved.startsWith(projectsRoot + path.sep) &&
+    resolved !== projectsRoot
+  ) {
     throw new Error("Invalid project path.");
   }
+
   return resolved;
 }
 

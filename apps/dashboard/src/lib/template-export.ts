@@ -1,7 +1,13 @@
 import AdmZip from "adm-zip";
 import { isTemplateManifest, type GameMasterConfig } from "@advergaming/shared";
-import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
-import { mkdir, writeFile } from "node:fs/promises";
+import {
+  existsSync,
+  readFileSync,
+  readdirSync,
+  statSync,
+  type Dirent,
+} from "node:fs";
+import { mkdir, readdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { mergeStudioConfigIntoLegacyConfig } from "@/lib/legacy-config-merge";
 import { TEMPLATE_ID_PATTERN } from "@/lib/template-import-normalize";
@@ -130,6 +136,29 @@ function readManifest(templateDir: string, templateId: string): object {
   return raw;
 }
 
+function rewriteAssetPathsForExport(value: unknown): unknown {
+  if (typeof value === "string") {
+    if (value.startsWith("assets/")) {
+      return `/assets/${value.slice("assets/".length)}`;
+    }
+    return value;
+  }
+
+  if (Array.isArray(value)) {
+    return value.map((entry) => rewriteAssetPathsForExport(entry));
+  }
+
+  if (value && typeof value === "object") {
+    const out: Record<string, unknown> = {};
+    for (const [key, child] of Object.entries(value)) {
+      out[key] = rewriteAssetPathsForExport(child);
+    }
+    return out;
+  }
+
+  return value;
+}
+
 function buildConfigJsonForZip(
   templateDir: string,
   templateId: string,
@@ -149,7 +178,95 @@ function buildConfigJsonForZip(
     base = mergeStudioConfigIntoLegacyConfig(base, studioConfig);
   }
 
-  return `${JSON.stringify(base, null, 2)}\n`;
+  return `${JSON.stringify(rewriteAssetPathsForExport(base), null, 2)}\n`;
+}
+
+export type ExportTemplateOptions = {
+  projectAssetsDir?: string;
+};
+
+async function listAssetFilesRecursive(dir: string, baseDir: string): Promise<string[]> {
+  const files: string[] = [];
+  const entries = await readdir(dir, { withFileTypes: true });
+
+  for (const entry of entries) {
+    const absolute = path.join(dir, entry.name);
+    if (entry.isDirectory()) {
+      files.push(...(await listAssetFilesRecursive(absolute, baseDir)));
+      continue;
+    }
+    if (entry.isFile()) {
+      files.push(path.relative(baseDir, absolute).replace(/\\/g, "/"));
+    }
+  }
+
+  return files;
+}
+
+function listAssetFilesRecursiveSync(dir: string, baseDir: string): string[] {
+  const files: string[] = [];
+  const entries = readdirSync(dir, { withFileTypes: true }) as Dirent[];
+
+  for (const entry of entries) {
+    const absolute = path.join(dir, entry.name);
+    if (entry.isDirectory()) {
+      files.push(...listAssetFilesRecursiveSync(absolute, baseDir));
+      continue;
+    }
+    if (entry.isFile()) {
+      files.push(path.relative(baseDir, absolute).replace(/\\/g, "/"));
+    }
+  }
+
+  return files;
+}
+
+function copyProjectAssetsToZip(
+  zip: AdmZip,
+  zipRoot: string,
+  projectAssetsDir: string,
+): number {
+  if (!existsSync(projectAssetsDir) || !statSync(projectAssetsDir).isDirectory()) {
+    return 0;
+  }
+
+  let fileCount = 0;
+  for (const relative of listAssetFilesRecursiveSync(
+    projectAssetsDir,
+    projectAssetsDir,
+  )) {
+    const absolute = path.join(projectAssetsDir, relative);
+    zip.addFile(
+      `${zipRoot}public/assets/${relative}`,
+      readFileSync(absolute),
+    );
+    fileCount += 1;
+  }
+
+  return fileCount;
+}
+
+async function copyProjectAssetsToExport(
+  destDir: string,
+  projectAssetsDir: string,
+): Promise<number> {
+  if (!existsSync(projectAssetsDir) || !statSync(projectAssetsDir).isDirectory()) {
+    return 0;
+  }
+
+  let fileCount = 0;
+  const relativeFiles = await listAssetFilesRecursive(
+    projectAssetsDir,
+    projectAssetsDir,
+  );
+
+  for (const relative of relativeFiles) {
+    const absolute = path.join(projectAssetsDir, relative);
+    await writeExportFile(destDir, `public/assets/${relative}`, readFileSync(absolute));
+    fileCount += 1;
+  }
+
+  return fileCount;
 }
 
 export type BuildTemplateZipResult =
@@ -174,6 +291,7 @@ export async function exportTemplateToDirectory(
   templateId: string,
   destDir: string,
   studioConfig?: GameMasterConfig,
+  options?: ExportTemplateOptions,
 ): Promise<ExportTemplateToDirectoryResult> {
   if (!TEMPLATE_ID_PATTERN.test(templateId)) {
     return { ok: false, error: "Invalid template ID.", status: 400 };
@@ -226,6 +344,13 @@ export async function exportTemplateToDirectory(
       fileCount += 1;
     }
 
+    if (options?.projectAssetsDir) {
+      fileCount += await copyProjectAssetsToExport(
+        destDir,
+        options.projectAssetsDir,
+      );
+    }
+
     return { ok: true, fileCount, destDir };
   } catch (error) {
     const message =
@@ -237,6 +362,7 @@ export async function exportTemplateToDirectory(
 export function buildTemplateZip(
   templateId: string,
   studioConfig?: GameMasterConfig,
+  options?: ExportTemplateOptions,
 ): BuildTemplateZipResult {
   if (!TEMPLATE_ID_PATTERN.test(templateId)) {
     return {
@@ -294,6 +420,10 @@ export function buildTemplateZip(
       const absolute = path.join(templateDir, relative);
       zip.addFile(`${zipRoot}${relative}`, readFileSync(absolute));
       fileCount += 1;
+    }
+
+    if (options?.projectAssetsDir) {
+      fileCount += copyProjectAssetsToZip(zip, zipRoot, options.projectAssetsDir);
     }
 
     return { ok: true, buffer: zip.toBuffer(), fileCount };
