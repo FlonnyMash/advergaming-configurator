@@ -84,7 +84,6 @@ export {
 } from "./studio-touch-bridge";
 
 export {
-  APP_DISPLAY_NAME,
   DEFAULT_PLATFORM_CONFIG,
   PlatformConfigSchema,
   PlatformFeaturesSchema,

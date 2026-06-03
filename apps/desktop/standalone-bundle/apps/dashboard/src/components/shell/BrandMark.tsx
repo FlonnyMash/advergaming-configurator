@@ -1,8 +1,7 @@
-import { APP_DISPLAY_NAME } from "@advergaming/shared";
 import Image from "next/image";
 import Link from "next/link";
 
-const APP_TITLE = APP_DISPLAY_NAME;
+const APP_TITLE = "Mashed Games Configurator";
 
 type BrandMarkProps = {
   size?: "sm" | "lg";
@@ -21,7 +20,7 @@ export function BrandMark({ size = "sm", linkHome = true }: BrandMarkProps) {
     <div className="flex items-center gap-3">
       <Image
         src="/mashed-games-logo.png"
-        alt={APP_DISPLAY_NAME}
+        alt="Mashed Games"
         width={logoWidth}
         height={logoHeight}
         className="block shrink-0 object-contain invert"

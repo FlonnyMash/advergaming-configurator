@@ -4,7 +4,7 @@
   "private": true,
   "main": "main.js",
   "scripts": {
-    "prebuild": "node scripts/ensure-dist-writable.mjs && node scripts/sync-installer-workspace.mjs",
+    "prebuild": "node scripts/ensure-dist-writable.mjs",
     "build": "electron-builder",
     "dist": "electron-builder"
   },
@@ -32,7 +32,7 @@
   },
   "build": {
     "appId": "com.mashedgames.advergamingstudio",
-    "productName": "Mashed Games Studio",
+    "productName": "Advergaming Studio",
     "directories": {
       "output": "dist"
     },
@@ -57,34 +57,11 @@
     },
     "win": {
       "target": "nsis",
-      "icon": "../dashboard/src/app/favicon.ico",
       "publisherName": "${env.WIN_PUBLISHER_NAME}",
       "signingHashAlgorithms": [
         "sha256"
       ],
       "timeStampServer": "http://timestamp.digicert.com"
-    },
-    "nsis": {
-      "oneClick": false,
-      "perMachine": false,
-      "allowElevation": true,
-      "allowToChangeInstallationDirectory": true,
-      "installerLanguages": [
-        "en_US"
-      ],
-      "language": "1033",
-      "multiLanguageInstaller": false,
-      "displayLanguageSelector": false,
-      "createDesktopShortcut": true,
-      "createStartMenuShortcut": true,
-      "menuCategory": "Mashed Games",
-      "shortcutName": "Mashed Games Studio",
-      "runAfterFinish": true,
-      "artifactName": "${productName} Setup ${version}.${ext}",
-      "uninstallDisplayName": "${productName}",
-      "deleteAppDataOnUninstall": false,
-      "include": "build/installer.nsh",
-      "warningsAsErrors": true
     }
   }
 }

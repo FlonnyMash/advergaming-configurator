@@ -61,7 +61,7 @@ export function BrandMarkHomeLink() {
         <div className="flex items-center gap-3">
           <Image
             src="/mashed-games-logo.png"
-            alt={APP_TITLE}
+            alt="Mashed Games"
             width={137}
             height={48}
             className="block shrink-0 object-contain invert"

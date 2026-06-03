@@ -1,4 +1,3 @@
-import { APP_DISPLAY_NAME } from "@advergaming/shared";
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { AppShell } from "@/components/shell/AppShell";
@@ -15,9 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: APP_DISPLAY_NAME,
-  description:
-    "Build and configure branded game templates with Mashed Games Studio",
+  title: "Mashed Games Configurator",
+  description: "Build and configure branded game templates for Mashed Games clients",
   icons: {
     icon: "/mashed-games-logo.png",
     apple: "/mashed-games-logo.png",

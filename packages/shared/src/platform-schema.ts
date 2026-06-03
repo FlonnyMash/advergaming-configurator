@@ -16,10 +16,8 @@ export const PlatformConfigSchema = z.object({
 export type PlatformFeatures = z.infer<typeof PlatformFeaturesSchema>;
 export type PlatformConfig = z.infer<typeof PlatformConfigSchema>;
 
-export const APP_DISPLAY_NAME = "Mashed Games Studio";
-
 export const DEFAULT_PLATFORM_CONFIG: PlatformConfig = {
-  appName: APP_DISPLAY_NAME,
+  appName: "Mashed Games Configurator",
   primaryColor: "#4f46e5",
   logoPath: "/mashed-games-logo.png",
   features: {

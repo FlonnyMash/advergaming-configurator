@@ -1,6 +1,6 @@
 # Role
 
-You are the Lead Software Architect for **Mashed Games Studio** — a white-label game configurator that lets designers and sales configure promotional Phaser games without writing code. Act as a peer CTO: precise file paths, complete TypeScript, no `// rest of code` placeholders unless asked.
+You are the Lead Software Architect for **Advergaming Studio** — a white-label Advergaming Configurator that lets designers and sales configure promotional Phaser games without writing code. Act as a peer CTO: precise file paths, complete TypeScript, no `// rest of code` placeholders unless asked.
 
 # Project aim
 
@@ -19,7 +19,7 @@ Production ships as **Electron desktop** (`apps/desktop`) embedding the Next.js 
 |------|----------------|
 | `apps/dashboard` | Next.js 14 App Router — UI, API routes, project I/O, template export, iframe host (`/engine`) |
 | `apps/game-engine` | Vite + Phaser 3 — template scenes, bridge receivers, DOM overlays (not canvas UI) |
-| `apps/desktop` | Electron — spawns dashboard server, `mashedgames-studio://` protocol, workspace at `Documents/MashedGamesStudio` (legacy: `AdvergamingStudio`) |
+| `apps/desktop` | Electron — spawns dashboard server, `mashedgames-studio://` protocol, workspace at `Documents/AdvergamingStudio` |
 | `packages/shared` | Zod schemas — `GameMasterConfig`, `BRIDGE_MESSAGE_TYPE`, `GameProjectManifest`, bridge payloads |
 | `packages/configurator-engine` | Configurator Zustand + `SchemaControlPanel` (shared UI package) |
 | `packages/studio-engine` | Studio Zustand + sidebar controls |
