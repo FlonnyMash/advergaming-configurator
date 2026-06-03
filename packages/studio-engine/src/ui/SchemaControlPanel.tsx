@@ -7,7 +7,7 @@ import {
   type ControlValue,
   type GameMasterConfig,
   type GameSchema,
-} from "@advergaming/shared";
+} from "@mashedgames/shared";
 import { useRef, useState } from "react";
 
 export const controlInputClass =

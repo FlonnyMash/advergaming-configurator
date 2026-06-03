@@ -5,7 +5,7 @@ import {
   encodeEntityId,
   type DevToolkitAssetConfigBinding,
   type EditorState,
-} from "@advergaming/shared";
+} from "@mashedgames/shared";
 import { create } from "zustand";
 
 type EditorStore = EditorState & {

@@ -3,7 +3,7 @@ import {
   STUDIO_TOUCH_BRIDGE_EVENTS,
   parsePlayerTouchBridgePayload,
   type GameTemplateId,
-} from "@advergaming/shared";
+} from "@mashedgames/shared";
 import type Phaser from "phaser";
 import { getEngineMode } from "../env/app-mode.ts";
 import {

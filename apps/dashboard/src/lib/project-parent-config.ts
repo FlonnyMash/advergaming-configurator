@@ -6,7 +6,7 @@ import {
   type GameTemplateId,
   type SystemSettings,
   type TemplateManifest,
-} from "@advergaming/shared";
+} from "@mashedgames/shared";
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { templateLibraryRoot } from "@/lib/project-paths";

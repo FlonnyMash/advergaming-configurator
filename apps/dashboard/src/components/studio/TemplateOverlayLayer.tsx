@@ -2,7 +2,7 @@
 
 import { usePreviewBridgeStore } from "@/lib/preview-bridge-store";
 import { useTemplateBridgeStore } from "@/store/useTemplateBridgeStore";
-import type { TemplateManifest } from "@advergaming/shared";
+import type { TemplateManifest } from "@mashedgames/shared";
 import { resolveOverlayComponent } from "./OverlayRegistry";
 import type { TemplateOverlayProps } from "./overlays/types";
 

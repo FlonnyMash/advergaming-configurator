@@ -9,7 +9,7 @@ import {
   ConfiguratorDiagnostics,
   ConfiguratorTemplateCatalog,
   useConfiguratorStore,
-} from "@advergaming/configurator-engine";
+} from "@mashedgames/configurator-engine";
 
 export function ConfiguratorToolsShell() {
   const projectId = useConfiguratorStore((s) => s.projectId);

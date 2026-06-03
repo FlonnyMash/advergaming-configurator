@@ -6,7 +6,7 @@ import {
   type GameMasterConfig,
   type GameTemplateId,
   type EditorState,
-} from "@advergaming/shared";
+} from "@mashedgames/shared";
 import Phaser from "phaser";
 import { setupBridge, setBridgeTemplateId } from "./bridge/messenger.ts";
 import { HitboxEditorController } from "./bridge/hitbox-editor-controller.ts";

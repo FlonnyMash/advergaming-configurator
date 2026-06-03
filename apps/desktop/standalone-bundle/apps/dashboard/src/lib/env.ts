@@ -1,7 +1,7 @@
 import {
   getAppEnvironmentFromProcess,
   type AppEnvironment,
-} from "@advergaming/game-engine/templates/schemas";
+} from "@mashedgames/game-engine/templates/schemas";
 
 export function getAppEnv(): AppEnvironment {
   return getAppEnvironmentFromProcess(process.env.NEXT_PUBLIC_ENV);

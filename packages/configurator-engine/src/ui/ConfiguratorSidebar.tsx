@@ -1,6 +1,6 @@
 "use client";
 
-import type { ControlFieldSchema, ControlValue } from "@advergaming/shared";
+import type { ControlFieldSchema, ControlValue } from "@mashedgames/shared";
 import { getConfiguratorGameSchema } from "../registry/productionSchemaRegistry";
 import { useConfiguratorStore } from "../store/useConfiguratorStore";
 import {

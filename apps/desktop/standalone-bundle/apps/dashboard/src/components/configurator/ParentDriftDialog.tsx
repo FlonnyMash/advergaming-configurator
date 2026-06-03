@@ -1,7 +1,7 @@
 "use client";
 
-import type { GameProjectManifest, ParentDriftReport } from "@advergaming/shared";
-import { useConfiguratorStore } from "@advergaming/configurator-engine";
+import type { GameProjectManifest, ParentDriftReport } from "@mashedgames/shared";
+import { useConfiguratorStore } from "@mashedgames/configurator-engine";
 import { Loader2 } from "lucide-react";
 import { useCallback, useState } from "react";
 

@@ -1,4 +1,4 @@
-import type { AppMode } from "@advergaming/shared";
+import type { AppMode } from "@mashedgames/shared";
 
 /** Studio vs configurator — URL param overrides Vite env (iframe can pass ?appMode=studio). */
 export function getEngineMode(): AppMode {

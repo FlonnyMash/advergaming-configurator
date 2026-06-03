@@ -4,7 +4,7 @@ import {
   type GameMasterConfig,
   type TemplateConfigJsonSchema,
   type TemplateManifest,
-} from "@advergaming/shared";
+} from "@mashedgames/shared";
 import { existsSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { mergeStudioConfigIntoLegacyConfig } from "@/lib/legacy-config-merge";

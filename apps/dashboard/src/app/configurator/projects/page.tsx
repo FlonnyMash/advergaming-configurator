@@ -1,7 +1,7 @@
 "use client";
 
-import { getProductionTemplateOptions } from "@advergaming/configurator-engine";
-import type { GameTemplateId } from "@advergaming/shared";
+import { getProductionTemplateOptions } from "@mashedgames/configurator-engine";
+import type { GameTemplateId } from "@mashedgames/shared";
 import { Loader2, Plus } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";

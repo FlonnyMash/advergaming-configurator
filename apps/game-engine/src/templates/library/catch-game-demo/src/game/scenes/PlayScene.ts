@@ -2,7 +2,7 @@ import {
   DevToolkitAssetLayoutSchema,
   type DevToolkitAssetLayout,
   type GameMasterConfig,
-} from '@advergaming/shared';
+} from '@mashedgames/shared';
 import Phaser from 'phaser';
 import { applyArcadeSpriteLayout } from '../../../../../../game/arcadeSpriteLayout.ts';
 import type { TemplateScene } from '../../../../../types.ts';

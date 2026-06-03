@@ -8,14 +8,12 @@ import {
 } from "@/lib/home-navigation-unsaved";
 import type { UnsavedChangeItem } from "@/lib/template-unsaved-changes";
 import { usePlatformStore } from "@/store/usePlatformStore";
-import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 export function BrandMarkHomeLink() {
   const router = useRouter();
   const appName = usePlatformStore((s) => s.appName);
-  const logoPath = usePlatformStore((s) => s.logoPath);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [unsavedItems, setUnsavedItems] = useState<UnsavedChangeItem[]>([]);
   const [saving, setSaving] = useState(false);
@@ -60,20 +58,9 @@ export function BrandMarkHomeLink() {
         className="rounded-lg outline-offset-2 hover:opacity-90"
         aria-label={`${appName} — back to home`}
       >
-        <div className="flex items-center gap-3">
-          <Image
-            src={logoPath}
-            alt={appName}
-            width={137}
-            height={48}
-            className="block shrink-0 object-contain invert"
-            style={{ height: 48, width: "auto", maxWidth: 137 }}
-            priority
-          />
-          <span className="text-sm font-semibold tracking-tight text-zinc-900">
-            {appName}
-          </span>
-        </div>
+        <span className="text-sm font-semibold tracking-tight text-zinc-900">
+          {appName}
+        </span>
       </button>
 
       <UnsavedChangesDialog

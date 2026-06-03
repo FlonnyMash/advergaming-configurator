@@ -1,4 +1,4 @@
-import { APP_DISPLAY_NAME } from "@advergaming/shared";
+import { APP_DISPLAY_NAME } from "@mashedgames/shared";
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { AppShell } from "@/components/shell/AppShell";

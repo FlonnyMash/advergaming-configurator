@@ -1,5 +1,5 @@
 import AdmZip from "adm-zip";
-import { isTemplateManifest, type GameMasterConfig } from "@advergaming/shared";
+import { isTemplateManifest, type GameMasterConfig } from "@mashedgames/shared";
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";

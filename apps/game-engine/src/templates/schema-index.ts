@@ -6,13 +6,13 @@ import type {
   SystemSettings,
   TemplateCatalogEntry,
   TemplateManifest,
-} from "@advergaming/shared";
+} from "@mashedgames/shared";
 import {
   buildConfigFromSchema,
   DEFAULT_GAME_TEMPLATE_ID,
   gameSchemaFromManifest,
   parseTemplateManifest,
-} from "@advergaming/shared";
+} from "@mashedgames/shared";
 import {
   DEVELOPMENT_MANIFESTS,
   LIBRARY_MANIFESTS,
@@ -179,5 +179,5 @@ export function getTemplatePickerOptions(
 export const GAME_TEMPLATES: { id: GameTemplateId; label: string }[] =
   getTemplatePickerOptions("dev").map((t) => ({ id: t.id, label: t.label }));
 
-export type { TemplateCatalogEntry } from "@advergaming/shared";
+export type { TemplateCatalogEntry } from "@mashedgames/shared";
 export { DEFAULT_GAME_TEMPLATE_ID };

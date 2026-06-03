@@ -41,7 +41,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
     const { manifest, config } = loaded.data;
     const perProjectUrl = manifest.deployRepoUrl ?? deployUrl;
 
-    tempDir = await mkdtemp(path.join(os.tmpdir(), "advergaming-deploy-"));
+    tempDir = await mkdtemp(path.join(os.tmpdir(), "mashedgames-deploy-"));
 
     const projectAssetsDir = path.join(
       resolveProjectDir(projectId),

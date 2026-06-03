@@ -3,7 +3,7 @@ import {
   normalizeGameMasterConfig,
   type GameMasterConfig,
   type GameTemplateId,
-} from "@advergaming/shared";
+} from "@mashedgames/shared";
 import type { NextRequest } from "next/server";
 
 export const runtime = "nodejs";

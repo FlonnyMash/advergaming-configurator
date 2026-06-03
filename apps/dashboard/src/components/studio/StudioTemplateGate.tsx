@@ -1,7 +1,7 @@
 "use client";
 
-import { getStudioTemplateOptions, useStudioConfigStore } from "@advergaming/studio-engine";
-import type { GameTemplateId } from "@advergaming/shared";
+import { getStudioTemplateOptions, useStudioConfigStore } from "@mashedgames/studio-engine";
+import type { GameTemplateId } from "@mashedgames/shared";
 import { Loader2 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState, type ReactNode } from "react";

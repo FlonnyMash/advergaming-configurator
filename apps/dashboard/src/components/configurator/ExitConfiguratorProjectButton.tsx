@@ -7,7 +7,7 @@ import {
   discardConfiguratorUnsavedChanges,
   type UnsavedChangeItem,
 } from "@/lib/template-unsaved-changes";
-import { useConfiguratorStore } from "@advergaming/configurator-engine";
+import { useConfiguratorStore } from "@mashedgames/configurator-engine";
 import { LogOut } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";

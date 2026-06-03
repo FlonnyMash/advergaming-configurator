@@ -85,6 +85,8 @@ export {
 
 export {
   APP_DISPLAY_NAME,
+  BRAND_LOGO_FILENAME,
+  BRAND_LOGO_URL_PATH,
   DEFAULT_PLATFORM_CONFIG,
   PlatformConfigSchema,
   PlatformFeaturesSchema,

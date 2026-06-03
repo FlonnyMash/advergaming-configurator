@@ -3,14 +3,14 @@ const http = require("node:http");
 const path = require("node:path");
 const { pathToFileURL } = require("node:url");
 const { spawn, spawnSync } = require("node:child_process");
-const { app, BrowserWindow, dialog, net, protocol } = require("electron");
+const { app, BrowserWindow, dialog, nativeImage, net, protocol } = require("electron");
 const { autoUpdater } = require("electron-updater");
 const getPort = require("get-port");
 const {
   APP_DISPLAY_NAME,
-  ADVERGAMING_PROJECTS_DIR_NAME,
-  ADVERGAMING_WORKSPACE_DIR_NAME,
-  LEGACY_ADVERGAMING_WORKSPACE_DIR_NAME,
+  PROJECTS_DIR_NAME,
+  WORKSPACE_DIR_NAME,
+  LEGACY_WORKSPACE_DIR_NAME,
   STUDIO_ASSET_PROTOCOL,
 } = require("./constants");
 
@@ -18,6 +18,7 @@ const STUDIO_PROTOCOL = STUDIO_ASSET_PROTOCOL;
 const STUDIO_PROTOCOL_PREFIX = `${STUDIO_PROTOCOL}://`;
 
 let mainWindow = null;
+let splashWindow = null;
 let dashboardServer = null;
 let dashboardPort = null;
 let dashboardServerLog = "";
@@ -55,10 +56,10 @@ function resolveStandaloneServerPath() {
 
 function getAdvergamingWorkspacePath() {
   const documents = app.getPath("documents");
-  const workspacePath = path.join(documents, ADVERGAMING_WORKSPACE_DIR_NAME);
+  const workspacePath = path.join(documents, WORKSPACE_DIR_NAME);
   const legacyWorkspacePath = path.join(
     documents,
-    LEGACY_ADVERGAMING_WORKSPACE_DIR_NAME,
+    LEGACY_WORKSPACE_DIR_NAME,
   );
 
   if (
@@ -72,7 +73,7 @@ function getAdvergamingWorkspacePath() {
 }
 
 function getProjectsPath(workspacePath) {
-  return path.join(workspacePath, ADVERGAMING_PROJECTS_DIR_NAME);
+  return path.join(workspacePath, PROJECTS_DIR_NAME);
 }
 
 function ensureWorkspaceStructure(workspacePath) {
@@ -294,7 +295,7 @@ function buildDashboardServerEnv(workspaceBasePath, port) {
     NODE_ENV: "production",
     HOSTNAME: "127.0.0.1",
     PORT: String(port),
-    ADVERGAMING_WORKSPACE_PATH: workspaceBasePath,
+    MASHEDGAMES_WORKSPACE_PATH: workspaceBasePath,
     NEXT_PUBLIC_WORKSPACE_DESKTOP: "1",
     SystemRoot: process.env.SystemRoot,
     TEMP: process.env.TEMP,
@@ -344,18 +345,77 @@ async function spawnDashboardServer(workspaceBasePath) {
   return port;
 }
 
-function createMainWindow(port) {
-  mainWindow = new BrowserWindow({
-    width: 1440,
-    height: 960,
-    minWidth: 1200,
-    minHeight: 760,
+function resolveSplashAssetPath(...segments) {
+  return path.join(__dirname, ...segments);
+}
+
+function createSplashWindow() {
+  const splashHtml = resolveSplashAssetPath("splash.html");
+  if (!fs.existsSync(splashHtml)) {
+    console.warn("[splash] splash.html not found, skipping splash screen");
+    return;
+  }
+
+  splashWindow = new BrowserWindow({
+    width: 440,
+    height: 340,
+    frame: false,
+    resizable: false,
+    maximizable: false,
+    minimizable: false,
+    fullscreenable: false,
+    center: true,
+    show: false,
+    alwaysOnTop: true,
+    skipTaskbar: true,
+    backgroundColor: "#fafafa",
     autoHideMenuBar: true,
     webPreferences: {
       contextIsolation: true,
       sandbox: true,
       nodeIntegration: false,
     },
+  });
+
+  splashWindow.loadFile(splashHtml);
+  splashWindow.once("ready-to-show", () => {
+    if (splashWindow && !splashWindow.isDestroyed()) {
+      splashWindow.show();
+    }
+  });
+  splashWindow.on("closed", () => {
+    splashWindow = null;
+  });
+}
+
+function closeSplashWindow() {
+  if (!splashWindow || splashWindow.isDestroyed()) {
+    return;
+  }
+  splashWindow.close();
+}
+
+function createMainWindow(port) {
+  mainWindow = new BrowserWindow({
+    width: 1440,
+    height: 960,
+    minWidth: 1200,
+    minHeight: 760,
+    show: false,
+    autoHideMenuBar: true,
+    webPreferences: {
+      contextIsolation: true,
+      sandbox: true,
+      nodeIntegration: false,
+    },
+  });
+
+  mainWindow.once("ready-to-show", () => {
+    closeSplashWindow();
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.show();
+      mainWindow.focus();
+    }
   });
 
   mainWindow.loadURL(`http://127.0.0.1:${port}/`);
@@ -424,19 +484,26 @@ function cleanupDashboardServer() {
 }
 
 app.whenReady().then(async () => {
-  const workspacePath = getAdvergamingWorkspacePath();
-  ensureWorkspaceStructure(workspacePath);
-  registerStudioProtocol(workspacePath);
-  autoMigrateLegacyProjects(getProjectsPath(workspacePath));
-  dashboardPort = await spawnDashboardServer(workspacePath);
-  createMainWindow(dashboardPort);
-  setupAutoUpdater();
+  createSplashWindow();
 
-  app.on("activate", () => {
-    if (BrowserWindow.getAllWindows().length === 0 && dashboardPort !== null) {
-      createMainWindow(dashboardPort);
-    }
-  });
+  try {
+    const workspacePath = getAdvergamingWorkspacePath();
+    ensureWorkspaceStructure(workspacePath);
+    registerStudioProtocol(workspacePath);
+    autoMigrateLegacyProjects(getProjectsPath(workspacePath));
+    dashboardPort = await spawnDashboardServer(workspacePath);
+    createMainWindow(dashboardPort);
+    setupAutoUpdater();
+
+    app.on("activate", () => {
+      if (BrowserWindow.getAllWindows().length === 0 && dashboardPort !== null) {
+        createMainWindow(dashboardPort);
+      }
+    });
+  } catch (error) {
+    closeSplashWindow();
+    throw error;
+  }
 }).catch((error) => {
   console.error("[startup] failed", error);
   dialog.showErrorBox(

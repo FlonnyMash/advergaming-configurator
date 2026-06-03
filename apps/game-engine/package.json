@@ -1,5 +1,5 @@
 {
-  "name": "@advergaming/game-engine",
+  "name": "@mashedgames/game-engine",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -23,7 +23,7 @@
     "vite": "^8.0.12"
   },
   "dependencies": {
-    "@advergaming/shared": "workspace:*",
+    "@mashedgames/shared": "workspace:*",
     "phaser": "^4.1.0"
   }
 }

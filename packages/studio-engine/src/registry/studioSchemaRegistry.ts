@@ -5,14 +5,14 @@ import {
   type AppMode,
   type GameSchema,
   type GameTemplateId,
-} from "@advergaming/shared";
+} from "@mashedgames/shared";
 import {
   getCatalogEntries,
   getGameSchema,
   getTemplatePickerOptions,
   type AppEnvironment,
   type TemplatePickerOption,
-} from "@advergaming/game-engine/templates/schemas";
+} from "@mashedgames/game-engine/templates/schemas";
 
 const STUDIO_MODE: AppMode = "studio";
 

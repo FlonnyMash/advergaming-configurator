@@ -5,7 +5,7 @@ import {
   type ControlValue,
   type GameMasterConfig,
   type GameSchema,
-} from "@advergaming/shared";
+} from "@mashedgames/shared";
 
 const STUDIO_MODE = "studio" as const;
 

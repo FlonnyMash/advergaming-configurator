@@ -2,7 +2,7 @@ import type {
   DevToolkitAssetConfigBinding,
   DevToolkitAssetLayout,
   GameMasterConfig,
-} from "@advergaming/shared";
+} from "@mashedgames/shared";
 
 function configRootPath(binding: DevToolkitAssetConfigBinding): string {
   if (binding.itemKind === "playerSprite") {

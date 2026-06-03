@@ -1,4 +1,4 @@
-import { PROJECT_ID_PATTERN } from "@advergaming/shared";
+import { PROJECT_ID_PATTERN } from "@mashedgames/shared";
 import path from "node:path";
 
 const dashboardRoot = path.resolve(process.cwd());

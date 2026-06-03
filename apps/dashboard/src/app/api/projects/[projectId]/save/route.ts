@@ -1,5 +1,5 @@
 import { saveProjectClient } from "@/lib/project-io";
-import { ClientProjectPayloadSchema } from "@advergaming/shared";
+import { ClientProjectPayloadSchema } from "@mashedgames/shared";
 import type { NextRequest } from "next/server";
 
 export const runtime = "nodejs";

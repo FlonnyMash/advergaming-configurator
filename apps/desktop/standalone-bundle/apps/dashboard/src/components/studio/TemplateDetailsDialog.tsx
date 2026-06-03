@@ -3,7 +3,7 @@
 import type {
   TemplateManifest,
   TemplateManifestStatus,
-} from "@advergaming/shared";
+} from "@mashedgames/shared";
 import {
   Check,
   ExternalLink,

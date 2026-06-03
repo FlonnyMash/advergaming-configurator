@@ -3,7 +3,7 @@
 import { AssetLayoutEditor } from "@/components/shell/AssetLayoutEditor";
 import { AssetLayoutOverlay } from "@/components/shell/AssetLayoutOverlay";
 import { AssetPreviewZoom } from "@/components/shell/AssetPreviewZoom";
-import type { DevToolkitAssetLayout, DevToolkitPickedAsset } from "@advergaming/shared";
+import type { DevToolkitAssetLayout, DevToolkitPickedAsset } from "@mashedgames/shared";
 import { useEffect, useState } from "react";
 
 export function AssetInspectorPane({

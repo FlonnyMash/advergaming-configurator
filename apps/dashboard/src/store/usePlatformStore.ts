@@ -5,7 +5,7 @@ import {
   DEFAULT_PLATFORM_CONFIG,
   type PlatformConfig,
   type PlatformFeatures,
-} from "@advergaming/shared";
+} from "@mashedgames/shared";
 import { create } from "zustand";
 
 type PlatformConfigPatch = Partial<Omit<PlatformConfig, "features">> & {

@@ -5,7 +5,7 @@ import {
   sanitizeDevToolkitPickedAsset,
   type DevToolkitFlags,
   type DevToolkitPickedAsset,
-} from "@advergaming/shared";
+} from "@mashedgames/shared";
 import type { DevToolkitController } from "../debug/dev-toolkit/DevToolkitController.ts";
 import {
   getParentTargetOrigin,

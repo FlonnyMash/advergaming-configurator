@@ -1,6 +1,6 @@
 "use client";
 
-import { exportClientPayload } from "@advergaming/shared";
+import { exportClientPayload } from "@mashedgames/shared";
 import { useState } from "react";
 import { useConfiguratorStore } from "../store/useConfiguratorStore";
 

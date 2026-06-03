@@ -8,7 +8,7 @@ import {
   type UnsavedChangeItem,
 } from "@/lib/template-unsaved-changes";
 import { useWorkspaceSessionStore } from "@/lib/workspace-session-store";
-import { useConfiguratorStore } from "@advergaming/configurator-engine";
+import { useConfiguratorStore } from "@mashedgames/configurator-engine";
 
 export function collectHomeNavigationUnsaved(): UnsavedChangeItem[] {
   const { activeStudioTemplateId, activeConfiguratorProjectId } =

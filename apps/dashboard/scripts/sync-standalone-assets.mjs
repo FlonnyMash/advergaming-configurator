@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { materializeStandaloneBundle } from "./materialize-standalone-bundle.mjs";
 
 const dashboardRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const standaloneAppDir = path.join(
@@ -30,3 +31,5 @@ const strayGameEngineDir = path.join(standaloneAppDir, "..", "game-engine");
 if (fs.existsSync(strayGameEngineDir)) {
   fs.rmSync(strayGameEngineDir, { recursive: true, force: true });
 }
+
+materializeStandaloneBundle();

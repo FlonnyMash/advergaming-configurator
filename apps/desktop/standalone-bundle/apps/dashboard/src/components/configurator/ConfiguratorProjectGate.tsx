@@ -1,13 +1,13 @@
 "use client";
 
 import { ParentDriftDialog } from "@/components/configurator/ParentDriftDialog";
-import { useConfiguratorStore } from "@advergaming/configurator-engine";
+import { useConfiguratorStore } from "@mashedgames/configurator-engine";
 import type {
   ClientProjectPayload,
   GameMasterConfig,
   GameProjectManifest,
   ParentDriftReport,
-} from "@advergaming/shared";
+} from "@mashedgames/shared";
 import { Loader2 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useWorkspaceSessionStore } from "@/lib/workspace-session-store";

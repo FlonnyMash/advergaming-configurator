@@ -12,10 +12,10 @@ import {
 import { useDevToolkitStore } from "@/lib/dev-toolkit-store";
 import { useWorkspaceCenterStore } from "@/lib/workspace-center-store";
 import { useDevToolkitControls } from "@/hooks/useDevToolkitBridge";
-import type { DevToolkitAssetLayout, DevToolkitPickedAsset } from "@advergaming/shared";
+import type { DevToolkitAssetLayout, DevToolkitPickedAsset } from "@mashedgames/shared";
 import { useActiveConfigPatch } from "@/hooks/useActiveConfigPatch";
-import { useConfiguratorStore } from "@advergaming/configurator-engine";
-import { useStudioConfigStore } from "@advergaming/studio-engine";
+import { useConfiguratorStore } from "@mashedgames/configurator-engine";
+import { useStudioConfigStore } from "@mashedgames/studio-engine";
 import { Loader2, Redo2, Save, Undo2 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 

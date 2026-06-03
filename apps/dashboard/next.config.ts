@@ -1,17 +1,27 @@
 import type { NextConfig } from "next";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import {
+  LOCAL_DEV_DIST_DIR,
+  shouldUseLocalDevCache,
+} from "./scripts/local-dev-cache-dir.mjs";
 
-const monorepoRoot = path.join(
-  path.dirname(fileURLToPath(import.meta.url)),
-  "../..",
-);
+const dashboardRoot = path.dirname(fileURLToPath(import.meta.url));
+const monorepoRoot = path.join(dashboardRoot, "../..");
 
 const isConfiguratorBuild =
   process.env.NEXT_PUBLIC_APP_MODE === "configurator";
 
+const devDistDir =
+  process.env.NODE_ENV === "development" &&
+  shouldUseLocalDevCache(monorepoRoot)
+    ? LOCAL_DEV_DIST_DIR
+    : undefined;
+
 const nextConfig: NextConfig = {
+  ...(devDistDir ? { distDir: devDistDir } : {}),
   output: "standalone",
+  outputFileTracingRoot: monorepoRoot,
   typescript: {
     ignoreBuildErrors: true,
   },
@@ -28,7 +38,23 @@ const nextConfig: NextConfig = {
     root: monorepoRoot,
   },
   async headers() {
+    const logoCacheHeaders =
+      process.env.NODE_ENV === "development"
+        ? [
+            {
+              source: "/mashed-games-logo.png",
+              headers: [
+                {
+                  key: "Cache-Control",
+                  value: "no-store, must-revalidate",
+                },
+              ],
+            },
+          ]
+        : [];
+
     return [
+      ...logoCacheHeaders,
       {
         source: "/engine/:path*",
         headers: [
@@ -45,10 +71,10 @@ const nextConfig: NextConfig = {
     ];
   },
   transpilePackages: [
-    "@advergaming/shared",
-    "@advergaming/studio-engine",
-    "@advergaming/configurator-engine",
-    "@advergaming/game-engine",
+    "@mashedgames/shared",
+    "@mashedgames/studio-engine",
+    "@mashedgames/configurator-engine",
+    "@mashedgames/game-engine",
   ],
   webpack: (config, { webpack }) => {
     config.resolve = config.resolve ?? {};
@@ -62,12 +88,12 @@ const nextConfig: NextConfig = {
     if (isConfiguratorBuild) {
       config.plugins.push(
         new webpack.IgnorePlugin({
-          resourceRegExp: /^@advergaming\/studio-engine$/,
+          resourceRegExp: /^@mashedgames\/studio-engine$/,
         }),
       );
       config.resolve.alias = {
         ...config.resolve.alias,
-        "@advergaming/studio-engine": false,
+        "@mashedgames/studio-engine": false,
       };
     }
     return config;

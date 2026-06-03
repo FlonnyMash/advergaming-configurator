@@ -1,7 +1,7 @@
 "use client";
 
 import { useSaveGameProject } from "@/hooks/useSaveGameProject";
-import { useConfiguratorStore } from "@advergaming/configurator-engine";
+import { useConfiguratorStore } from "@mashedgames/configurator-engine";
 import { Loader2, Save } from "lucide-react";
 import { useMemo } from "react";
 

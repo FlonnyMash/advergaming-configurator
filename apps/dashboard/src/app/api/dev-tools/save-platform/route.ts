@@ -1,5 +1,5 @@
 import { writeFileSync } from "node:fs";
-import { PlatformConfigSchema } from "@advergaming/shared";
+import { PlatformConfigSchema } from "@mashedgames/shared";
 import type { NextRequest } from "next/server";
 import { getPlatformConfigPath } from "@/lib/platform-config-path";
 

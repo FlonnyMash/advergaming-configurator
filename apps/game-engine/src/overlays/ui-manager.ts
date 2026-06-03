@@ -1,5 +1,5 @@
-import type { GameMasterConfig } from "@advergaming/shared";
-import { getDomOverlayForUi } from "@advergaming/shared";
+import type { GameMasterConfig } from "@mashedgames/shared";
+import { getDomOverlayForUi } from "@mashedgames/shared";
 
 export type UIConfig = ReturnType<typeof getDomOverlayForUi>;
 

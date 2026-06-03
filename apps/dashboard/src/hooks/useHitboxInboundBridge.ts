@@ -1,8 +1,8 @@
 "use client";
 
-import { useStudioConfigStore } from "@advergaming/studio-engine";
+import { useStudioConfigStore } from "@mashedgames/studio-engine";
 import { patchAssetLayoutToStudioStore } from "@/lib/patch-asset-layout";
-import { parseEntityId, type HitboxUpdatePayload } from "@advergaming/shared";
+import { parseEntityId, type HitboxUpdatePayload } from "@mashedgames/shared";
 import { useEffect } from "react";
 
 type HitboxMessenger = {

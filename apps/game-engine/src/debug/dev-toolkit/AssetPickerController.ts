@@ -1,4 +1,4 @@
-import type { DevToolkitPickedAsset, GameMasterConfig } from "@advergaming/shared";
+import type { DevToolkitPickedAsset, GameMasterConfig } from "@mashedgames/shared";
 import Phaser from "phaser";
 import { textureFrameToDataUrl } from "./assetPickerSnapshot.ts";
 import { enrichPickedAsset } from "./resolvePickedAssetLayout.ts";

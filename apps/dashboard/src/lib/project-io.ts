@@ -13,7 +13,7 @@ import {
   type GameProjectManifest,
   type GameTemplateId,
   type ParentLockSnapshot,
-} from "@advergaming/shared";
+} from "@mashedgames/shared";
 import { textureKeyForTargetPath } from "@/lib/catch-game-texture-keys";
 import {
   migrateClientBrandingAssets,

@@ -1,5 +1,5 @@
 import type { createDashboardMessenger } from "@/bridge/messenger";
-import type { GameMasterConfig } from "@advergaming/shared";
+import type { GameMasterConfig } from "@mashedgames/shared";
 
 export type DashboardMessenger = ReturnType<typeof createDashboardMessenger>;
 

@@ -5,7 +5,7 @@ import {
   useDevToolkitControls,
 } from "@/hooks/useDevToolkitBridge";
 import { openDevToolsPopout } from "@/lib/dev-toolkit-sync";
-import type { DevToolkitFlags } from "@advergaming/shared";
+import type { DevToolkitFlags } from "@mashedgames/shared";
 import { ExternalLink, RotateCcw } from "lucide-react";
 
 const FLAG_LABELS: {

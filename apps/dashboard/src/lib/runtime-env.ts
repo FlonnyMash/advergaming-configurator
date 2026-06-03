@@ -1,5 +1,5 @@
 export function isWorkspaceDesktop(): boolean {
-  return Boolean(process.env.ADVERGAMING_WORKSPACE_PATH?.trim());
+  return Boolean(process.env.MASHEDGAMES_WORKSPACE_PATH?.trim());
 }
 
 export function isWorkspaceDesktopClient(): boolean {

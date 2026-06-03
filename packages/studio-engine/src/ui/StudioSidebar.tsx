@@ -36,8 +36,8 @@ export function StudioSidebar({
   const canRedo = controlHistoryFuture.length > 0;
 
   const handleControlChange = (
-    control: import("@advergaming/shared").ControlFieldSchema,
-    value: import("@advergaming/shared").ControlValue,
+    control: import("@mashedgames/shared").ControlFieldSchema,
+    value: import("@mashedgames/shared").ControlValue,
   ) => {
     if (control.targetCategory === "system") {
       patchSystemPathFromControls(control.targetPath, value);

@@ -1,7 +1,8 @@
-import { APP_DISPLAY_NAME } from "@advergaming/shared";
+import { APP_DISPLAY_NAME } from "@mashedgames/shared";
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { AppShell } from "@/components/shell/AppShell";
+import { brandLogoSrc } from "@/lib/brand-logo-src";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -19,8 +20,8 @@ export const metadata: Metadata = {
   description:
     "Build and configure branded game templates with Mashed Games Studio",
   icons: {
-    icon: "/mashed-games-logo.png",
-    apple: "/mashed-games-logo.png",
+    icon: [{ url: brandLogoSrc(), type: "image/png" }],
+    apple: brandLogoSrc(),
   },
 };
 

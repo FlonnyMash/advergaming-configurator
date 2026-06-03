@@ -2,7 +2,7 @@ import {
   isTemplateManifest,
   type TemplateConfigJsonSchema,
   type TemplateManifest,
-} from "@advergaming/shared";
+} from "@mashedgames/shared";
 import {
   existsSync,
   readdirSync,

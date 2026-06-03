@@ -10,7 +10,7 @@ import {
   type ConfigUpdateMode,
   type GameMasterConfig,
   type GameTemplateId,
-} from "@advergaming/shared";
+} from "@mashedgames/shared";
 import { useEffect, useRef } from "react";
 
 type DashboardMessenger = {

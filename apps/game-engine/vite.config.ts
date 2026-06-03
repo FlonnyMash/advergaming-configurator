@@ -1,10 +1,27 @@
 import tailwindcss from "@tailwindcss/vite";
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { defineConfig, type Plugin } from "vite";
 
 const gameEngineRoot = path.dirname(fileURLToPath(import.meta.url));
+const monorepoRoot = path.join(gameEngineRoot, "../..");
+
+function resolveViteCacheDir(): string | undefined {
+  if (process.env.MASHEDGAMES_DEV_CACHE_LOCAL === "0") {
+    return undefined;
+  }
+  if (
+    process.env.MASHEDGAMES_DEV_CACHE_LOCAL === "1" ||
+    (process.platform === "win32" &&
+      path.parse(path.resolve(monorepoRoot)).root.toLowerCase() !== "c:\\")
+  ) {
+    const base = process.env.LOCALAPPDATA ?? os.tmpdir();
+    return path.join(base, "MashedGamesStudio", "dev-cache", "game-engine-vite");
+  }
+  return undefined;
+}
 const templateLibraryRoot = path.join(
   gameEngineRoot,
   "src/templates/library",
@@ -87,6 +104,7 @@ function templatePublicAssetsPlugin(): Plugin {
 
 export default defineConfig(({ command }) => ({
   base: command === "build" ? "/engine/" : "/",
+  cacheDir: command === "serve" ? resolveViteCacheDir() : undefined,
   plugins: [
     tailwindcss(),
     templatePublicAssetsPlugin(),

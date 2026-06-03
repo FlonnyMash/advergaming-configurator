@@ -1,6 +1,6 @@
 "use client";
 
-import { useConfiguratorStore } from "@advergaming/configurator-engine";
+import { useConfiguratorStore } from "@mashedgames/configurator-engine";
 import { useCallback, useState } from "react";
 
 export function useSaveGameProject() {

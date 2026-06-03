@@ -7,7 +7,7 @@ import { GameChromeOverlayPanel } from "@/components/shell/GameChromeOverlayPane
 import {
   ConfiguratorSidebar,
   useConfiguratorStore,
-} from "@advergaming/configurator-engine";
+} from "@mashedgames/configurator-engine";
 import { useCallback } from "react";
 
 export function ConfiguratorWorkspace({

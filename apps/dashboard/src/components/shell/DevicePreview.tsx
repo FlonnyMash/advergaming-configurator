@@ -9,11 +9,11 @@ import { useHitboxInboundBridge } from "@/hooks/useHitboxInboundBridge";
 import { useGameChromeOverlayStore } from "@/lib/game-chrome-overlay-store";
 import { usePreviewBridgeStore } from "@/lib/preview-bridge-store";
 import { useBridgeSync } from "@/store/useBridgeSync";
-import type { AppMode, ConfigUpdateMode, GameMasterConfig, GameTemplateId } from "@advergaming/shared";
+import type { AppMode, ConfigUpdateMode, GameMasterConfig, GameTemplateId } from "@mashedgames/shared";
 import {
   GAME_CHROME_BRIDGE_EVENTS,
   parseGameChromeOverlaysRegistryPayload,
-} from "@advergaming/shared";
+} from "@mashedgames/shared";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
 const PHONE_FRAME_WIDTH = 390;

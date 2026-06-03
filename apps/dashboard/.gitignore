@@ -15,6 +15,7 @@
 
 # next.js
 /.next/
+/.mashed-next-dev/
 /out/
 
 # production

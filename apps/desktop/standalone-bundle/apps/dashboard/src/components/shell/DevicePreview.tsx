@@ -6,11 +6,11 @@ import {
   getGameEngineOrigin,
 } from "@/bridge/messenger";
 import { useGameChromeOverlayStore } from "@/lib/game-chrome-overlay-store";
-import type { AppMode, ConfigUpdateMode, GameMasterConfig, GameTemplateId } from "@advergaming/shared";
+import type { AppMode, ConfigUpdateMode, GameMasterConfig, GameTemplateId } from "@mashedgames/shared";
 import {
   GAME_CHROME_BRIDGE_EVENTS,
   parseGameChromeOverlaysRegistryPayload,
-} from "@advergaming/shared";
+} from "@mashedgames/shared";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 const PHONE_FRAME_WIDTH = 390;

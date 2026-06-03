@@ -1,4 +1,4 @@
-import type { GameMasterConfig } from "@advergaming/shared";
+import type { GameMasterConfig } from "@mashedgames/shared";
 import type Phaser from "phaser";
 import { resolveTextureUrl } from "../bridge/asset-loader.ts";
 import { getRuntimeAssets } from "../bridge/runtime-assets.ts";

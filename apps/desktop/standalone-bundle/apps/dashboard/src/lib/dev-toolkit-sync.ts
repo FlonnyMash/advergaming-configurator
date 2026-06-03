@@ -2,9 +2,9 @@ import type {
   DevToolkitFlags,
   DevToolkitPickedAsset,
   DevToolkitSetFlagsPayload,
-} from "@advergaming/shared";
+} from "@mashedgames/shared";
 
-export const DEV_TOOLKIT_SYNC_CHANNEL = "advergaming-dev-toolkit";
+export const DEV_TOOLKIT_SYNC_CHANNEL = "mashedgames-dev-toolkit";
 
 export type DevToolkitSyncMessage =
   | { type: "state"; flags: DevToolkitFlags }
@@ -55,7 +55,7 @@ export function subscribeDevToolkitSync(
 }
 
 export const DEV_TOOLS_POPOUT_PATH = "/studio/dev-tools";
-export const DEV_TOOLS_POPOUT_NAME = "advergaming-dev-tools";
+export const DEV_TOOLS_POPOUT_NAME = "mashedgames-dev-tools";
 
 export function openDevToolsPopout(): Window | null {
   if (typeof window === "undefined") {

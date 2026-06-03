@@ -1,5 +1,5 @@
-import type { DevToolkitFlags } from "@advergaming/shared";
-import { DEFAULT_DEV_TOOLKIT_FLAGS } from "@advergaming/shared";
+import type { DevToolkitFlags } from "@mashedgames/shared";
+import { DEFAULT_DEV_TOOLKIT_FLAGS } from "@mashedgames/shared";
 import type { AssetPickerController } from "./AssetPickerController.ts";
 import type { DebugOverlay } from "../DebugOverlay.ts";
 import type { GameFreezeController } from "../GameFreezeController.ts";

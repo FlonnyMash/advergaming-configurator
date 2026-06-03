@@ -5,7 +5,7 @@ import {
   listSchemaControlChanges,
   type ParentDriftItem,
   type ParentDriftReport,
-} from "@advergaming/shared";
+} from "@mashedgames/shared";
 import { buildLiveParentConfig } from "@/lib/project-parent-config";
 import { loadProject } from "@/lib/project-io";
 

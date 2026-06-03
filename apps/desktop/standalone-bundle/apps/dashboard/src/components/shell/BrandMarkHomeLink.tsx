@@ -8,7 +8,6 @@ import {
   saveAllForHomeNavigation,
 } from "@/lib/home-navigation-unsaved";
 import type { UnsavedChangeItem } from "@/lib/template-unsaved-changes";
-import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
@@ -58,20 +57,9 @@ export function BrandMarkHomeLink() {
         className="rounded-lg outline-offset-2 hover:opacity-90"
         aria-label={`${APP_TITLE} — back to home`}
       >
-        <div className="flex items-center gap-3">
-          <Image
-            src="/mashed-games-logo.png"
-            alt={APP_TITLE}
-            width={137}
-            height={48}
-            className="block shrink-0 object-contain invert"
-            style={{ height: 48, width: "auto", maxWidth: 137 }}
-            priority
-          />
-          <span className="text-sm font-semibold tracking-tight text-zinc-900">
-            {APP_TITLE}
-          </span>
-        </div>
+        <span className="text-sm font-semibold tracking-tight text-zinc-900">
+          {APP_TITLE}
+        </span>
       </button>
 
       <UnsavedChangesDialog

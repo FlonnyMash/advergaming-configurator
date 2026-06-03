@@ -10,7 +10,7 @@ import {
   GAME_PREVIEW_PANE_ID,
   useWorkspaceCenterStore,
 } from "@/lib/workspace-center-store";
-import { StudioSidebar, useStudioConfigStore } from "@advergaming/studio-engine";
+import { StudioSidebar, useStudioConfigStore } from "@mashedgames/studio-engine";
 import { useCallback, useEffect } from "react";
 
 export function StudioWorkspace({ suspended = false }: { suspended?: boolean }) {

@@ -6,14 +6,14 @@ import {
   type GameSchema,
   type GameTemplateId,
   type SystemSettings,
-} from "@advergaming/shared";
+} from "@mashedgames/shared";
 import {
   getCatalogEntries,
   getCatalogEntry,
   getGameSchema,
   getTemplatePickerOptions,
   type TemplatePickerOption,
-} from "@advergaming/game-engine/templates/schemas";
+} from "@mashedgames/game-engine/templates/schemas";
 import { loadPublishedSystemDefaults } from "./publishedSystem";
 
 const CONFIGURATOR_MODE: AppMode = "configurator";

@@ -2,8 +2,8 @@ import type {
   DevToolkitAssetConfigBinding,
   DevToolkitAssetLayout,
   DevToolkitPickedAsset,
-} from "@advergaming/shared";
-import type { GameMasterConfig } from "@advergaming/shared";
+} from "@mashedgames/shared";
+import type { GameMasterConfig } from "@mashedgames/shared";
 import Phaser from "phaser";
 import { readRuntimeArcadeBodyLayout } from "../../game/arcadeSpriteLayout.ts";
 

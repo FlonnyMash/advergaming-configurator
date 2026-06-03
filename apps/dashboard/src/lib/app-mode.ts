@@ -1,4 +1,4 @@
-import type { AppMode } from "@advergaming/shared";
+import type { AppMode } from "@mashedgames/shared";
 
 export function getAppMode(): AppMode {
   const mode = process.env.NEXT_PUBLIC_APP_MODE;

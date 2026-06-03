@@ -16,9 +16,9 @@ import {
   hasUnsavedGameControls,
   listGameControlChanges,
   useStudioConfigStore,
-} from "@advergaming/studio-engine";
-import { useConfiguratorStore } from "@advergaming/configurator-engine";
-import type { DevToolkitAssetLayout } from "@advergaming/shared";
+} from "@mashedgames/studio-engine";
+import { useConfiguratorStore } from "@mashedgames/configurator-engine";
+import type { DevToolkitAssetLayout } from "@mashedgames/shared";
 
 export type UnsavedChangeItem = {
   kind: "game-control" | "asset-layout";

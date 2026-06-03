@@ -1,5 +1,5 @@
 import { createProject } from "@/lib/project-io";
-import type { GameTemplateId } from "@advergaming/shared";
+import type { GameTemplateId } from "@mashedgames/shared";
 import type { NextRequest } from "next/server";
 
 export const runtime = "nodejs";

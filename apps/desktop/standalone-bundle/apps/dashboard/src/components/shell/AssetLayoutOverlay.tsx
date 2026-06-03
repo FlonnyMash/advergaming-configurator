@@ -1,6 +1,6 @@
 "use client";
 
-import type { DevToolkitAssetLayout } from "@advergaming/shared";
+import type { DevToolkitAssetLayout } from "@mashedgames/shared";
 
 export interface AssetLayoutOverlayProps {
   layout: DevToolkitAssetLayout;

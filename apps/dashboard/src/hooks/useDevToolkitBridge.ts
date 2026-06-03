@@ -14,7 +14,7 @@ import {
   parseDevToolkitFlags,
   parseDevToolkitPickedAsset,
   type DevToolkitSetFlagsPayload,
-} from "@advergaming/shared";
+} from "@mashedgames/shared";
 import { useWorkspaceCenterStore } from "@/lib/workspace-center-store";
 import { useEditorStore } from "@/store/useEditorStore";
 import { useCallback, useEffect } from "react";

@@ -4,7 +4,7 @@ import { OpenProjectLocationButtons } from "@/components/shell/OpenProjectLocati
 import { DevToolkitMenu } from "@/components/studio/DevToolkitMenu";
 import { ExitStudioTemplateButton } from "@/components/studio/ExitStudioTemplateButton";
 import { ExportTemplateButton } from "@/components/studio/ExportTemplateButton";
-import { StudioConfigJsonTools, useStudioConfigStore } from "@advergaming/studio-engine";
+import { StudioConfigJsonTools, useStudioConfigStore } from "@mashedgames/studio-engine";
 
 export function StudioToolsPanel() {
   const selectedTemplateId = useStudioConfigStore((s) => s.selectedTemplateId);

@@ -6,7 +6,7 @@ export default function HomePage() {
     <div className="flex flex-1 flex-col items-center justify-center gap-6 p-8">
       <div className="max-w-md text-center">
         <div className="flex justify-center">
-          <BrandMark size="lg" linkHome={false} />
+          <BrandMark size="lg" linkHome={false} layout="stacked" />
         </div>
         <p className="mt-4 text-sm text-zinc-600">
           Choose an environment to open the live editor and game preview.

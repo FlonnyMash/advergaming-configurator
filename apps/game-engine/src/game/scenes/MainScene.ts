@@ -2,7 +2,7 @@ import {
   resolvePhaserSceneKeys,
   type GameMasterConfig,
   type GameTemplateId,
-} from "@advergaming/shared";
+} from "@mashedgames/shared";
 import Phaser from "phaser";
 import { gameChromeOverlayManager } from "../../bridge/game-chrome-bridge.ts";
 import { updatePhaserMechanics } from "../applyMechanics.ts";

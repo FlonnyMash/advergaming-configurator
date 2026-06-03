@@ -1,7 +1,7 @@
 import {
   AssetReadyPayloadSchema,
   BRIDGE_MESSAGE_TYPE,
-} from "@advergaming/shared";
+} from "@mashedgames/shared";
 import Phaser from "phaser";
 import type { Game as PhaserGame } from "phaser";
 import { getOSAssetUrl, withCacheBust } from "./asset-loader.ts";

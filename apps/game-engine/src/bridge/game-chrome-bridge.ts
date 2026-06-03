@@ -3,7 +3,7 @@ import {
   GAME_CHROME_BRIDGE_EVENTS,
   parseSetGameChromeOverlayVisibilityPayload,
   type GameChromeOverlayDescriptor,
-} from "@advergaming/shared";
+} from "@mashedgames/shared";
 import { getEngineMode } from "../env/app-mode.ts";
 import {
   getParentTargetOrigin,

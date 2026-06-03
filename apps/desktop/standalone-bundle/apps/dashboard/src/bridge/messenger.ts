@@ -17,7 +17,7 @@ import {
   type GameTemplateId,
   type LoadTemplateMessage,
   type UpdateConfigMessage,
-} from "@advergaming/shared";
+} from "@mashedgames/shared";
 
 const isDev = process.env.NODE_ENV === "development";
 

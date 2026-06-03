@@ -1,0 +1,7 @@
+workspace-defines.nsh
+installerSidebar.bmp
+uninstallerSidebar.bmp
+installerHeader.bmp
+icon.ico
+installerIcon.ico
+uninstallerIcon.ico

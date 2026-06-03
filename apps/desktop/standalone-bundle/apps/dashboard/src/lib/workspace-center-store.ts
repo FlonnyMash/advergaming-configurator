@@ -1,6 +1,6 @@
 "use client";
 
-import type { DevToolkitPickedAsset } from "@advergaming/shared";
+import type { DevToolkitPickedAsset } from "@mashedgames/shared";
 import { create } from "zustand";
 
 export const GAME_PREVIEW_PANE_ID = "game-preview";

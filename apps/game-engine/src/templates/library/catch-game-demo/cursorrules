@@ -1,6 +1,6 @@
 # ADVERGAMING AGENCY - STRICT ENGINEERING RULES
 
-You are an expert game developer building a Tier-1 white-label advergaming engine using Vite, Phaser 3, and Tailwind CSS.
+You are an expert game developer building a Tier-1 white-label Mashed Games Studio engine using Vite, Phaser 3, and Tailwind CSS.
 
 ## 1. ARCHITECTURE & SCALABILITY (The Golden Rule)
 - NEVER hardcode data in TypeScript. All physics (gravity, speeds), colors, text, and asset paths MUST be fetched dynamically from the global `config` object inside the game registry (loaded from `public/config.json`).

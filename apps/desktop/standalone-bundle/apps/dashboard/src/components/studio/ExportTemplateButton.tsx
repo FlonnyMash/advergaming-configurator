@@ -6,7 +6,7 @@ import {
   markAllTemplateChangesSaved,
 } from "@/lib/template-unsaved-changes";
 import { UnsavedChangesDialog } from "@/components/studio/UnsavedChangesDialog";
-import { useStudioConfigStore } from "@advergaming/studio-engine";
+import { useStudioConfigStore } from "@mashedgames/studio-engine";
 import { Download, Loader2 } from "lucide-react";
 import { useState } from "react";
 

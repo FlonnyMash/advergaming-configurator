@@ -2,7 +2,7 @@ import {
   mergeBrandingPatch,
   type BrandingPatch,
   type GameMasterConfig,
-} from "@advergaming/shared";
+} from "@mashedgames/shared";
 
 export function applyBrandingPatch(
   current: GameMasterConfig,

@@ -1,4 +1,4 @@
-import { APP_DISPLAY_NAME } from "@advergaming/shared";
+import { APP_DISPLAY_NAME } from "@mashedgames/shared";
 import Image from "next/image";
 import Link from "next/link";
 

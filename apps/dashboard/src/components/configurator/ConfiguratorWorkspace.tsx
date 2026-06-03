@@ -12,8 +12,8 @@ import { isWorkspaceDesktopClient } from "@/lib/runtime-env";
 import {
   ConfiguratorSidebar,
   useConfiguratorStore,
-} from "@advergaming/configurator-engine";
-import type { ControlFieldSchema, GameProjectManifest } from "@advergaming/shared";
+} from "@mashedgames/configurator-engine";
+import type { ControlFieldSchema, GameProjectManifest } from "@mashedgames/shared";
 import { useCallback } from "react";
 
 export function ConfiguratorWorkspace({

@@ -1,4 +1,4 @@
-import type { GameMasterConfig } from "@advergaming/shared";
+import type { GameMasterConfig } from "@mashedgames/shared";
 import Phaser from "phaser";
 import type { TemplateScene } from "../types.ts";
 import { rewriteLegacyAssetUrls } from "./legacyAssetUrls.ts";

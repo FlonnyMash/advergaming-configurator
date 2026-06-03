@@ -18,10 +18,15 @@ export type PlatformConfig = z.infer<typeof PlatformConfigSchema>;
 
 export const APP_DISPLAY_NAME = "Mashed Games Studio";
 
+/** Public URL — file lives at apps/dashboard/public/mashed-games-logo.png */
+export const BRAND_LOGO_URL_PATH = "/mashed-games-logo.png" as const;
+
+export const BRAND_LOGO_FILENAME = "mashed-games-logo.png" as const;
+
 export const DEFAULT_PLATFORM_CONFIG: PlatformConfig = {
   appName: APP_DISPLAY_NAME,
   primaryColor: "#4f46e5",
-  logoPath: "/mashed-games-logo.png",
+  logoPath: BRAND_LOGO_URL_PATH,
   features: {
     enableLeadGen: false,
     enableCustomCSS: true,

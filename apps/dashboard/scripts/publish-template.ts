@@ -11,7 +11,7 @@ import {
   gameSchemaFromManifest,
   isTemplateManifest,
   type TemplateManifest,
-} from "@advergaming/shared";
+} from "@mashedgames/shared";
 import { spawnSync } from "node:child_process";
 import {
   cpSync,

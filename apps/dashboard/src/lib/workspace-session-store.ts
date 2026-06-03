@@ -2,7 +2,7 @@
 
 import { create } from "zustand";
 
-const STORAGE_KEY = "advergaming-workspace-session";
+const STORAGE_KEY = "mashedgames-workspace-session";
 
 type SessionSnapshot = {
   activeStudioTemplateId: string | null;

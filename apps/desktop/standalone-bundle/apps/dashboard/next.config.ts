@@ -2,16 +2,15 @@ import type { NextConfig } from "next";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-const monorepoRoot = path.join(
-  path.dirname(fileURLToPath(import.meta.url)),
-  "../..",
-);
+const dashboardRoot = path.dirname(fileURLToPath(import.meta.url));
+const monorepoRoot = path.join(dashboardRoot, "../../../../..");
 
 const isConfiguratorBuild =
   process.env.NEXT_PUBLIC_APP_MODE === "configurator";
 
 const nextConfig: NextConfig = {
   output: "standalone",
+  outputFileTracingRoot: monorepoRoot,
   typescript: {
     ignoreBuildErrors: true,
   },
@@ -45,10 +44,10 @@ const nextConfig: NextConfig = {
     ];
   },
   transpilePackages: [
-    "@advergaming/shared",
-    "@advergaming/studio-engine",
-    "@advergaming/configurator-engine",
-    "@advergaming/game-engine",
+    "@mashedgames/shared",
+    "@mashedgames/studio-engine",
+    "@mashedgames/configurator-engine",
+    "@mashedgames/game-engine",
   ],
   webpack: (config, { webpack }) => {
     config.resolve = config.resolve ?? {};
@@ -62,12 +61,12 @@ const nextConfig: NextConfig = {
     if (isConfiguratorBuild) {
       config.plugins.push(
         new webpack.IgnorePlugin({
-          resourceRegExp: /^@advergaming\/studio-engine$/,
+          resourceRegExp: /^@mashedgames\/studio-engine$/,
         }),
       );
       config.resolve.alias = {
         ...config.resolve.alias,
-        "@advergaming/studio-engine": false,
+        "@mashedgames/studio-engine": false,
       };
     }
     return config;

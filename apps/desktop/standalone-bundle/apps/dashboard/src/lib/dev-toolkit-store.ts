@@ -4,7 +4,7 @@ import {
   DEFAULT_DEV_TOOLKIT_FLAGS,
   type DevToolkitFlags,
   type DevToolkitSetFlagsPayload,
-} from "@advergaming/shared";
+} from "@mashedgames/shared";
 import { create } from "zustand";
 
 type DevToolkitStore = {

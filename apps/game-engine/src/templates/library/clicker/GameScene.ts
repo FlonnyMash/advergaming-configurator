@@ -1,4 +1,4 @@
-import { getPrimaryBrandColor, type GameMasterConfig } from "@advergaming/shared";
+import { getPrimaryBrandColor, type GameMasterConfig } from "@mashedgames/shared";
 import Phaser from "phaser";
 import type { TemplateScene } from "../../types.ts";
 

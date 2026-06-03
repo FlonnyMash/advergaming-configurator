@@ -1,8 +1,8 @@
 "use client";
 
 import { useSaveGameProject } from "@/hooks/useSaveGameProject";
-import { useConfiguratorStore } from "@advergaming/configurator-engine";
-import { useStudioConfigStore } from "@advergaming/studio-engine";
+import { useConfiguratorStore } from "@mashedgames/configurator-engine";
+import { useStudioConfigStore } from "@mashedgames/studio-engine";
 import { usePathname } from "next/navigation";
 import { useMemo } from "react";
 

@@ -31,12 +31,13 @@ function stopWindowsStandaloneServers() {
     return;
   }
 
-  const normalizedEntry = serverEntry.replace(/\\/g, "/");
+  const entrySuffix = path.join(".next", "standalone", "apps", "dashboard", "server.js");
   const ps = [
     "Get-CimInstance Win32_Process -Filter \"Name='node.exe'\"",
+    "| Where-Object { $_.CommandLine -like '*standalone*server.js*' }",
     "| Where-Object {",
-    `$_.CommandLine -like '*${normalizedEntry}*' -or`,
-    `$_.CommandLine -like '*${normalizedEntry.replace(/\//g, "\\\\")}*'`,
+    `$_.CommandLine -like '*${entrySuffix.replace(/\\/g, "/")}*' -or`,
+    `$_.CommandLine -like '*${entrySuffix.replace(/\\/g, "\\\\")}*'`,
     "}",
     "| ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }",
   ].join(" ");

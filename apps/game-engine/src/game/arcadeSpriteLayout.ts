@@ -1,4 +1,4 @@
-import type { DevToolkitAssetLayout } from "@advergaming/shared";
+import type { DevToolkitAssetLayout } from "@mashedgames/shared";
 import Phaser from "phaser";
 import {
   computeArcadeBodyLayout,

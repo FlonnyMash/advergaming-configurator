@@ -5,7 +5,7 @@ import {
   type GameSchema,
   type GameTemplateId,
   type TemplateCatalogEntry,
-} from "@advergaming/shared";
+} from "@mashedgames/shared";
 import type { Types } from "phaser";
 import {
   registerPhaserSceneMap,

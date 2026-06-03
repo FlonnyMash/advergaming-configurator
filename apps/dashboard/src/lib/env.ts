@@ -1,7 +1,7 @@
 import {
   getAppEnvironmentFromProcess,
   type AppEnvironment,
-} from "@advergaming/game-engine/templates/schemas";
+} from "@mashedgames/game-engine/templates/schemas";
 import path from "node:path";
 
 export function getAppEnv(): AppEnvironment {
@@ -14,11 +14,11 @@ export function isDevEnv(): boolean {
 
 /**
  * Root OS-level workspace for user projects and assets.
- * In Electron production, injected via ADVERGAMING_WORKSPACE_PATH at spawn time.
+ * In Electron production, injected via MASHEDGAMES_WORKSPACE_PATH at spawn time.
  * During plain `next dev`, falls back to a repo-local folder to avoid touching Documents.
  */
 export function getWorkspacePath(): string {
-  const fromEnv = process.env.ADVERGAMING_WORKSPACE_PATH?.trim();
+  const fromEnv = process.env.MASHEDGAMES_WORKSPACE_PATH?.trim();
   if (fromEnv) {
     return path.resolve(fromEnv);
   }

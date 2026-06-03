@@ -1,4 +1,4 @@
-import { applyPath, type BrandingSettings } from "@advergaming/shared";
+import { applyPath, type BrandingSettings } from "@mashedgames/shared";
 import { createHash } from "node:crypto";
 import { copyFile, mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";

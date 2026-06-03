@@ -4,7 +4,8 @@
   "private": true,
   "main": "main.js",
   "scripts": {
-    "prebuild": "node scripts/ensure-dist-writable.mjs && node scripts/sync-installer-workspace.mjs",
+    "sync-branding": "node scripts/sync-installer-workspace.mjs && node scripts/sync-installer-branding.mjs",
+    "prebuild": "node scripts/ensure-dist-writable.mjs && node scripts/sync-installer-workspace.mjs && node scripts/sync-installer-branding.mjs && node scripts/apply-nsis-install-overrides.mjs",
     "build": "electron-builder",
     "dist": "electron-builder"
   },
@@ -28,18 +29,25 @@
   },
   "devDependencies": {
     "electron": "^31.7.7",
-    "electron-builder": "^24.13.3"
+    "electron-builder": "^24.13.3",
+    "sharp": "^0.34.5",
+    "to-ico": "^1.1.5"
   },
   "build": {
-    "appId": "com.mashedgames.advergamingstudio",
+    "appId": "com.mashedgames.studio",
     "productName": "Mashed Games Studio",
+    "icon": "icon.ico",
     "directories": {
-      "output": "dist"
+      "output": "dist",
+      "buildResources": "nsis"
     },
     "asar": true,
     "files": [
       "main.js",
-      "package.json"
+      "constants.js",
+      "package.json",
+      "splash.html",
+      "splash-logo.png"
     ],
     "extraResources": [
       {
@@ -57,7 +65,7 @@
     },
     "win": {
       "target": "nsis",
-      "icon": "../dashboard/src/app/favicon.ico",
+      "icon": "icon.ico",
       "publisherName": "${env.WIN_PUBLISHER_NAME}",
       "signingHashAlgorithms": [
         "sha256"
@@ -80,10 +88,15 @@
       "menuCategory": "Mashed Games",
       "shortcutName": "Mashed Games Studio",
       "runAfterFinish": true,
-      "artifactName": "${productName} Setup ${version}.${ext}",
+      "artifactName": "MashedGames-Studio-Setup-${version}.${ext}",
       "uninstallDisplayName": "${productName}",
       "deleteAppDataOnUninstall": false,
-      "include": "build/installer.nsh",
+      "include": "installer.nsh",
+      "installerSidebar": "installerSidebar.bmp",
+      "uninstallerSidebar": "uninstallerSidebar.bmp",
+      "installerHeader": "installerHeader.bmp",
+      "installerIcon": "installerIcon.ico",
+      "uninstallerIcon": "uninstallerIcon.ico",
       "warningsAsErrors": true
     }
   }

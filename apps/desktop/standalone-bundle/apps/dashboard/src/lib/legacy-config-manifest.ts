@@ -1,4 +1,4 @@
-import type { TemplateConfigJsonSchema, TemplateManifest } from "@advergaming/shared";
+import type { TemplateConfigJsonSchema, TemplateManifest } from "@mashedgames/shared";
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { normalizeScaffoldManifest } from "@/lib/template-import-normalize";

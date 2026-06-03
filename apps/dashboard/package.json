@@ -3,8 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "predev": "pnpm --filter @advergaming/game-engine sync-manifest-registry",
-    "dev": "next dev",
+    "predev": "node scripts/sync-brand-from-logo.mjs && pnpm --filter @mashedgames/game-engine sync-manifest-registry",
+    "dev": "node scripts/dev.mjs",
     "prebuild": "node scripts/ensure-standalone-writable.mjs",
     "build": "next build && node scripts/sync-standalone-assets.mjs",
     "start": "next start",
@@ -13,10 +13,11 @@
     "import-template": "tsx scripts/import-template-zip.ts"
   },
   "dependencies": {
-    "@advergaming/configurator-engine": "workspace:*",
-    "@advergaming/game-engine": "workspace:*",
-    "@advergaming/shared": "workspace:*",
-    "@advergaming/studio-engine": "workspace:*",
+    "@mashedgames/configurator-engine": "workspace:*",
+    "@mashedgames/game-engine": "workspace:*",
+    "@mashedgames/shared": "workspace:*",
+    "@mashedgames/studio-engine": "workspace:*",
+    "@swc/helpers": "0.5.15",
     "adm-zip": "^0.5.17",
     "jszip": "^3.10.1",
     "lucide-react": "^1.17.0",

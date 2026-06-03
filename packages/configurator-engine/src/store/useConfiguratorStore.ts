@@ -10,8 +10,8 @@ import {
   type GameMasterConfig,
   type GameProjectManifest,
   type GameTemplateId,
-} from "@advergaming/shared";
-import { DEFAULT_GAME_TEMPLATE_ID } from "@advergaming/shared";
+} from "@mashedgames/shared";
+import { DEFAULT_GAME_TEMPLATE_ID } from "@mashedgames/shared";
 import { create } from "zustand";
 import {
   getConfiguratorGameSchema,

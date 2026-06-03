@@ -1,8 +1,8 @@
 "use client";
 
 import { TemplateDetailsDialog } from "@/components/studio/TemplateDetailsDialog";
-import type { TemplateManifest } from "@advergaming/shared";
-import type { TemplatePickerOption } from "@advergaming/game-engine/templates/schemas";
+import type { TemplateManifest } from "@mashedgames/shared";
+import type { TemplatePickerOption } from "@mashedgames/game-engine/templates/schemas";
 import { MoreVertical } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState } from "react";

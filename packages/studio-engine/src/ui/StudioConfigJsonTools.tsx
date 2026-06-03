@@ -1,6 +1,6 @@
 "use client";
 
-import { normalizeGameMasterConfig } from "@advergaming/shared";
+import { normalizeGameMasterConfig } from "@mashedgames/shared";
 import { useRef, useState } from "react";
 import { useStudioConfigStore } from "../store/useStudioConfigStore";
 

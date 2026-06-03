@@ -1,6 +1,6 @@
 "use client";
 
-import type { DevToolkitAssetConfigBinding, DevToolkitAssetLayout } from "@advergaming/shared";
+import type { DevToolkitAssetConfigBinding, DevToolkitAssetLayout } from "@mashedgames/shared";
 import { create } from "zustand";
 
 export function assetBindingKey(binding: DevToolkitAssetConfigBinding): string {

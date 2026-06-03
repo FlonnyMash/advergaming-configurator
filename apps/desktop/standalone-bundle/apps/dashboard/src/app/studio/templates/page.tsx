@@ -4,7 +4,7 @@ import { CreateTemplateModal } from "@/components/studio/CreateTemplateModal";
 import { ImportTemplateModal } from "@/components/studio/ImportTemplateModal";
 import { TemplateListRow } from "@/components/studio/TemplateListRow";
 import { getAppEnv } from "@/lib/env";
-import { getStudioTemplateOptions } from "@advergaming/studio-engine";
+import { getStudioTemplateOptions } from "@mashedgames/studio-engine";
 import Link from "next/link";
 import { useCallback, useMemo, useState } from "react";
 

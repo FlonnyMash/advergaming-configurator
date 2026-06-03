@@ -11,8 +11,8 @@ import {
   GAME_PREVIEW_PANE_ID,
   useWorkspaceCenterStore,
 } from "@/lib/workspace-center-store";
-import { getCatalogEntry } from "@advergaming/game-engine/templates/schemas";
-import { StudioSidebar, useStudioConfigStore } from "@advergaming/studio-engine";
+import { getCatalogEntry } from "@mashedgames/game-engine/templates/schemas";
+import { StudioSidebar, useStudioConfigStore } from "@mashedgames/studio-engine";
 import { useCallback, useEffect, useMemo } from "react";
 
 export function StudioWorkspace({ suspended = false }: { suspended?: boolean }) {

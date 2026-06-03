@@ -12,7 +12,7 @@ import {
   type GameProjectManifest,
   type GameTemplateId,
   type ParentLockSnapshot,
-} from "@advergaming/shared";
+} from "@mashedgames/shared";
 import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
 import { existsSync, statSync } from "node:fs";
 import path from "node:path";

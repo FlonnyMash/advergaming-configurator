@@ -1,4 +1,4 @@
-import { PROJECT_ID_PATTERN } from "@advergaming/shared";
+import { PROJECT_ID_PATTERN } from "@mashedgames/shared";
 import { mkdirSync } from "node:fs";
 import path from "node:path";
 import { getWorkspacePath } from "@/lib/env";

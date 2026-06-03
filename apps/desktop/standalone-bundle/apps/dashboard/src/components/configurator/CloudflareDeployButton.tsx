@@ -1,7 +1,7 @@
 "use client";
 
 import { saveProjectClientNow } from "@/hooks/useSaveGameProject";
-import { useConfiguratorStore } from "@advergaming/configurator-engine";
+import { useConfiguratorStore } from "@mashedgames/configurator-engine";
 import { CloudUpload, Loader2 } from "lucide-react";
 import { useCallback, useState } from "react";
 

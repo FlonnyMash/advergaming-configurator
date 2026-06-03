@@ -3,7 +3,7 @@
 import {
   GAME_CHROME_BRIDGE_EVENTS,
   type GameChromeOverlayDescriptor,
-} from "@advergaming/shared";
+} from "@mashedgames/shared";
 import { create } from "zustand";
 
 type OverlayMessenger = {

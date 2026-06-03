@@ -1,5 +1,5 @@
-import type { GameSchema, GameTemplateId } from "@advergaming/shared";
-import { gameSchemaFromManifest } from "@advergaming/shared";
+import type { GameSchema, GameTemplateId } from "@mashedgames/shared";
+import { gameSchemaFromManifest } from "@mashedgames/shared";
 import type { Types } from "phaser";
 import {
   buildSceneRegistry,
@@ -9,7 +9,7 @@ import {
 } from "./catalog.ts";
 
 export type { AppEnvironment } from "./catalog.ts";
-export type { TemplateCatalogEntry } from "@advergaming/shared";
+export type { TemplateCatalogEntry } from "@mashedgames/shared";
 export {
   getCatalogEntries,
   getCatalogEntry,

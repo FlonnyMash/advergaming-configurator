@@ -8,9 +8,9 @@ import {
   type GameMasterConfig,
   type GameTemplateId,
   type SystemSettings,
-} from "@advergaming/shared";
+} from "@mashedgames/shared";
 import { getStudioGameSchema } from "../registry/studioSchemaRegistry";
-import { DEFAULT_GAME_TEMPLATE_ID } from "@advergaming/shared";
+import { DEFAULT_GAME_TEMPLATE_ID } from "@mashedgames/shared";
 import {
   applyGameControlsSnapshot,
   captureGameControlsSnapshot,

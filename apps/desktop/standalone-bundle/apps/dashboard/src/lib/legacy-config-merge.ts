@@ -1,4 +1,4 @@
-import type { GameMasterConfig } from "@advergaming/shared";
+import type { GameMasterConfig } from "@mashedgames/shared";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;

@@ -1,6 +1,6 @@
 "use client";
 
-import { useStudioConfigStore } from "@advergaming/studio-engine";
+import { useStudioConfigStore } from "@mashedgames/studio-engine";
 import { useCallback, useState } from "react";
 
 export function useSaveGameControls() {

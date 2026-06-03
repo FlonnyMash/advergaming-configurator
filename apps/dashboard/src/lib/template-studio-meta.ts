@@ -3,7 +3,7 @@ import {
   parseTemplateManifest,
   type TemplateManifest,
   type TemplateManifestStatus,
-} from "@advergaming/shared";
+} from "@mashedgames/shared";
 import { openDirectoryInFileExplorer } from "@/lib/open-directory";
 import {
   existsSync,

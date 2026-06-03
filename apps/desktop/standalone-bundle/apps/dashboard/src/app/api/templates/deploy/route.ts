@@ -4,7 +4,7 @@ import {
   normalizeGameMasterConfig,
   type GameMasterConfig,
   type GameTemplateId,
-} from "@advergaming/shared";
+} from "@mashedgames/shared";
 import { mkdtemp, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -70,7 +70,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    tempDir = await mkdtemp(path.join(os.tmpdir(), "advergaming-deploy-"));
+    tempDir = await mkdtemp(path.join(os.tmpdir(), "mashedgames-deploy-"));
 
     const exported = await exportTemplateToDirectory(templateId, tempDir, config);
     if (!exported.ok) {

@@ -177,7 +177,7 @@ Expected files:
 After copying, from the **repository root** run:
 
 \`\`\`bash
-pnpm --filter @advergaming/game-engine sync-manifest-registry
+pnpm --filter @mashedgames/game-engine sync-manifest-registry
 \`\`\`
 
 Restart the game engine dev server and open **Studio** (\`/studio\`) — the template should appear in the catalog as **(dev)**.
@@ -207,7 +207,7 @@ The **production catalog** expects a \`TemplateManifest\` JSON Schema manifest (
 - \`schema\` with \`properties.branding\` / \`properties.system\` and \`x-control\` on each leaf
 - \`id\` must match the folder name \`${templateId}\`
 
-**Your task:** Replace \`manifest.json\` with a valid production manifest before publishing. Use \`gameSchemaFromManifest\` from \`@advergaming/shared\` — controls map to \`config.branding.*\` and \`config.system.*\` paths via \`x-control.targetPath\`.
+**Your task:** Replace \`manifest.json\` with a valid production manifest before publishing. Use \`gameSchemaFromManifest\` from \`@mashedgames/shared\` — controls map to \`config.branding.*\` and \`config.system.*\` paths via \`x-control.targetPath\`.
 
 Until migrated, Studio schema controls may not bind correctly.
 
@@ -224,7 +224,7 @@ Dashboard (Zustand) → postMessage UPDATE_CONFIG → game-engine bridge → app
 Implement **\`TemplateScene\`** in \`GameScene.ts\`:
 
 \`\`\`ts
-import type { GameMasterConfig } from "@advergaming/shared";
+import type { GameMasterConfig } from "@mashedgames/shared";
 import type { TemplateScene } from "../../types.ts"; // adjust relative path after install
 
 export class GameScene extends Phaser.Scene implements TemplateScene {
@@ -292,7 +292,7 @@ cd apps/dashboard && pnpm publish-template ${templateId}
 
 \`\`\`bash
 pnpm dev                                    # dashboard + engine (per your workspace scripts)
-pnpm --filter @advergaming/game-engine dev  # engine only
+pnpm --filter @mashedgames/game-engine dev  # engine only
 pnpm --filter dashboard dev                 # dashboard only
 \`\`\`
 

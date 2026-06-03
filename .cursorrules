@@ -19,7 +19,7 @@ Production ships as **Electron desktop** (`apps/desktop`) embedding the Next.js 
 |------|----------------|
 | `apps/dashboard` | Next.js 14 App Router — UI, API routes, project I/O, template export, iframe host (`/engine`) |
 | `apps/game-engine` | Vite + Phaser 3 — template scenes, bridge receivers, DOM overlays (not canvas UI) |
-| `apps/desktop` | Electron — spawns dashboard server, `mashedgames-studio://` protocol, workspace at `Documents/MashedGamesStudio` (legacy: `AdvergamingStudio`) |
+| `apps/desktop` | Electron — spawns dashboard server, `mashedgames-studio://` protocol, workspace at `Documents/MashedGamesStudio` |
 | `packages/shared` | Zod schemas — `GameMasterConfig`, `BRIDGE_MESSAGE_TYPE`, `GameProjectManifest`, bridge payloads |
 | `packages/configurator-engine` | Configurator Zustand + `SchemaControlPanel` (shared UI package) |
 | `packages/studio-engine` | Studio Zustand + sidebar controls |
@@ -28,7 +28,7 @@ Templates live in `apps/game-engine/src/templates/library/{templateId}/`. Catch-
 
 # Workspace & project persistence
 
-Workspace root: `ADVERGAMING_WORKSPACE_PATH` (Electron) or `.local-workspace` (`next dev`).
+Workspace root: `MASHEDGAMES_WORKSPACE_PATH` (Electron) or `.local-workspace` (`next dev`).
 
 Per project `{workspace}/Projects/{projectId}/`:
 
@@ -70,7 +70,7 @@ Preview messenger store: `apps/dashboard/src/lib/preview-bridge-store.ts` (runti
 
 # Core directives
 
-* **Separation of concerns:** Dashboard owns state and disk; game-engine is a receiver + renderer. All cross-app contracts live in `@advergaming/shared`.
+* **Separation of concerns:** Dashboard owns state and disk; game-engine is a receiver + renderer. All cross-app contracts live in `@mashedgames/shared`.
 * **DOM over canvas (strict):** Phaser = gameplay/physics/sprites only. Start screens, forms, CTAs, highscores = HTML/Tailwind over the canvas (`apps/game-engine/src/overlays/`). Configurator edits these via JSON `domOverlay`.
 * **Schema-driven UI:** Template `manifest.json` `x-control` fields drive `SchemaControlPanel` (`type: image|slider|color|...`, `targetPath`). Patch branding paths in Zustand; never mutate frozen system in Configurator mode.
 * **Texture hygiene:** Remove/replace textures on reload (`reloadBase64Texture`, loader queue in `catchGameTextures.ts`) to avoid GPU leaks.

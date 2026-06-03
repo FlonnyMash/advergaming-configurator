@@ -1,6 +1,6 @@
 "use client";
 
-import type { GameTemplateId } from "@advergaming/shared";
+import type { GameTemplateId } from "@mashedgames/shared";
 import { create } from "zustand";
 
 type TemplateBridgeStore = {

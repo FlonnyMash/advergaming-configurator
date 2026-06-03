@@ -3,7 +3,7 @@ import {
   parseEntityId,
   type EditorState,
   type GameMasterConfig,
-} from "@advergaming/shared";
+} from "@mashedgames/shared";
 import Phaser from "phaser";
 import {
   applyArcadeSpriteLayout,

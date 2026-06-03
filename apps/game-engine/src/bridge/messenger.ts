@@ -12,7 +12,7 @@ import {
   type HitboxUpdatePayload,
   type IframeReadyMessage,
   type UpdateConfigMessage,
-} from "@advergaming/shared";
+} from "@mashedgames/shared";
 import { loadExternalAsset } from "./external-asset-loader.ts";
 import { setRuntimeAssets } from "./runtime-assets.ts";
 import type Phaser from "phaser";

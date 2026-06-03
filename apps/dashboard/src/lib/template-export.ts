@@ -1,5 +1,5 @@
 import AdmZip from "adm-zip";
-import { isTemplateManifest, type GameMasterConfig } from "@advergaming/shared";
+import { isTemplateManifest, type GameMasterConfig } from "@mashedgames/shared";
 import {
   existsSync,
   readFileSync,
