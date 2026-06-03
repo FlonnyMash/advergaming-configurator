@@ -2,17 +2,26 @@ const fs = require("node:fs");
 const http = require("node:http");
 const path = require("node:path");
 const { pathToFileURL } = require("node:url");
-const { spawn } = require("node:child_process");
+const { spawn, spawnSync } = require("node:child_process");
 const { app, BrowserWindow, dialog, net, protocol } = require("electron");
 const { autoUpdater } = require("electron-updater");
 const getPort = require("get-port");
+const {
+  APP_DISPLAY_NAME,
+  ADVERGAMING_PROJECTS_DIR_NAME,
+  ADVERGAMING_WORKSPACE_DIR_NAME,
+  LEGACY_ADVERGAMING_WORKSPACE_DIR_NAME,
+  STUDIO_ASSET_PROTOCOL,
+} = require("./constants");
 
-const STUDIO_PROTOCOL = "mashedgames-studio";
+const STUDIO_PROTOCOL = STUDIO_ASSET_PROTOCOL;
 const STUDIO_PROTOCOL_PREFIX = `${STUDIO_PROTOCOL}://`;
 
 let mainWindow = null;
 let dashboardServer = null;
 let dashboardPort = null;
+let dashboardServerLog = "";
+let dashboardServerExitCode = null;
 
 protocol.registerSchemesAsPrivileged([
   {
@@ -45,11 +54,25 @@ function resolveStandaloneServerPath() {
 }
 
 function getAdvergamingWorkspacePath() {
-  return path.join(app.getPath("documents"), "AdvergamingStudio");
+  const documents = app.getPath("documents");
+  const workspacePath = path.join(documents, ADVERGAMING_WORKSPACE_DIR_NAME);
+  const legacyWorkspacePath = path.join(
+    documents,
+    LEGACY_ADVERGAMING_WORKSPACE_DIR_NAME,
+  );
+
+  if (
+    fs.existsSync(legacyWorkspacePath) &&
+    !fs.existsSync(workspacePath)
+  ) {
+    return legacyWorkspacePath;
+  }
+
+  return workspacePath;
 }
 
 function getProjectsPath(workspacePath) {
-  return path.join(workspacePath, "Projects");
+  return path.join(workspacePath, ADVERGAMING_PROJECTS_DIR_NAME);
 }
 
 function ensureWorkspaceStructure(workspacePath) {
@@ -224,14 +247,37 @@ function probeUrl(url) {
   });
 }
 
+function appendDashboardServerLog(chunk) {
+  dashboardServerLog = (dashboardServerLog + chunk.toString()).slice(-8000);
+}
+
+function formatDashboardServerFailure(port, timeoutSeconds) {
+  const logSuffix = dashboardServerLog.trim()
+    ? `\n\nServer log:\n${dashboardServerLog.trim()}`
+    : "";
+
+  if (dashboardServerExitCode !== null) {
+    return `Dashboard server exited with code ${dashboardServerExitCode} before becoming ready on port ${port}.${logSuffix}`;
+  }
+
+  return `Dashboard server did not become ready on port ${port} within ${timeoutSeconds}s (checked / and /engine/index.html).${logSuffix}`;
+}
+
 async function waitForDashboardServer(port) {
-  const deadline = Date.now() + 30_000;
+  const timeoutMs = app.isPackaged ? 90_000 : 30_000;
+  const deadline = Date.now() + timeoutMs;
   const urls = [
     `http://127.0.0.1:${port}/`,
     `http://127.0.0.1:${port}/engine/index.html`,
   ];
 
   while (Date.now() < deadline) {
+    if (dashboardServerExitCode !== null) {
+      throw new Error(
+        formatDashboardServerFailure(port, timeoutMs / 1000),
+      );
+    }
+
     const ready = await Promise.all(urls.map((url) => probeUrl(url)));
     if (ready.every(Boolean)) {
       return;
@@ -239,9 +285,25 @@ async function waitForDashboardServer(port) {
     await new Promise((resolve) => setTimeout(resolve, 250));
   }
 
-  throw new Error(
-    `Dashboard server did not become ready on port ${port} (checked / and /engine/index.html)`,
-  );
+  throw new Error(formatDashboardServerFailure(port, timeoutMs / 1000));
+}
+
+function buildDashboardServerEnv(workspaceBasePath, port) {
+  return {
+    ELECTRON_RUN_AS_NODE: "1",
+    NODE_ENV: "production",
+    HOSTNAME: "127.0.0.1",
+    PORT: String(port),
+    ADVERGAMING_WORKSPACE_PATH: workspaceBasePath,
+    NEXT_PUBLIC_WORKSPACE_DESKTOP: "1",
+    SystemRoot: process.env.SystemRoot,
+    TEMP: process.env.TEMP,
+    TMP: process.env.TMP,
+    USERPROFILE: process.env.USERPROFILE,
+    APPDATA: process.env.APPDATA,
+    LOCALAPPDATA: process.env.LOCALAPPDATA,
+    PATH: process.env.PATH,
+  };
 }
 
 async function spawnDashboardServer(workspaceBasePath) {
@@ -251,27 +313,26 @@ async function spawnDashboardServer(workspaceBasePath) {
     throw new Error(`Dashboard standalone server not found: ${serverEntry}`);
   }
 
+  dashboardServerLog = "";
+  dashboardServerExitCode = null;
+
   dashboardServer = spawn(process.execPath, [serverEntry], {
     cwd: path.dirname(serverEntry),
-    env: {
-      ...process.env,
-      ELECTRON_RUN_AS_NODE: "1",
-      NODE_ENV: "production",
-      HOSTNAME: "127.0.0.1",
-      PORT: String(port),
-      ADVERGAMING_WORKSPACE_PATH: workspaceBasePath,
-      NEXT_PUBLIC_WORKSPACE_DESKTOP: "1",
-    },
-    stdio: "pipe",
+    env: buildDashboardServerEnv(workspaceBasePath, port),
+    // Do not pipe stdout: Next.js can write enough logs to fill the buffer and block startup.
+    stdio: ["ignore", "ignore", "pipe"],
+    windowsHide: true,
   });
 
   dashboardServer.on("error", (error) => {
     console.error("[dashboard-server] spawn error", error);
   });
   dashboardServer.stderr?.on("data", (chunk) => {
+    appendDashboardServerLog(chunk);
     console.error("[dashboard-server]", chunk.toString());
   });
   dashboardServer.on("exit", (code, signal) => {
+    dashboardServerExitCode = code ?? 1;
     if (code !== 0 && code !== null) {
       console.error(
         `[dashboard-server] exited early code=${code} signal=${signal ?? ""}`,
@@ -327,21 +388,38 @@ function setupAutoUpdater() {
   });
 }
 
-function cleanupDashboardServer() {
-  if (dashboardServer && !dashboardServer.killed) {
+function killProcessTree(childProcess) {
+  if (!childProcess || childProcess.killed) {
+    return;
+  }
+
+  const pid = childProcess.pid;
+  if (typeof pid !== "number") {
+    return;
+  }
+
+  if (process.platform === "win32") {
+    spawnSync("taskkill", ["/F", "/T", "/PID", String(pid)], {
+      windowsHide: true,
+      stdio: "ignore",
+    });
+    return;
+  }
+
+  try {
+    childProcess.kill("SIGKILL");
+  } catch (error) {
+    console.error("[shutdown] Failed to kill dashboard server:", error);
     try {
-      dashboardServer.kill("SIGKILL");
-    } catch (e) {
-      console.error("[shutdown] Failed to kill dashboard server:", e);
-      if (typeof dashboardServer.pid === "number") {
-        try {
-          process.kill(dashboardServer.pid, "SIGKILL");
-        } catch (fallbackError) {
-          console.error("[shutdown] Fallback process.kill failed:", fallbackError);
-        }
-      }
+      process.kill(pid, "SIGKILL");
+    } catch (fallbackError) {
+      console.error("[shutdown] Fallback process.kill failed:", fallbackError);
     }
   }
+}
+
+function cleanupDashboardServer() {
+  killProcessTree(dashboardServer);
   dashboardServer = null;
 }
 
@@ -362,7 +440,7 @@ app.whenReady().then(async () => {
 }).catch((error) => {
   console.error("[startup] failed", error);
   dialog.showErrorBox(
-    "Advergaming Studio failed to start",
+    `${APP_DISPLAY_NAME} failed to start`,
     error instanceof Error ? error.message : String(error),
   );
   app.quit();
