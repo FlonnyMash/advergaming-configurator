@@ -8,7 +8,7 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "build:engine": "pnpm --filter game-engine build && node scripts/copy-engine-to-dashboard.mjs",
     "build:dashboard": "pnpm --filter dashboard build",
-    "build:desktop": "pnpm build:engine && pnpm build:dashboard && pnpm --filter desktop build",
+    "build:desktop": "pnpm build:engine && pnpm --filter dashboard build:desktop && pnpm --filter desktop build",
     "sync:brand": "pnpm --filter desktop sync-branding"
   },
   "keywords": [],

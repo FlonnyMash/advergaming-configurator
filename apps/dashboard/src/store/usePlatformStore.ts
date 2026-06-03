@@ -6,7 +6,7 @@ import {
   type PlatformConfig,
   type PlatformFeatures,
 } from "@mashedgames/shared";
-import { create } from "zustand";
+import { create } from "state";
 
 type PlatformConfigPatch = Partial<Omit<PlatformConfig, "features">> & {
   features?: Partial<PlatformFeatures>;

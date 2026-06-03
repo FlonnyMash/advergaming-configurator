@@ -3,7 +3,7 @@
  * Copies a template from development/ to library/ and bumps manifest version.
  *
  * Usage: pnpm publish-template <template-id>
- * Example: pnpm publish-template demo-starter
+ * Example: pnpm publish-template my-game-template
  */
 import {
   buildConfigFromSchema,

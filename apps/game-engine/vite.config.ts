@@ -103,7 +103,7 @@ function templatePublicAssetsPlugin(): Plugin {
 }
 
 export default defineConfig(({ command }) => ({
-  base: command === "build" ? "/engine/" : "/",
+  base: command === "build" ? "./" : "/",
   cacheDir: command === "serve" ? resolveViteCacheDir() : undefined,
   plugins: [
     tailwindcss(),

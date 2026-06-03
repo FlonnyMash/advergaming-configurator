@@ -7,6 +7,7 @@
     "dev": "node scripts/dev.mjs",
     "prebuild": "node scripts/ensure-standalone-writable.mjs",
     "build": "next build && node scripts/sync-standalone-assets.mjs",
+    "build:desktop": "node scripts/build-desktop.mjs",
     "start": "next start",
     "lint": "eslint",
     "publish-template": "tsx scripts/publish-template.ts",
@@ -25,7 +26,7 @@
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "simple-git": "^3.36.0",
-    "zustand": "^5.0.14"
+    "state": "workspace:*"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

@@ -5,7 +5,7 @@ import {
   type DevToolkitFlags,
   type DevToolkitSetFlagsPayload,
 } from "@mashedgames/shared";
-import { create } from "zustand";
+import { create } from "state";
 
 type DevToolkitStore = {
   flags: DevToolkitFlags;

@@ -4,7 +4,7 @@ import {
   GAME_CHROME_BRIDGE_EVENTS,
   type GameChromeOverlayDescriptor,
 } from "@mashedgames/shared";
-import { create } from "zustand";
+import { create } from "state";
 
 type OverlayMessenger = {
   sendGameEvent: (eventName: string, data: unknown) => void;

@@ -1,90 +1,26 @@
 "use client";
 
-import { UnsavedChangesDialog } from "@/components/studio/UnsavedChangesDialog";
-import {
-  collectHomeNavigationUnsaved,
-  discardAllForHomeNavigation,
-  saveAllForHomeNavigation,
-} from "@/lib/home-navigation-unsaved";
-import type { UnsavedChangeItem } from "@/lib/template-unsaved-changes";
-import { usePlatformStore } from "@/store/usePlatformStore";
-import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { BRAND_LOGO_INTRINSIC_SIZE } from "@/lib/brand-logo-constants";
+import { APP_DISPLAY_NAME, BRAND_LOGO_URL_PATH } from "@mashedgames/shared";
+import Image from "next/image";
 
-export function BrandMarkHomeLink() {
-  const router = useRouter();
-  const appName = usePlatformStore((s) => s.appName);
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [unsavedItems, setUnsavedItems] = useState<UnsavedChangeItem[]>([]);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const goHome = () => {
-    setDialogOpen(false);
-    router.push("/");
-  };
-
-  const handleHomeClick = () => {
-    const items = collectHomeNavigationUnsaved();
-    if (items.length > 0) {
-      setUnsavedItems(items);
-      setError(null);
-      setDialogOpen(true);
-      return;
-    }
-    goHome();
-  };
-
-  const handleSaveAllAndGoHome = async () => {
-    setSaving(true);
-    setError(null);
-
-    const result = await saveAllForHomeNavigation();
-    if (!result.ok) {
-      setError(result.error ?? "Save failed.");
-      setSaving(false);
-      return;
-    }
-
-    setSaving(false);
-    goHome();
-  };
-
+export function BrandMarkHomeLink({ onHomeClick }: { onHomeClick: () => void }) {
   return (
-    <>
-      <button
-        type="button"
-        onClick={handleHomeClick}
-        className="rounded-lg outline-offset-2 hover:opacity-90"
-        aria-label={`${appName} — back to home`}
-      >
-        <span className="text-sm font-semibold tracking-tight text-zinc-900">
-          {appName}
-        </span>
-      </button>
-
-      <UnsavedChangesDialog
-        open={dialogOpen}
-        items={unsavedItems}
-        saving={saving}
-        error={error}
-        description="Save open studio and configurator work before returning home, stay where you are, or leave without saving."
-        primaryLabel="Save all & go home"
-        cancelLabel="Stay"
-        discardLabel="Leave anyway"
-        onPrimary={() => void handleSaveAllAndGoHome()}
-        onDiscard={() => {
-          if (!saving) {
-            discardAllForHomeNavigation();
-            goHome();
-          }
-        }}
-        onCancel={() => {
-          if (!saving) {
-            setDialogOpen(false);
-          }
-        }}
+    <button
+      type="button"
+      onClick={onHomeClick}
+      className="rounded-lg outline-offset-2 hover:opacity-90"
+      aria-label={`${APP_DISPLAY_NAME} — back to home`}
+    >
+      <Image
+        src={BRAND_LOGO_URL_PATH}
+        alt=""
+        width={BRAND_LOGO_INTRINSIC_SIZE.width}
+        height={BRAND_LOGO_INTRINSIC_SIZE.height}
+        unoptimized
+        className="block h-12 w-auto max-w-[137px] shrink-0 object-contain"
+        priority
       />
-    </>
+    </button>
   );
 }

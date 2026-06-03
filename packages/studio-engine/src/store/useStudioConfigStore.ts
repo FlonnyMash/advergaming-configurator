@@ -21,7 +21,7 @@ import {
   studioControlsForSchema,
   type GameControlsSnapshot,
 } from "../lib/game-controls-state";
-import { create } from "zustand";
+import { create } from "state";
 
 const STUDIO_MODE = "studio" as const;
 const MAX_CONTROL_HISTORY = 50;

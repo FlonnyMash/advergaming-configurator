@@ -25,7 +25,7 @@ import {
   isAllowedDashboardOrigin,
 } from "./dashboard-origin.ts";
 
-let currentTemplateId: GameTemplateId = "dice-poker";
+let currentTemplateId: GameTemplateId = "catch-game-demo";
 
 function resolveGameConfig(
   message: UpdateConfigMessage,

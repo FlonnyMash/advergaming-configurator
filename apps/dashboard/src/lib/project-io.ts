@@ -23,14 +23,18 @@ import { isWorkspaceDesktop } from "@/lib/runtime-env";
 import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
 import { existsSync, statSync } from "node:fs";
 import path from "node:path";
+import { getProjectLocation } from "@/lib/project-location";
 import {
   ensureWorkspaceExists,
   getProjectsRoot,
   PROJECT_FILES,
   resolveProjectDir,
-  templateLibraryRoot,
 } from "@/lib/project-paths";
-import { buildLiveParentConfig, readParentManifest } from "@/lib/project-parent-config";
+import {
+  buildLiveParentConfig,
+  isParentTemplateInLibrary,
+  readParentManifest,
+} from "@/lib/project-parent-config";
 
 export type ProjectIoResult<T> =
   | { ok: true; data: T }
@@ -78,6 +82,80 @@ export async function listProjectIds(): Promise<string[]> {
   return ids.sort();
 }
 
+export async function getProjectDetails(projectId: string): Promise<
+  ProjectIoResult<{
+    manifest: GameProjectManifest;
+    repositoryPath: string;
+    directoryPath: string;
+    updatedAt: string;
+  }>
+> {
+  const location = getProjectLocation(projectId);
+  if (!location.ok) {
+    return { ok: false, error: location.error, status: location.status };
+  }
+
+  const loaded = await loadProject(projectId);
+  if (!loaded.ok) {
+    return loaded;
+  }
+
+  const manifestPath = path.join(location.data.directoryPath, PROJECT_FILES.manifest);
+  let updatedAt = loaded.data.manifest.createdAt;
+  try {
+    updatedAt = statSync(manifestPath).mtime.toISOString();
+  } catch {
+    /* keep createdAt */
+  }
+
+  return {
+    ok: true,
+    data: {
+      manifest: loaded.data.manifest,
+      repositoryPath: location.data.repositoryPath,
+      directoryPath: location.data.directoryPath,
+      updatedAt,
+    },
+  };
+}
+
+export async function patchProjectDisplayName(
+  projectId: string,
+  displayName: string,
+): Promise<ProjectIoResult<{ manifest: GameProjectManifest }>> {
+  const trimmed = displayName.trim();
+  if (!trimmed) {
+    return { ok: false, error: "Display name is required.", status: 400 };
+  }
+
+  try {
+    ensureWorkspaceExists();
+    const projectDir = resolveProjectDir(projectId);
+    if (!existsSync(projectDir)) {
+      return { ok: false, error: `Project "${projectId}" not found.`, status: 404 };
+    }
+
+    const manifestPath = path.join(projectDir, PROJECT_FILES.manifest);
+    const manifestRaw = JSON.parse(await readFile(manifestPath, "utf8"));
+    const manifestParsed = GameProjectManifestSchema.safeParse(manifestRaw);
+    if (!manifestParsed.success) {
+      return { ok: false, error: "Invalid project.json.", status: 500 };
+    }
+
+    const manifest: GameProjectManifest = {
+      ...manifestParsed.data,
+      displayName: trimmed,
+    };
+
+    await writeJson(manifestPath, manifest);
+    return { ok: true, data: { manifest } };
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Failed to update project.";
+    return { ok: false, error: message, status: 500 };
+  }
+}
+
 export async function createProject(input: {
   displayName: string;
   parentTemplateId: GameTemplateId;
@@ -90,8 +168,7 @@ export async function createProject(input: {
 > {
   ensureWorkspaceExists();
   const parentTemplateId = input.parentTemplateId;
-  const parentDir = path.join(templateLibraryRoot, parentTemplateId);
-  if (!existsSync(parentDir) || !statSync(parentDir).isDirectory()) {
+  if (!isParentTemplateInLibrary(parentTemplateId)) {
     return {
       ok: false,
       error: `Parent template "${parentTemplateId}" is not in the library.`,
@@ -130,7 +207,17 @@ export async function createProject(input: {
     suffix += 1;
   }
 
-  const { config: parentConfig } = buildLiveParentConfig(parentTemplateId);
+  let parentConfig: GameMasterConfig;
+  try {
+    ({ config: parentConfig } = buildLiveParentConfig(parentTemplateId));
+  } catch (error) {
+    return {
+      ok: false,
+      error: error instanceof Error ? error.message : "Invalid parent template.",
+      status: 400,
+    };
+  }
+
   const now = new Date().toISOString();
   const projectManifest: GameProjectManifest = {
     projectId,

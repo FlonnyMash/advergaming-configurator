@@ -141,7 +141,7 @@ function toSceneKey(templateId: string): string {
     .join("");
 }
 
-function buildCursorInstructions(
+export function buildCursorInstructions(
   name: string,
   templateId: string,
   sceneKey: string,
@@ -188,7 +188,7 @@ Restart the game engine dev server and open **Studio** (\`/studio\`) — the tem
 
 | Package / app | Responsibility |
 |---------------|----------------|
-| \`apps/dashboard\` | Next.js UI, Zustand config, iframe preview, postMessage sender |
+| \`apps/dashboard\` | Next.js UI, state config, iframe preview, postMessage sender |
 | \`apps/game-engine\` | Vite + Phaser canvas, template scenes, DOM overlays, postMessage receiver |
 | \`packages/shared\` | \`GameMasterConfig\`, \`BridgeMessage\`, manifest types, config helpers |
 | \`packages/studio-engine\` | Studio sidebar + schema-driven controls |
@@ -201,7 +201,7 @@ Restart the game engine dev server and open **Studio** (\`/studio\`) — the tem
 
 This scaffold uses an **Option A** manifest (\`meta\`, typed \`branding\` / \`system\` controls) for clarity.
 
-The **production catalog** expects a \`TemplateManifest\` JSON Schema manifest (see \`apps/game-engine/src/templates/library/dice-poker/manifest.json\`):
+The **production catalog** expects a \`TemplateManifest\` JSON Schema manifest (see \`apps/game-engine/src/templates/library/catch-game-demo/manifest.json\`):
 
 - Top-level: \`id\`, \`version\`, \`author\`, \`previewUrl\`, \`status\`, \`label\`, \`description\`
 - \`schema\` with \`properties.branding\` / \`properties.system\` and \`x-control\` on each leaf
@@ -218,7 +218,7 @@ Until migrated, Studio schema controls may not bind correctly.
 Flow:
 
 \`\`\`
-Dashboard (Zustand) → postMessage UPDATE_CONFIG → game-engine bridge → applyConfig → scene
+Dashboard (state) → postMessage UPDATE_CONFIG → game-engine bridge → applyConfig → scene
 \`\`\`
 
 Implement **\`TemplateScene\`** in \`GameScene.ts\`:
@@ -301,7 +301,7 @@ pnpm --filter dashboard dev                 # dashboard only
 ## 9. When editing with Cursor
 
 - Provide **full file paths** and complete TypeScript — no \`// ... rest\` placeholders.
-- Match existing templates: \`dice-poker\`, \`clicker\`, \`demo-starter\` under \`apps/game-engine/src/templates/\`.
+- Match existing templates: \`catch-game-demo\` under \`apps/game-engine/src/templates/library/\`.
 - If adding manifest controls, update both \`manifest.json\` **and** handle the mapped paths in \`updateConfig\`.
 - Point out performance issues (uncleared textures, listeners not removed in \`shutdown()\`).
 

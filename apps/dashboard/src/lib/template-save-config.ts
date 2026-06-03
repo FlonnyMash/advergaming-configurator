@@ -9,12 +9,9 @@ import { existsSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { mergeStudioConfigIntoLegacyConfig } from "@/lib/legacy-config-merge";
 import { TEMPLATE_ID_PATTERN } from "@/lib/template-import-normalize";
+import { templateLibraryRoot } from "@/lib/template-library-root";
 
-const dashboardRoot = path.resolve(process.cwd());
-export const templateLibraryRoot = path.resolve(
-  dashboardRoot,
-  "../game-engine/src/templates/library",
-);
+export { templateLibraryRoot };
 
 function syncManifestSchemaDefaults(
   node: TemplateConfigJsonSchema,

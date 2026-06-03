@@ -188,7 +188,7 @@ Restart the game engine dev server and open **Studio** (\`/studio\`) — the tem
 
 | Package / app | Responsibility |
 |---------------|----------------|
-| \`apps/dashboard\` | Next.js UI, Zustand config, iframe preview, postMessage sender |
+| \`apps/dashboard\` | Next.js UI, state config, iframe preview, postMessage sender |
 | \`apps/game-engine\` | Vite + Phaser canvas, template scenes, DOM overlays, postMessage receiver |
 | \`packages/shared\` | \`GameMasterConfig\`, \`BridgeMessage\`, manifest types, config helpers |
 | \`packages/studio-engine\` | Studio sidebar + schema-driven controls |
@@ -218,7 +218,7 @@ Until migrated, Studio schema controls may not bind correctly.
 Flow:
 
 \`\`\`
-Dashboard (Zustand) → postMessage UPDATE_CONFIG → game-engine bridge → applyConfig → scene
+Dashboard (state) → postMessage UPDATE_CONFIG → game-engine bridge → applyConfig → scene
 \`\`\`
 
 Implement **\`TemplateScene\`** in \`GameScene.ts\`:

@@ -75,6 +75,7 @@ const nextConfig: NextConfig = {
     "@mashedgames/studio-engine",
     "@mashedgames/configurator-engine",
     "@mashedgames/game-engine",
+    "state",
   ],
   webpack: (config, { webpack }) => {
     config.resolve = config.resolve ?? {};

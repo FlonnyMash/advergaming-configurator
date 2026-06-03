@@ -1,7 +1,7 @@
 "use client";
 
 import { createDashboardMessenger } from "@/bridge/messenger";
-import { create } from "zustand";
+import { create } from "state";
 
 type PreviewMessenger = ReturnType<typeof createDashboardMessenger>;
 

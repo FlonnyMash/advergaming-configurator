@@ -1,13 +1,11 @@
 "use client";
 
 import type { GameTemplateId } from "@mashedgames/shared";
+import { resolveTemplatePreviewUrl } from "@mashedgames/shared";
 import { useMemo } from "react";
 import { getProductionTemplateOptions } from "../registry/productionSchemaRegistry";
 import { useConfiguratorStore } from "../store/useConfiguratorStore";
 import { controlInputClass } from "./SchemaControlPanel";
-
-const GAME_ENGINE_URL =
-  process.env.NEXT_PUBLIC_GAME_ENGINE_URL ?? "http://localhost:5173";
 
 function Section({
   title,
@@ -61,7 +59,7 @@ export function ConfiguratorTemplateCatalog() {
       {selectedTemplate ? (
         <div className="flex gap-3 rounded-lg border border-zinc-200 bg-zinc-50 p-3">
           <img
-            src={`${GAME_ENGINE_URL}${selectedTemplate.previewUrl}`}
+            src={resolveTemplatePreviewUrl(selectedTemplate.previewUrl)}
             alt={`${selectedTemplate.label} preview`}
             className="h-16 w-16 shrink-0 rounded-md border border-zinc-200 bg-white object-cover"
           />

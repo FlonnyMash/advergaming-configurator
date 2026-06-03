@@ -1,0 +1,72 @@
+{
+  "physics": {
+    "gravity": {
+      "x": 0,
+      "y": 0
+    },
+    "debugDraw": false
+  },
+  "mechanics": {
+    "playerSpeed": 200,
+    "winCondition": {
+      "type": "score",
+      "targetScore": 1000
+    },
+    "rewardRules": {
+      "pointsPerAction": 10
+    }
+  },
+  "assets": {
+    "registry": {},
+    "spriteSheets": []
+  },
+  "animations": [],
+  "catchGame": {
+    "game": {
+      "parentElementId": "app"
+    },
+    "assets": {
+      "goodItems": [
+        {
+          "hitbox": {
+            "width": 0.85,
+            "height": 0.7
+          }
+        }
+      ],
+      "badItems": [
+        {
+          "hitbox": {
+            "width": 0.6,
+            "height": 0.5,
+            "offsetX": 0.2,
+            "offsetY": 0.4
+          },
+          "centerOffset": {
+            "x": 0,
+            "y": 0.12
+          },
+          "rotationAnchor": {
+            "x": 1,
+            "y": 1
+          },
+          "fallSpeed": 260,
+          "rotateWhileFalling": false,
+          "fallRotationSpeed": 480
+        }
+      ]
+    },
+    "physics": {
+      "debug": true,
+      "goodItemSpawnRateMs": 1200,
+      "badItemSpawnRateMs": 2000,
+      "itemFallSpeedMin": 120,
+      "itemFallSpeedMax": 260
+    },
+    "gameplay": {
+      "durationSeconds": 30,
+      "scorePerGoodItem": 10,
+      "scorePerBadItem": 5
+    }
+  }
+}

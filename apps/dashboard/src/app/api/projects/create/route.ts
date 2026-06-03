@@ -5,26 +5,32 @@ import type { NextRequest } from "next/server";
 export const runtime = "nodejs";
 
 export async function POST(request: NextRequest) {
+  let body: {
+    displayName?: string;
+    parentTemplateId?: string;
+    projectId?: string;
+  };
+
   try {
-    const body = (await request.json()) as {
-      displayName?: string;
-      parentTemplateId?: string;
-      projectId?: string;
-    };
+    body = (await request.json()) as typeof body;
+  } catch {
+    return Response.json({ ok: false, error: "Invalid JSON body." }, { status: 400 });
+  }
 
-    if (!body.displayName?.trim()) {
-      return Response.json(
-        { ok: false, error: "displayName is required." },
-        { status: 400 },
-      );
-    }
-    if (!body.parentTemplateId) {
-      return Response.json(
-        { ok: false, error: "parentTemplateId is required." },
-        { status: 400 },
-      );
-    }
+  if (!body.displayName?.trim()) {
+    return Response.json(
+      { ok: false, error: "displayName is required." },
+      { status: 400 },
+    );
+  }
+  if (!body.parentTemplateId) {
+    return Response.json(
+      { ok: false, error: "parentTemplateId is required." },
+      { status: 400 },
+    );
+  }
 
+  try {
     const result = await createProject({
       displayName: body.displayName,
       parentTemplateId: body.parentTemplateId as GameTemplateId,
@@ -44,7 +50,9 @@ export async function POST(request: NextRequest) {
       manifest: result.data.manifest,
       client: result.data.client,
     });
-  } catch {
-    return Response.json({ ok: false, error: "Invalid JSON body." }, { status: 400 });
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Failed to create project.";
+    return Response.json({ ok: false, error: message }, { status: 500 });
   }
 }

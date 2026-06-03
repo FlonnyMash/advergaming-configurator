@@ -7,12 +7,13 @@ import {
   type BrandingPatch,
   type BrandingSettings,
   type ClientProjectPayload,
+  type ControlFieldSchema,
   type GameMasterConfig,
   type GameProjectManifest,
   type GameTemplateId,
 } from "@mashedgames/shared";
 import { DEFAULT_GAME_TEMPLATE_ID } from "@mashedgames/shared";
-import { create } from "zustand";
+import { create } from "state";
 import {
   getConfiguratorGameSchema,
   getFrozenSystemDefaults,
@@ -20,6 +21,21 @@ import {
 } from "../registry/productionSchemaRegistry";
 
 const CONFIGURATOR_MODE = "configurator" as const;
+
+export type AssetSaveInput = {
+  projectId: string;
+  file: File;
+  targetPath: string;
+};
+
+export type AssetSaveResult = {
+  relativePath: string;
+  absolutePath: string;
+  textureKey?: string | null;
+  manifest?: GameProjectManifest;
+};
+
+export type AssetSaveHandler = (input: AssetSaveInput) => Promise<AssetSaveResult>;
 
 function firstProductionTemplateId(): GameTemplateId {
   const options = getProductionTemplateOptions();
@@ -48,6 +64,12 @@ export interface ConfiguratorStore {
   markClientSaved: () => void;
   updateProjectManifest: (manifest: GameProjectManifest) => void;
   hasUnsavedClient: () => boolean;
+  assetSaveHandler: AssetSaveHandler | null;
+  setAssetSaveHandler: (handler: AssetSaveHandler | null) => void;
+  uploadBrandingAsset: (
+    file: File,
+    control: ControlFieldSchema,
+  ) => Promise<void>;
 }
 
 function applyPath(
@@ -91,6 +113,30 @@ export const useConfiguratorStore = create<ConfiguratorStore>((set, get) => ({
   projectManifest: null,
   savedClient: null,
   projectMode: false,
+  assetSaveHandler: null,
+
+  setAssetSaveHandler: (handler) => set({ assetSaveHandler: handler }),
+
+  uploadBrandingAsset: async (file, control) => {
+    const { projectId, assetSaveHandler } = get();
+    if (!projectId) {
+      throw new Error("No project loaded.");
+    }
+    if (!assetSaveHandler) {
+      throw new Error("Asset save handler is not registered.");
+    }
+
+    const result = await assetSaveHandler({
+      projectId,
+      file,
+      targetPath: control.targetPath,
+    });
+
+    get().patchBrandingPath(control.targetPath, result.relativePath);
+    if (result.manifest) {
+      get().updateProjectManifest(result.manifest);
+    }
+  },
 
   setSelectedTemplateId: (id) => {
     if (get().projectMode) {

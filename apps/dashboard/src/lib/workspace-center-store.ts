@@ -2,7 +2,7 @@
 
 import { useEditorStore } from "@/store/useEditorStore";
 import type { DevToolkitPickedAsset } from "@mashedgames/shared";
-import { create } from "zustand";
+import { create } from "state";
 
 export const GAME_PREVIEW_PANE_ID = "game-preview";
 

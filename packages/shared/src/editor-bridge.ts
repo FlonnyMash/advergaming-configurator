@@ -116,10 +116,10 @@ export function coerceUpdateConfigPayload(
   }
 
   if (isBrandingPatchShape(payload)) {
-    return {
+    return cloneForBridgePostMessage({
       editorState: DEFAULT_EDITOR_STATE,
       gameConfig: mergeBrandingPatch(previousConfig, payload as BrandingPatch),
-    };
+    });
   }
 
   const normalized = normalizeGameMasterConfig(payload, templateId);
@@ -127,10 +127,10 @@ export function coerceUpdateConfigPayload(
     return null;
   }
 
-  return {
+  return cloneForBridgePostMessage({
     editorState: DEFAULT_EDITOR_STATE,
     gameConfig: normalized,
-  };
+  });
 }
 
 export function buildBridgePayload(
@@ -147,10 +147,15 @@ export function buildBridgePayload(
         }
       : { ...editorState, workspaceMode: appMode };
 
-  return {
+  return cloneForBridgePostMessage({
     editorState: sanitizedEditorState,
     gameConfig,
-  };
+  });
+}
+
+/** Deep clone using JSON so postMessage never sees functions or live store refs. */
+export function cloneForBridgePostMessage<T>(value: T): T {
+  return JSON.parse(JSON.stringify(value)) as T;
 }
 
 export function defaultBridgePayload(

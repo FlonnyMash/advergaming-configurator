@@ -1,6 +1,7 @@
 "use client";
 
 import { CloudflareDeployButton } from "@/components/configurator/CloudflareDeployButton";
+import { ExportGameButton } from "@/components/configurator/ExportGameButton";
 import { ExitConfiguratorProjectButton } from "@/components/configurator/ExitConfiguratorProjectButton";
 import { SaveProjectButton } from "@/components/configurator/SaveProjectButton";
 import { OpenProjectLocationButtons } from "@/components/shell/OpenProjectLocationButtons";
@@ -38,6 +39,7 @@ export function ConfiguratorToolsShell() {
           </section>
         ) : null}
         <SaveProjectButton />
+        <ExportGameButton />
         <CloudflareDeployButton />
         <ConfiguratorTemplateCatalog />
         <ConfiguratorDiagnostics />

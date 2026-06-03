@@ -2,6 +2,7 @@ import "./style.css";
 import {
   DEFAULT_GAME_MASTER_CONFIG,
   getPrimaryBrandColor,
+  normalizeGameMasterConfig,
   parseGameTemplateId,
   type GameMasterConfig,
   type GameTemplateId,
@@ -167,7 +168,11 @@ function ensureGame(): void {
   });
 }
 
-function loadTemplate(id: GameTemplateId, config: GameMasterConfig): void {
+function loadTemplate(
+  id: GameTemplateId,
+  config: GameMasterConfig,
+  options?: { preserveSystem?: boolean },
+): void {
   if (!canLoadTemplate(id)) return;
 
   if (debugTeardown) {
@@ -182,7 +187,10 @@ function loadTemplate(id: GameTemplateId, config: GameMasterConfig): void {
     meta: { ...config.meta, templateId: id },
   };
 
-  if (getEngineMode() === "configurator") {
+  if (
+    !options?.preserveSystem &&
+    getEngineMode() === "configurator"
+  ) {
     latestConfig.system = structuredClone(getPublishedSystemDefaults(id));
   }
 
@@ -275,5 +283,41 @@ setupBridge({
   getGame: () => game,
 });
 
-loadTemplate(currentTemplateId, latestConfig);
+async function bootstrapStandaloneExport(): Promise<void> {
+  if (window.parent !== window) {
+    loadTemplate(currentTemplateId, latestConfig);
+    return;
+  }
+
+  try {
+    const response = await fetch(new URL("./config.json", window.location.href));
+    if (!response.ok) {
+      loadTemplate(currentTemplateId, latestConfig);
+      return;
+    }
+
+    const data: unknown = await response.json();
+    const urlTemplateId = parseGameTemplateId(
+      new URLSearchParams(window.location.search).get("game"),
+      TEMPLATE_CATALOG_IDS,
+    );
+    const config = normalizeGameMasterConfig(data, urlTemplateId);
+    if (!config) {
+      console.warn("[engine] config.json is not a valid GameMasterConfig.");
+      loadTemplate(currentTemplateId, latestConfig);
+      return;
+    }
+
+    const templateId = parseGameTemplateId(
+      config.meta.templateId,
+      TEMPLATE_CATALOG_IDS,
+    );
+    loadTemplate(templateId, config, { preserveSystem: true });
+  } catch (error) {
+    console.warn("[engine] Failed to load standalone config.json", error);
+    loadTemplate(currentTemplateId, latestConfig);
+  }
+}
+
+void bootstrapStandaloneExport();
 initUIInteractions();

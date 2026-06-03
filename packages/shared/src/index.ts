@@ -47,6 +47,7 @@ export {
 
 export {
   buildBridgePayload,
+  cloneForBridgePostMessage,
   BridgePayloadSchema,
   coerceUpdateConfigPayload,
   DEFAULT_EDITOR_STATE,
@@ -212,6 +213,13 @@ export {
   type TemplateManifestInput,
   type TemplateManifestStatus,
 } from "./template-manifest";
+
+export {
+  DESKTOP_BUNDLED_TEMPLATE_ID,
+  getDesktopBundledTemplateIds,
+  resolveGameEngineBaseUrl,
+  resolveTemplatePreviewUrl,
+} from "./template-preview-url";
 
 export {
   DEFAULT_BRANDING_SETTINGS,

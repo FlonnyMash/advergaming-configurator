@@ -4,12 +4,16 @@
   "private": true,
   "main": "main.js",
   "scripts": {
+    "test:asset-ipc": "node --test asset-ipc-utils.test.js export-ipc-utils.test.js",
+    "verify:asset-ipc-wiring": "node scripts/verify-asset-ipc-wiring.mjs",
+    "verify:asset-ipc": "npm run test:asset-ipc && npm run verify:asset-ipc-wiring",
     "sync-branding": "node scripts/sync-installer-workspace.mjs && node scripts/sync-installer-branding.mjs",
     "prebuild": "node scripts/ensure-dist-writable.mjs && node scripts/sync-installer-workspace.mjs && node scripts/sync-installer-branding.mjs && node scripts/apply-nsis-install-overrides.mjs",
     "build": "electron-builder",
     "dist": "electron-builder"
   },
   "dependencies": {
+    "archiver": "^7.0.1",
     "builder-util-runtime": "^9.5.1",
     "debug": "^4.4.3",
     "electron-updater": "^6.3.9",
@@ -28,6 +32,7 @@
     "universalify": "^2.0.1"
   },
   "devDependencies": {
+    "adm-zip": "^0.5.17",
     "electron": "^31.7.7",
     "electron-builder": "^24.13.3",
     "sharp": "^0.34.5",
@@ -44,6 +49,9 @@
     "asar": true,
     "files": [
       "main.js",
+      "preload.js",
+      "asset-ipc-utils.js",
+      "export-ipc-utils.js",
       "constants.js",
       "package.json",
       "splash.html",

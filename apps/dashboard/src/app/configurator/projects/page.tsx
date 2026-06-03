@@ -1,18 +1,17 @@
 "use client";
 
+import {
+  ProjectListRow,
+  type ProjectSummary,
+} from "@/components/configurator/ProjectListRow";
 import { getProductionTemplateOptions } from "@mashedgames/configurator-engine";
-import type { GameTemplateId } from "@mashedgames/shared";
+import type { GameProjectManifest, GameTemplateId } from "@mashedgames/shared";
 import { Loader2, Plus } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
-
-type ProjectSummary = {
-  projectId: string;
-  displayName: string;
-  parentTemplateId: string;
-  parentVersion: string;
-};
+import { getProjectsStoragePathLabel } from "@/lib/workspace-ui-copy";
+import { useWorkspaceSessionStore } from "@/lib/workspace-session-store";
 
 export default function ConfiguratorProjectsPage() {
   const router = useRouter();
@@ -87,6 +86,27 @@ export default function ConfiguratorProjectsPage() {
     }
   };
 
+  const handleProjectUpdated = useCallback((manifest: GameProjectManifest) => {
+    setProjects((current) =>
+      current.map((project) =>
+        project.projectId === manifest.projectId
+          ? { ...project, displayName: manifest.displayName }
+          : project,
+      ),
+    );
+  }, []);
+
+  const handleProjectDeleted = useCallback((projectId: string) => {
+    const { activeConfiguratorProjectId, clearConfiguratorSession } =
+      useWorkspaceSessionStore.getState();
+    if (activeConfiguratorProjectId === projectId) {
+      clearConfiguratorSession();
+    }
+    setProjects((current) =>
+      current.filter((project) => project.projectId !== projectId),
+    );
+  }, []);
+
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-8 p-8">
       <header>
@@ -98,7 +118,8 @@ export default function ConfiguratorProjectsPage() {
         </h1>
         <p className="mt-1 text-sm text-zinc-600">
           Create a client build from a production template, or open an existing
-          project from <code className="text-xs">games/</code>.
+          project from{" "}
+          <code className="text-xs">{getProjectsStoragePathLabel()}</code>.
         </p>
       </header>
 
@@ -153,30 +174,18 @@ export default function ConfiguratorProjectsPage() {
           </p>
         ) : projects.length === 0 ? (
           <p className="mt-3 text-sm text-zinc-500">
-            No projects yet. Create one above (saved under repo{" "}
-            <code className="text-xs">games/</code>).
+            No projects yet. Create one above — saved under{" "}
+            <code className="text-xs">{getProjectsStoragePathLabel()}</code>.
           </p>
         ) : (
           <ul className="mt-3 divide-y divide-zinc-100 rounded-xl border border-zinc-200 bg-white">
             {projects.map((project) => (
-              <li key={project.projectId}>
-                <Link
-                  href={`/configurator?project=${project.projectId}`}
-                  className="flex items-center justify-between px-4 py-3 text-sm hover:bg-zinc-50"
-                >
-                  <span>
-                    <span className="font-medium text-zinc-900">
-                      {project.displayName}
-                    </span>
-                    <span className="mt-0.5 block text-xs text-zinc-500">
-                      {project.parentTemplateId} · v{project.parentVersion}
-                    </span>
-                  </span>
-                  <span className="font-mono text-xs text-zinc-400">
-                    {project.projectId}
-                  </span>
-                </Link>
-              </li>
+              <ProjectListRow
+                key={project.projectId}
+                project={project}
+                onUpdated={handleProjectUpdated}
+                onDeleted={handleProjectDeleted}
+              />
             ))}
           </ul>
         )}

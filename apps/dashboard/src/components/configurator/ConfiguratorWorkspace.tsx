@@ -4,6 +4,7 @@ import { ConfiguratorToolsShell } from "@/components/configurator/ConfiguratorTo
 import { DevToolkitBridgeHost } from "@/components/studio/DevToolkitBridgeHost";
 import { CenterWorkspace } from "@/components/shell/CenterWorkspace";
 import { GameChromeOverlayPanel } from "@/components/shell/GameChromeOverlayPanel";
+import { saveProjectAssetWithFallback } from "@/lib/import-project-asset-client";
 import {
   pushRuntimeAssetsToPreview,
   usePreviewBridgeStore,
@@ -13,8 +14,7 @@ import {
   ConfiguratorSidebar,
   useConfiguratorStore,
 } from "@mashedgames/configurator-engine";
-import type { ControlFieldSchema, GameProjectManifest } from "@mashedgames/shared";
-import { useCallback } from "react";
+import { useCallback, useEffect } from "react";
 
 export function ConfiguratorWorkspace({
   suspended = false,
@@ -28,44 +28,26 @@ export function ConfiguratorWorkspace({
   );
 
   const projectId = useConfiguratorStore((s) => s.projectId);
-  const patchBrandingPath = useConfiguratorStore((s) => s.patchBrandingPath);
-  const updateProjectManifest = useConfiguratorStore(
-    (s) => s.updateProjectManifest,
-  );
+  const setAssetSaveHandler = useConfiguratorStore((s) => s.setAssetSaveHandler);
 
   const imageUploadMode = isWorkspaceDesktopClient() ? "workspace-file" : "base64";
 
-  const handleImageFile = useCallback(
-    async (file: File, control: ControlFieldSchema) => {
-      if (!projectId) return;
+  useEffect(() => {
+    if (!projectId || imageUploadMode !== "workspace-file") {
+      setAssetSaveHandler(null);
+      return;
+    }
 
-      const formData = new FormData();
-      formData.append("file", file);
-      formData.append("targetPath", control.targetPath);
+    setAssetSaveHandler(async (input) => {
+      const data = await saveProjectAssetWithFallback(input);
 
-      const response = await fetch(
-        `/api/projects/${encodeURIComponent(projectId)}/import-asset`,
-        { method: "POST", body: formData },
-      );
-      const data = (await response.json()) as {
-        ok?: boolean;
-        error?: string;
-        relativePath?: string;
-        absolutePath?: string;
-        textureKey?: string | null;
-        manifest?: GameProjectManifest;
-      };
+      const runtimeAssets =
+        data.manifest?.runtimeAssets ??
+        {
+          ...usePreviewBridgeStore.getState().runtimeAssets,
+          [data.relativePath]: data.absolutePath,
+        };
 
-      if (!response.ok || !data.ok || !data.relativePath || !data.absolutePath) {
-        throw new Error(data.error ?? "Failed to import asset.");
-      }
-
-      patchBrandingPath(control.targetPath, data.relativePath);
-      if (data.manifest?.projectId) {
-        updateProjectManifest(data.manifest);
-      }
-
-      const runtimeAssets = data.manifest?.runtimeAssets ?? {};
       usePreviewBridgeStore.getState().setRuntimeAssets(runtimeAssets);
       pushRuntimeAssetsToPreview();
 
@@ -73,9 +55,12 @@ export function ConfiguratorWorkspace({
       if (data.textureKey && messenger) {
         messenger.sendLoadExternalAsset(data.textureKey, data.absolutePath);
       }
-    },
-    [patchBrandingPath, projectId, updateProjectManifest],
-  );
+
+      return data;
+    });
+
+    return () => setAssetSaveHandler(null);
+  }, [imageUploadMode, projectId, setAssetSaveHandler]);
 
   const getConfig = useCallback(
     () => useConfiguratorStore.getState().config,
@@ -107,7 +92,6 @@ export function ConfiguratorWorkspace({
       <ConfiguratorSidebar
         previewSlot={<GameChromeOverlayPanel />}
         imageUploadMode={imageUploadMode}
-        onImageFile={imageUploadMode === "workspace-file" ? handleImageFile : undefined}
       />
       <CenterWorkspace
         appMode="configurator"

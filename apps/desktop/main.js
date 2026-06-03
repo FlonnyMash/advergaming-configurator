@@ -3,7 +3,15 @@ const http = require("node:http");
 const path = require("node:path");
 const { pathToFileURL } = require("node:url");
 const { spawn, spawnSync } = require("node:child_process");
-const { app, BrowserWindow, dialog, nativeImage, net, protocol } = require("electron");
+const {
+  app,
+  BrowserWindow,
+  dialog,
+  ipcMain,
+  nativeImage,
+  net,
+  protocol,
+} = require("electron");
 const { autoUpdater } = require("electron-updater");
 const getPort = require("get-port");
 const {
@@ -14,6 +22,11 @@ const {
   STUDIO_ASSET_PROTOCOL,
   PROJECT_ID_PATTERN,
 } = require("./constants");
+const { saveProjectAsset } = require("./asset-ipc-utils");
+const {
+  exportProjectToZip,
+  resolveBundledEngineDir,
+} = require("./export-ipc-utils");
 
 const STUDIO_PROTOCOL = STUDIO_ASSET_PROTOCOL;
 const STUDIO_PROTOCOL_PREFIX = `${STUDIO_PROTOCOL}://`;
@@ -238,6 +251,67 @@ function isPathInsideWorkspace(filePath, workspacePath) {
   return true;
 }
 
+function registerSaveProjectAssetIpc(workspacePath) {
+  ipcMain.handle("save-project-asset", async (_event, payload) =>
+    saveProjectAsset(workspacePath, payload),
+  );
+}
+
+async function fetchProjectExportConfigJson(projectId, port) {
+  const url = `http://127.0.0.1:${port}/api/projects/${encodeURIComponent(projectId)}/export-config`;
+  const response = await fetch(url);
+  const data = await response.json();
+
+  if (!response.ok || !data?.ok || typeof data.configJson !== "string") {
+    const message =
+      typeof data?.error === "string"
+        ? data.error
+        : `Export config request failed (${response.status}).`;
+    throw new Error(message);
+  }
+
+  return data.configJson;
+}
+
+function registerExportProjectIpc(workspacePath, getDashboardPort) {
+  ipcMain.handle("export-project", async (_event, payload) => {
+    if (!payload || typeof payload !== "object") {
+      throw new Error("Invalid payload.");
+    }
+
+    const { projectId } = payload;
+    if (!projectId || !PROJECT_ID_PATTERN.test(projectId)) {
+      throw new Error("Invalid project ID.");
+    }
+
+    const port = getDashboardPort();
+    if (port === null || port === undefined) {
+      throw new Error("Dashboard server is not ready.");
+    }
+
+    const { canceled, filePath } = await dialog.showSaveDialog(mainWindow, {
+      defaultPath: `${projectId}-export.zip`,
+      filters: [{ name: "Zip archive", extensions: ["zip"] }],
+    });
+
+    if (canceled || !filePath) {
+      return { ok: false, canceled: true };
+    }
+
+    const configJson = await fetchProjectExportConfigJson(projectId, port);
+    const engineDir = resolveBundledEngineDir(app);
+    const result = await exportProjectToZip({
+      workspacePath,
+      engineDir,
+      destZipPath: filePath,
+      configJson,
+      projectId,
+    });
+
+    return { ok: true, savePath: path.normalize(result.savePath) };
+  });
+}
+
 function registerStudioProtocol(workspacePath) {
   protocol.handle(STUDIO_PROTOCOL, async (request) => {
     if (!request.url.startsWith(STUDIO_PROTOCOL_PREFIX)) {
@@ -362,6 +436,8 @@ function buildDashboardServerEnv(workspaceBasePath, port) {
     PORT: String(port),
     MASHEDGAMES_WORKSPACE_PATH: workspaceBasePath,
     NEXT_PUBLIC_WORKSPACE_DESKTOP: "1",
+    NEXT_PUBLIC_ENV: "prod",
+    NEXT_PUBLIC_BUNDLED_TEMPLATES: "catch-game-demo",
     SystemRoot: process.env.SystemRoot,
     TEMP: process.env.TEMP,
     TMP: process.env.TMP,
@@ -460,6 +536,44 @@ function closeSplashWindow() {
   splashWindow.close();
 }
 
+function attachMainWindowNavigationGuards(window, port) {
+  const allowedOrigin = `http://127.0.0.1:${port}`;
+
+  window.webContents.on("will-navigate", (event, url) => {
+    if (!url.startsWith(allowedOrigin)) {
+      console.warn("[navigation] blocked main-frame navigation to", url);
+      event.preventDefault();
+    }
+  });
+
+  window.webContents.setWindowOpenHandler(({ url }) => {
+    if (url.startsWith(allowedOrigin)) {
+      return { action: "allow" };
+    }
+    console.warn("[navigation] blocked popup to", url);
+    return { action: "deny" };
+  });
+
+  window.webContents.on(
+    "did-fail-load",
+    (_event, errorCode, errorDescription, validatedURL, isMainFrame) => {
+      if (!isMainFrame) {
+        return;
+      }
+      console.error(
+        "[navigation] main frame failed to load",
+        errorCode,
+        errorDescription,
+        validatedURL,
+      );
+      if (validatedURL.startsWith(allowedOrigin)) {
+        return;
+      }
+      window.loadURL(`${allowedOrigin}/`);
+    },
+  );
+}
+
 function createMainWindow(port) {
   mainWindow = new BrowserWindow({
     width: 1440,
@@ -472,6 +586,7 @@ function createMainWindow(port) {
       contextIsolation: true,
       sandbox: true,
       nodeIntegration: false,
+      preload: path.join(__dirname, "preload.js"),
     },
   });
 
@@ -483,6 +598,7 @@ function createMainWindow(port) {
     }
   });
 
+  attachMainWindowNavigationGuards(mainWindow, port);
   mainWindow.loadURL(`http://127.0.0.1:${port}/`);
   mainWindow.on("closed", () => {
     mainWindow = null;
@@ -554,6 +670,8 @@ app.whenReady().then(async () => {
   try {
     const workspacePath = getAdvergamingWorkspacePath();
     ensureWorkspaceStructure(workspacePath);
+    registerSaveProjectAssetIpc(workspacePath);
+    registerExportProjectIpc(workspacePath, () => dashboardPort);
     registerStudioProtocol(workspacePath);
     autoMigrateLegacyProjects(getProjectsPath(workspacePath));
     dashboardPort = await spawnDashboardServer(workspacePath);

@@ -28,7 +28,7 @@ export interface JsonSchemaControlExtension {
 
 export interface TemplateConfigJsonSchema {
   $schema?: string;
-  type?: string;
+  type?: string | string[];
   title?: string;
   description?: string;
   properties?: Record<string, TemplateConfigJsonSchema>;
@@ -42,7 +42,7 @@ export const TemplateConfigJsonSchemaSchema: z.ZodType<TemplateConfigJsonSchema>
   z
     .object({
       $schema: z.string().optional(),
-      type: z.string().optional(),
+      type: z.union([z.string(), z.array(z.string())]).optional(),
       title: z.string().optional(),
       description: z.string().optional(),
       properties: z.record(z.string(), z.lazy(() => TemplateConfigJsonSchemaSchema)).optional(),

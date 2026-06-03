@@ -11,6 +11,7 @@ import {
   buildConfigFromSchema,
   DEFAULT_GAME_TEMPLATE_ID,
   gameSchemaFromManifest,
+  getDesktopBundledTemplateIds,
   parseTemplateManifest,
 } from "@mashedgames/shared";
 import {
@@ -160,10 +161,23 @@ export function getCatalogEntriesForMode(
   return entries.filter((e) => e.manifest.status === "production");
 }
 
+function filterDesktopBundledTemplates(
+  options: TemplatePickerOption[],
+): TemplatePickerOption[] {
+  const bundled = getDesktopBundledTemplateIds();
+  if (!bundled) {
+    return options;
+  }
+  const allowed = new Set(bundled);
+  return options.filter(
+    (option) => option.source === "development" || allowed.has(option.id),
+  );
+}
+
 export function getTemplatePickerOptions(
   env: AppEnvironment = "dev",
 ): TemplatePickerOption[] {
-  return getAvailableTemplates(env).map((entry) => ({
+  const options = getAvailableTemplates(env).map((entry) => ({
     id: entry.manifest.id,
     label: entry.manifest.label,
     description: entry.manifest.description,
@@ -173,6 +187,7 @@ export function getTemplatePickerOptions(
     status: entry.manifest.status,
     source: entry.source,
   }));
+  return filterDesktopBundledTemplates(options);
 }
 
 /** @deprecated Use getTemplatePickerOptions */

@@ -244,7 +244,7 @@ function SchemaControl({
           <input
             ref={textureInputRef}
             type="file"
-            accept="image/png,image/jpeg"
+            accept="image/png,image/jpeg,image/svg+xml"
             onChange={(event) => {
               const file = event.target.files?.[0];
               if (!file || file.size > MAX_TEXTURE_BYTES) return;

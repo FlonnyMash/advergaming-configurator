@@ -1,9 +1,11 @@
 "use client";
 
+import { DeleteTemplateDialog } from "@/components/studio/DeleteTemplateDialog";
 import type {
   TemplateManifest,
   TemplateManifestStatus,
 } from "@mashedgames/shared";
+import { resolveTemplatePreviewUrl } from "@mashedgames/shared";
 import {
   Check,
   ExternalLink,
@@ -13,9 +15,6 @@ import {
   X,
 } from "lucide-react";
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
-
-const GAME_ENGINE_URL =
-  process.env.NEXT_PUBLIC_GAME_ENGINE_URL ?? "http://localhost:5173";
 
 const inputClass =
   "w-full rounded-xl border border-zinc-200/80 bg-zinc-50/50 px-3.5 py-2.5 text-sm text-zinc-900 outline-none transition-colors placeholder:text-zinc-400 focus:border-zinc-300 focus:bg-white focus:ring-4 focus:ring-zinc-900/5";
@@ -52,14 +51,17 @@ export function TemplateDetailsDialog({
   open,
   onClose,
   onSaved,
+  onDeleted,
 }: {
   templateId: string;
   open: boolean;
   onClose: () => void;
   onSaved?: (manifest: TemplateManifest) => void;
+  onDeleted?: (templateId: string) => void;
 }) {
   const titleId = useId();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [deleteOpen, setDeleteOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [openingFolder, setOpeningFolder] = useState(false);
@@ -253,7 +255,9 @@ export function TemplateDetailsDialog({
   }
 
   const previewSrc = details
-    ? `${GAME_ENGINE_URL}${details.manifest.previewUrl}${previewCacheBust ? `?t=${previewCacheBust}` : ""}`
+    ? resolveTemplatePreviewUrl(details.manifest.previewUrl, {
+        cacheBust: previewCacheBust || undefined,
+      })
     : null;
 
   return (
@@ -460,13 +464,23 @@ export function TemplateDetailsDialog({
         <footer className="shrink-0 border-t border-zinc-100 bg-zinc-50/50 px-6 py-4">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             {details ? (
-              <a
-                href={`/studio?template=${encodeURIComponent(templateId)}`}
-                className="inline-flex items-center gap-1 text-xs font-medium text-indigo-600 hover:text-indigo-800"
-              >
-                Open in Studio
-                <ExternalLink className="h-3 w-3" />
-              </a>
+              <div className="flex flex-col items-start gap-2">
+                <a
+                  href={`/studio?template=${encodeURIComponent(templateId)}`}
+                  className="inline-flex items-center gap-1 text-xs font-medium text-indigo-600 hover:text-indigo-800"
+                >
+                  Open in Studio
+                  <ExternalLink className="h-3 w-3" />
+                </a>
+                <button
+                  type="button"
+                  onClick={() => setDeleteOpen(true)}
+                  disabled={saving || uploadingPreview}
+                  className="text-xs font-medium text-red-600 transition-colors hover:text-red-800 disabled:opacity-50"
+                >
+                  Delete template…
+                </button>
+              </div>
             ) : (
               <span className="hidden sm:block" />
             )}
@@ -524,6 +538,18 @@ export function TemplateDetailsDialog({
           </div>
         </footer>
       </div>
+
+      <DeleteTemplateDialog
+        open={deleteOpen}
+        templateId={templateId}
+        templateLabel={details?.manifest.label ?? templateId}
+        onClose={() => setDeleteOpen(false)}
+        onDeleted={(deletedId) => {
+          setDeleteOpen(false);
+          onClose();
+          onDeleted?.(deletedId);
+        }}
+      />
     </div>
   );
 }

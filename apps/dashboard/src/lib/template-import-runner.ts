@@ -22,6 +22,11 @@ import {
   RAW_FALLBACK_GAME_SCENE_TS,
   resolveRawTemplateId,
 } from "@/lib/template-import-raw";
+import {
+  engineTemplatesRoot,
+  gameEngineRoot,
+  templateLibraryRoot,
+} from "@/lib/template-library-root";
 
 export type ProgressEmitter = (event: ImportProgressEvent) => void;
 
@@ -33,14 +38,9 @@ export type PeekTemplateImportResult =
   | { ok: true; templateId: string; exists: boolean }
   | { ok: false; error: string; status: number };
 
-const dashboardRoot = path.resolve(process.cwd());
-const engineTemplatesRoot = path.resolve(
-  dashboardRoot,
-  "../game-engine/src/templates",
-);
-const libraryRoot = path.join(engineTemplatesRoot, "library");
+const libraryRoot = templateLibraryRoot;
 const SYNC_COMMAND = "pnpm sync-manifest-registry";
-const SYNC_CWD = path.join(dashboardRoot, "../game-engine");
+const SYNC_CWD = gameEngineRoot;
 
 function normalizeZipEntryName(name: string): string {
   return name.replace(/\\/g, "/").replace(/^\/+/, "");

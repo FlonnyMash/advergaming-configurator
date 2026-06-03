@@ -54,10 +54,10 @@ export type {
 // Template registry
 // ---------------------------------------------------------------------------
 
-export const GAME_TEMPLATE_IDS = ["dice-poker", "clicker", "demo-starter"] as const;
+export const GAME_TEMPLATE_IDS = ["catch-game-demo"] as const;
 export type BuiltinGameTemplateId = (typeof GAME_TEMPLATE_IDS)[number];
 
-export const DEFAULT_GAME_TEMPLATE_ID: GameTemplateId = "dice-poker";
+export const DEFAULT_GAME_TEMPLATE_ID: GameTemplateId = "catch-game-demo";
 export const DEFAULT_SCHEMA_VERSION = "1.0.0";
 
 export function isGameTemplateId(

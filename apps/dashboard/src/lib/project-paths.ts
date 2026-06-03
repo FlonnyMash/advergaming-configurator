@@ -2,14 +2,9 @@ import { PROJECT_ID_PATTERN } from "@mashedgames/shared";
 import { mkdirSync } from "node:fs";
 import path from "node:path";
 import { getWorkspacePath } from "@/lib/env";
+import { templateLibraryRoot } from "@/lib/template-library-root";
 
-const dashboardRoot = path.resolve(process.cwd());
-
-export const templateLibraryRoot = path.resolve(
-  dashboardRoot,
-  process.env.TEMPLATE_LIBRARY_ROOT ??
-    "../game-engine/src/templates/library",
-);
+export { templateLibraryRoot };
 
 export const PROJECTS_DIR_NAME = "Projects" as const;
 

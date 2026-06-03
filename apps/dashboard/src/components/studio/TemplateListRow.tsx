@@ -2,21 +2,22 @@
 
 import { TemplateDetailsDialog } from "@/components/studio/TemplateDetailsDialog";
 import type { TemplateManifest } from "@mashedgames/shared";
+import { resolveTemplatePreviewUrl } from "@mashedgames/shared";
 import type { TemplatePickerOption } from "@mashedgames/game-engine/templates/schemas";
 import { MoreVertical } from "lucide-react";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
-
-const GAME_ENGINE_URL =
-  process.env.NEXT_PUBLIC_GAME_ENGINE_URL ?? "http://localhost:5173";
 
 export function TemplateListRow({
   template,
   onUpdated,
+  onDeleted,
 }: {
   template: TemplatePickerOption;
   onUpdated?: () => void;
+  onDeleted?: (templateId: string) => void;
 }) {
+  const router = useRouter();
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [manifestOverride, setManifestOverride] =
     useState<Partial<TemplatePickerOption> | null>(null);
@@ -35,6 +36,14 @@ export function TemplateListRow({
     [manifestOverride, template],
   );
 
+  const previewSrc = resolveTemplatePreviewUrl(display.previewUrl, {
+    cacheBust: previewCacheBust || undefined,
+  });
+
+  const openTemplate = () => {
+    router.push(`/studio?template=${encodeURIComponent(display.id)}`);
+  };
+
   const applyManifest = (manifest: TemplateManifest) => {
     setManifestOverride({
       label: manifest.label,
@@ -51,12 +60,13 @@ export function TemplateListRow({
     <>
       <li className="group relative">
         <div className="flex items-center gap-2 pr-2">
-          <Link
-            href={`/studio?template=${encodeURIComponent(display.id)}`}
-            className="flex min-w-0 flex-1 items-center gap-4 px-4 py-3 text-sm transition-colors hover:bg-zinc-50"
+          <button
+            type="button"
+            onClick={openTemplate}
+            className="flex min-w-0 flex-1 items-center gap-4 px-4 py-3 text-left text-sm transition-colors hover:bg-zinc-50"
           >
             <img
-              src={`${GAME_ENGINE_URL}${display.previewUrl}${previewCacheBust ? `?t=${previewCacheBust}` : ""}`}
+              src={previewSrc}
               alt=""
               className="h-12 w-12 shrink-0 rounded-xl border border-zinc-200/80 bg-zinc-50 object-cover shadow-sm"
             />
@@ -73,7 +83,7 @@ export function TemplateListRow({
                 </span>
               ) : null}
             </span>
-          </Link>
+          </button>
 
           <button
             type="button"
@@ -82,8 +92,8 @@ export function TemplateListRow({
               event.stopPropagation();
               setDetailsOpen(true);
             }}
-            className="rounded-lg p-2 text-zinc-400 opacity-100 transition-all hover:bg-zinc-100 hover:text-zinc-700 focus:outline-none focus:ring-2 focus:ring-zinc-900/10 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 [@media(hover:hover)]:focus:opacity-100"
-            aria-label={`${display.label} options`}
+            className="shrink-0 rounded-lg p-2 text-zinc-400 opacity-100 transition-all hover:bg-zinc-100 hover:text-zinc-700 focus:outline-none focus:ring-2 focus:ring-zinc-900/10 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 [@media(hover:hover)]:focus:opacity-100"
+            aria-label={`${display.label} details`}
           >
             <MoreVertical className="h-4 w-4" aria-hidden />
           </button>
@@ -95,6 +105,7 @@ export function TemplateListRow({
         open={detailsOpen}
         onClose={() => setDetailsOpen(false)}
         onSaved={applyManifest}
+        onDeleted={onDeleted}
       />
     </>
   );

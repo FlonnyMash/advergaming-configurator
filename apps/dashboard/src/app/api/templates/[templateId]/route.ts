@@ -1,3 +1,4 @@
+import { deleteGameTemplate } from "@/lib/template-delete";
 import {
   getTemplateDetails,
   patchTemplateManifest,
@@ -53,4 +54,22 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
   }
 
   return Response.json({ ok: true, manifest: result.manifest });
+}
+
+export async function DELETE(_request: NextRequest, context: RouteContext) {
+  const { templateId } = await context.params;
+  const result = deleteGameTemplate(templateId);
+
+  if (!result.ok) {
+    return Response.json(
+      { ok: false, error: result.error },
+      { status: result.status },
+    );
+  }
+
+  return Response.json({
+    ok: true,
+    templateId: result.templateId,
+    repositoryPath: result.repositoryPath,
+  });
 }

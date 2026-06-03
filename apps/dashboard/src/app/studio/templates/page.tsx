@@ -1,9 +1,16 @@
 "use client";
 
+import { CreateAndOpenTemplateModal } from "@/components/studio/CreateAndOpenTemplateModal";
 import { CreateTemplateModal } from "@/components/studio/CreateTemplateModal";
 import { ImportTemplateModal } from "@/components/studio/ImportTemplateModal";
 import { TemplateListRow } from "@/components/studio/TemplateListRow";
 import { getAppEnv } from "@/lib/env";
+import {
+  getStudioTemplatesEmptyHint,
+  getStudioTemplatesPackagesHint,
+  getStudioTemplatesPathLabel,
+} from "@/lib/workspace-ui-copy";
+import { useWorkspaceSessionStore } from "@/lib/workspace-session-store";
 import { getStudioTemplateOptions } from "@mashedgames/studio-engine";
 import Link from "next/link";
 import { useCallback, useMemo, useState } from "react";
@@ -25,6 +32,24 @@ export default function StudioTemplatesPage() {
     setCatalogRefreshKey((key) => key + 1);
   }, []);
 
+  const handleTemplateCreated = useCallback(
+    (templateId: string) => {
+      window.location.assign(
+        `/studio?template=${encodeURIComponent(templateId)}`,
+      );
+    },
+    [],
+  );
+
+  const handleTemplateDeleted = useCallback((templateId: string) => {
+    const { activeStudioTemplateId, clearStudioSession } =
+      useWorkspaceSessionStore.getState();
+    if (activeStudioTemplateId === templateId) {
+      clearStudioSession();
+    }
+    window.location.reload();
+  }, []);
+
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-8 overflow-y-auto p-8">
       <header>
@@ -35,17 +60,23 @@ export default function StudioTemplatesPage() {
           Studio templates
         </h1>
         <p className="mt-1 text-sm text-zinc-600">
-          Open a game template to edit mechanics and defaults, or add a new one
-          to the library under{" "}
-          <code className="text-xs">apps/game-engine/src/templates/</code>.
+          Open a game template to edit mechanics and defaults
+          {getStudioTemplatesPathLabel() ? (
+            <>
+              , or add a new one to the library under{" "}
+              <code className="text-xs">{getStudioTemplatesPathLabel()}</code>
+            </>
+          ) : (
+            ", or create and import templates using the actions below"
+          )}
+          .
         </p>
       </header>
 
       <section className="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm">
         <h2 className="text-sm font-semibold text-zinc-900">Template packages</h2>
         <p className="mt-1 text-xs text-zinc-500">
-          Generate a scaffold zip or install an archive into the repo. Template
-          IDs must match the folder name (kebab-case).
+          {getStudioTemplatesPackagesHint()}
         </p>
         <div className="mt-4 flex flex-col gap-3 sm:flex-row">
           <div className="min-w-0 flex-1">
@@ -58,12 +89,13 @@ export default function StudioTemplatesPage() {
       </section>
 
       <section>
+        <div className="mb-4">
+          <CreateAndOpenTemplateModal onCreated={handleTemplateCreated} />
+        </div>
         <h2 className="text-sm font-semibold text-zinc-900">Open existing</h2>
         {templateOptions.length === 0 ? (
           <p className="mt-3 text-sm text-zinc-500">
-            No templates in the catalog yet. Import one above or run{" "}
-            <code className="text-xs">sync-manifest-registry</code> after adding
-            files.
+            {getStudioTemplatesEmptyHint()}
           </p>
         ) : (
           <ul className="mt-3 divide-y divide-zinc-100 overflow-hidden rounded-xl border border-zinc-200 bg-white">
@@ -72,6 +104,7 @@ export default function StudioTemplatesPage() {
                 key={template.id}
                 template={template}
                 onUpdated={handleTemplateUpdated}
+                onDeleted={handleTemplateDeleted}
               />
             ))}
           </ul>

@@ -3,10 +3,6 @@
 import type { TemplateManifest } from "@mashedgames/shared";
 
 import library0 from "./library/catch-game-demo/manifest.json";
-import library1 from "./library/clicker/manifest.json";
-import library2 from "./library/dice-poker/manifest.json";
-import library3 from "./library/raw-fallback/manifest.json";
-import development0 from "./development/demo-starter/manifest.json";
 
-export const LIBRARY_MANIFESTS = [library0, library1, library2, library3] as TemplateManifest[];
-export const DEVELOPMENT_MANIFESTS = [development0] as TemplateManifest[];
+export const LIBRARY_MANIFESTS = [library0] as TemplateManifest[];
+export const DEVELOPMENT_MANIFESTS = [] as TemplateManifest[];

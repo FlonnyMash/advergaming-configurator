@@ -7,6 +7,7 @@ import {
   LoadExternalAssetPayloadSchema,
   SetRuntimeAssetsPayloadSchema,
   buildBridgePayload,
+  cloneForBridgePostMessage,
   isDiagnosticsPayloadMessage,
   isGameEventMessage,
   isHitboxUpdatedMessage,
@@ -292,11 +293,12 @@ class DashboardMessenger {
     payload: BridgePayload,
     updateMode: ConfigUpdateMode = "full",
   ): void {
+    const safePayload = cloneForBridgePostMessage(payload);
     if (this.iframeReady && this.targetWindow) {
-      this.postBridgePayload(payload, updateMode);
+      this.postBridgePayload(safePayload, updateMode);
       return;
     }
-    this.pendingUpdates = [{ payload, updateMode }];
+    this.pendingUpdates = [{ payload: safePayload, updateMode }];
   }
 
   sendGameEvent(eventName: string, data: unknown): void {
@@ -392,9 +394,18 @@ class DashboardMessenger {
   ): void {
     if (!this.targetWindow) return;
 
+    const safePayload =
+      typeof payload === "object" &&
+      payload !== null &&
+      "meta" in payload &&
+      "system" in payload &&
+      "branding" in payload
+        ? cloneForBridgePostMessage(payload as GameMasterConfig)
+        : payload;
+
     const message: UpdateConfigMessage = {
       type: BRIDGE_MESSAGE_TYPE.UPDATE_CONFIG,
-      payload,
+      payload: safePayload,
       updateMode,
       senderMode: this.senderMode,
     };

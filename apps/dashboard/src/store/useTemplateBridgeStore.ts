@@ -1,7 +1,7 @@
 "use client";
 
 import type { GameTemplateId } from "@mashedgames/shared";
-import { create } from "zustand";
+import { create } from "state";
 
 type TemplateBridgeStore = {
   templateChangeInProgress: boolean;

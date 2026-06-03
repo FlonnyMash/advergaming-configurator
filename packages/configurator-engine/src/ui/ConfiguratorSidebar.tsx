@@ -24,12 +24,19 @@ export function ConfiguratorSidebar({
   const config = useConfiguratorStore((s) => s.config);
   const patchBrandingPath = useConfiguratorStore((s) => s.patchBrandingPath);
   const resetBranding = useConfiguratorStore((s) => s.resetBranding);
+  const uploadBrandingAsset = useConfiguratorStore((s) => s.uploadBrandingAsset);
 
   const gameSchema = getConfiguratorGameSchema(selectedTemplateId);
 
   const handleControlChange = (control: ControlFieldSchema, value: ControlValue) => {
     patchBrandingPath(control.targetPath, value);
   };
+
+  const handleImageFile =
+    onImageFile ??
+    (imageUploadMode === "workspace-file"
+      ? (file: File, control: ControlFieldSchema) => uploadBrandingAsset(file, control)
+      : undefined);
 
   return (
     <aside className="flex h-full w-[360px] shrink-0 flex-col border-r border-zinc-200 bg-white">
@@ -55,7 +62,7 @@ export function ConfiguratorSidebar({
           config={config}
           onControlChange={handleControlChange}
           imageUploadMode={imageUploadMode}
-          onImageFile={onImageFile}
+          onImageFile={handleImageFile}
         />
         {previewSlot}
       </div>

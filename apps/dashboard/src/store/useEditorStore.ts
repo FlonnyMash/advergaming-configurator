@@ -6,7 +6,7 @@ import {
   type DevToolkitAssetConfigBinding,
   type EditorState,
 } from "@mashedgames/shared";
-import { create } from "zustand";
+import { create } from "state";
 
 type EditorStore = EditorState & {
   setWorkspaceMode: (mode: EditorState["workspaceMode"]) => void;
