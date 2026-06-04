@@ -1,14 +1,15 @@
+import { existsSync } from "node:fs";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
 
-/** apps/dashboard/src/lib */
-const libDir = path.dirname(fileURLToPath(import.meta.url));
-
-/** apps/dashboard */
-const dashboardRoot = path.resolve(libDir, "../..");
+/**
+ * Next dev/prod server cwd is apps/dashboard (or standalone/apps/dashboard).
+ * Resolve monorepo paths from cwd — import.meta.url lands in .next chunks and
+ * breaks relative monorepo resolution.
+ */
+const dashboardRoot = path.resolve(process.cwd());
 
 /** Monorepo root (mashedgames-studio) */
-const monorepoRoot = path.resolve(dashboardRoot, "../..");
+export const monorepoRoot = path.resolve(dashboardRoot, "../..");
 
 /** apps/game-engine — used for sync-manifest-registry spawn cwd */
 export const gameEngineRoot = path.resolve(monorepoRoot, "apps/game-engine");
@@ -19,10 +20,7 @@ export const engineTemplatesRoot = path.resolve(
   "src/templates",
 );
 
-/**
- * Template library on disk (Studio). Resolved from this module path so Next
- * file tracing does not treat `process.cwd()` as the whole repo root.
- */
+/** Template library on disk (Studio). Missing in packaged desktop — use registry fallback. */
 export const templateLibraryRoot = (() => {
   const fromEnv = process.env.TEMPLATE_LIBRARY_ROOT?.trim();
   if (fromEnv) {
@@ -32,3 +30,8 @@ export const templateLibraryRoot = (() => {
   }
   return path.join(engineTemplatesRoot, "library");
 })();
+
+/** True when the monorepo template library folder is present (local dev / Studio). */
+export function isMonorepoTemplateLibraryOnDisk(): boolean {
+  return existsSync(templateLibraryRoot);
+}

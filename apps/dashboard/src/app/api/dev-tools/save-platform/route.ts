@@ -1,4 +1,4 @@
-import { writeFileSync } from "node:fs";
+import { writeFile } from "node:fs/promises";
 import { PlatformConfigSchema } from "@mashedgames/shared";
 import type { NextRequest } from "next/server";
 import { getPlatformConfigPath } from "@/lib/platform-config-path";
@@ -18,7 +18,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    writeFileSync(
+    await writeFile(
       getPlatformConfigPath(),
       `${JSON.stringify(parsed.data, null, 2)}\n`,
       "utf8",

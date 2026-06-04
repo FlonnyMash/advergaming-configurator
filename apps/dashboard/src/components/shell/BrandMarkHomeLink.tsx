@@ -1,19 +1,22 @@
 "use client";
 
 import { BRAND_LOGO_INTRINSIC_SIZE } from "@/lib/brand-logo-constants";
-import { APP_DISPLAY_NAME, BRAND_LOGO_URL_PATH } from "@mashedgames/shared";
+import { usePlatformStore } from "@/store/usePlatformStore";
 import Image from "next/image";
 
 export function BrandMarkHomeLink({ onHomeClick }: { onHomeClick: () => void }) {
+  const appName = usePlatformStore((s) => s.appName);
+  const logoPath = usePlatformStore((s) => s.logoPath);
+
   return (
     <button
       type="button"
       onClick={onHomeClick}
       className="rounded-lg outline-offset-2 hover:opacity-90"
-      aria-label={`${APP_DISPLAY_NAME} — back to home`}
+      aria-label={`${appName} — back to home`}
     >
       <Image
-        src={BRAND_LOGO_URL_PATH}
+        src={logoPath}
         alt=""
         width={BRAND_LOGO_INTRINSIC_SIZE.width}
         height={BRAND_LOGO_INTRINSIC_SIZE.height}

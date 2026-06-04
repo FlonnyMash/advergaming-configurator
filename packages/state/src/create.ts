@@ -47,6 +47,7 @@ export function create<T>(createState: StateCreator<T>): UseBoundStore<T> {
   };
 
   state = createState(setState, getState);
+  const serverState = state;
 
   const subscribe = (listener: (state: T, prevState: T) => void) => {
     listeners.add(listener);
@@ -67,7 +68,7 @@ export function create<T>(createState: StateCreator<T>): UseBoundStore<T> {
           onStoreChange();
         }),
       () => select(getState()),
-      () => select(getState()),
+      () => select(serverState),
     );
   }
 

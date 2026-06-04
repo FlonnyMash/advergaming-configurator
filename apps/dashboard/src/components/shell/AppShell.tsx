@@ -1,33 +1,22 @@
 "use client";
 
-import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useLayoutEffect } from "react";
 import { BrandMarkHomeLink } from "@/components/shell/BrandMarkHomeLink";
+import { EnvironmentNav } from "@/components/shell/EnvironmentNav";
+import { MetaBuilderDevFabHost } from "@/components/shell/MetaBuilderDevFabHost";
 import { PersistentWorkspaces } from "@/components/shell/PersistentWorkspaces";
 import { TemplatePreviewWarmup } from "@/components/shell/TemplatePreviewWarmup";
 import { useHomeNavigation } from "@/hooks/useHomeNavigation";
 import {
   configuratorWorkspaceHref,
-  rehydrateWorkspaceSessionFromStorage,
   studioWorkspaceHref,
   useWorkspaceSessionStore,
 } from "@/lib/workspace-session-store";
 import { usePlatformStore } from "@/store/usePlatformStore";
 import { Lock } from "lucide-react";
 
-const navLinkClass = (active: boolean) =>
-  `rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
-    active
-      ? "text-white shadow-sm"
-      : "text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900"
-  }`;
-
 export function AppShell({ children }: { children: React.ReactNode }) {
-  useLayoutEffect(() => {
-    rehydrateWorkspaceSessionFromStorage();
-  }, []);
-
   const pathname = usePathname();
   const isHome = pathname === "/";
   const isStudio = pathname.startsWith("/studio");
@@ -35,6 +24,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const appName = usePlatformStore((s) => s.appName);
   const primaryColor = usePlatformStore((s) => s.primaryColor);
   const enableLeadGen = usePlatformStore((s) => s.features.enableLeadGen);
+
+  useLayoutEffect(() => {
+    document.title = appName;
+  }, [appName]);
+
+  useLayoutEffect(() => {
+    document.documentElement.style.setProperty("--platform-primary", primaryColor);
+  }, [primaryColor]);
   const activeStudioTemplateId = useWorkspaceSessionStore(
     (s) => s.activeStudioTemplateId,
   );
@@ -51,44 +48,16 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <header className="flex shrink-0 items-center justify-between border-b border-zinc-200 bg-white px-4 py-3">
         <div className="flex items-center gap-3">
           <BrandMarkHomeLink onHomeClick={requestHomeNavigation} />
-          <nav
-            className="flex gap-1 rounded-lg border border-zinc-200 bg-zinc-50 p-1"
-            aria-label="Environment"
-          >
-            <button
-              type="button"
-              onClick={requestHomeNavigation}
-              className={navLinkClass(isHome)}
-              style={isHome ? { backgroundColor: primaryColor } : undefined}
-              aria-current={isHome ? "page" : undefined}
-            >
-              {appName}
-            </button>
-            <Link
-              href={studioHref}
-              className={navLinkClass(isStudio)}
-              style={
-                isStudio
-                  ? { backgroundColor: primaryColor }
-                  : undefined
-              }
-              aria-current={isStudio ? "page" : undefined}
-            >
-              Studio
-            </Link>
-            <Link
-              href={configuratorHref}
-              className={navLinkClass(isConfigurator)}
-              style={
-                isConfigurator
-                  ? { backgroundColor: primaryColor }
-                  : undefined
-              }
-              aria-current={isConfigurator ? "page" : undefined}
-            >
-              Configurator
-            </Link>
-          </nav>
+          <EnvironmentNav
+            appName={appName}
+            primaryColor={primaryColor}
+            isHome={isHome}
+            isStudio={isStudio}
+            isConfigurator={isConfigurator}
+            studioHref={studioHref}
+            configuratorHref={configuratorHref}
+            onHomeClick={requestHomeNavigation}
+          />
         </div>
         <div className="flex items-center gap-3">
           <button
@@ -123,6 +92,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <PersistentWorkspaces>{children}</PersistentWorkspaces>
       </main>
       {homeNavigationDialog}
+      <MetaBuilderDevFabHost />
     </div>
   );
 }

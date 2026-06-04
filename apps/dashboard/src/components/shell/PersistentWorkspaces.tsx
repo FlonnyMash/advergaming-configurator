@@ -4,9 +4,12 @@ import { ConfiguratorProjectGate } from "@/components/configurator/ConfiguratorP
 import { ConfiguratorWorkspace } from "@/components/configurator/ConfiguratorWorkspace";
 import { StudioTemplateGate } from "@/components/studio/StudioTemplateGate";
 import { StudioWorkspace } from "@/components/studio/StudioWorkspace";
-import { useWorkspaceSessionStore } from "@/lib/workspace-session-store";
+import {
+  rehydrateWorkspaceSessionFromStorage,
+  useWorkspaceSessionStore,
+} from "@/lib/workspace-session-store";
 import { usePathname, useSearchParams } from "next/navigation";
-import { Suspense, type ReactNode } from "react";
+import { Suspense, useLayoutEffect, type ReactNode } from "react";
 
 function workspaceLayerClass(visible: boolean): string {
   return visible
@@ -14,18 +17,33 @@ function workspaceLayerClass(visible: boolean): string {
     : "pointer-events-none absolute inset-0 z-0 flex min-h-0 flex-1 flex-col overflow-hidden opacity-0";
 }
 
+/** Matches Suspense fallback so SSR and the first client render stay aligned. */
+function WorkspaceRouteShell({ children }: { children: ReactNode }) {
+  return (
+    <div className="flex min-h-0 flex-1 flex-col overflow-hidden">{children}</div>
+  );
+}
+
 function PersistentWorkspacesInner({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const templateParam = searchParams.get("template");
   const projectParam = searchParams.get("project");
-
+  const sessionHydrated = useWorkspaceSessionStore((s) => s.sessionHydrated);
   const activeStudioTemplateId = useWorkspaceSessionStore(
     (s) => s.activeStudioTemplateId,
   );
   const activeConfiguratorProjectId = useWorkspaceSessionStore(
     (s) => s.activeConfiguratorProjectId,
   );
+
+  useLayoutEffect(() => {
+    rehydrateWorkspaceSessionFromStorage();
+  }, []);
+
+  if (!sessionHydrated) {
+    return <WorkspaceRouteShell>{children}</WorkspaceRouteShell>;
+  }
 
   const showStudio =
     pathname === "/studio" && Boolean(templateParam ?? activeStudioTemplateId);
@@ -96,13 +114,7 @@ function PersistentWorkspacesInner({ children }: { children: ReactNode }) {
 
 export function PersistentWorkspaces({ children }: { children: ReactNode }) {
   return (
-    <Suspense
-      fallback={
-        <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-          {children}
-        </div>
-      }
-    >
+    <Suspense fallback={<WorkspaceRouteShell>{children}</WorkspaceRouteShell>}>
       <PersistentWorkspacesInner>{children}</PersistentWorkspacesInner>
     </Suspense>
   );

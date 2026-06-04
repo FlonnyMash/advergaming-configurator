@@ -42,7 +42,7 @@ export function enrichClientMeta(
     projectId: project.projectId,
     parentTemplateId: project.parentTemplateId,
     parentPinnedVersion: project.parentPinnedVersion ?? meta.parentPinnedVersion,
-    lastParentSyncAt: new Date().toISOString(),
+    lastParentSyncAt: meta.lastParentSyncAt,
   };
 }
 
@@ -53,10 +53,13 @@ export function buildInitialClientPayload(
 ): ClientProjectPayload {
   const payload = exportClientPayload(config);
   return {
-    meta: enrichClientMeta(payload.meta, {
-      ...project,
-      parentPinnedVersion,
-    }),
+    meta: {
+      ...enrichClientMeta(payload.meta, {
+        ...project,
+        parentPinnedVersion,
+      }),
+      lastParentSyncAt: new Date().toISOString(),
+    },
     branding: payload.branding,
   };
 }

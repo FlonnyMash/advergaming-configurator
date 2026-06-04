@@ -4,9 +4,11 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const dashboardRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const desktopDistDir = path.join(dashboardRoot, "..", "desktop", "dist");
 
 const env = {
   ...process.env,
+  NODE_ENV: "production",
   NEXT_PUBLIC_WORKSPACE_DESKTOP: "1",
   NEXT_PUBLIC_ENV: "prod",
   NEXT_PUBLIC_BUNDLED_TEMPLATES: "catch-game-demo",
@@ -37,6 +39,13 @@ function run(execPath, args) {
   if (result.status !== 0) {
     process.exit(result.status ?? 1);
   }
+}
+
+if (fs.existsSync(desktopDistDir)) {
+  console.log(
+    `[build-desktop] Removing ${desktopDistDir} so it is not traced into standalone output.`,
+  );
+  fs.rmSync(desktopDistDir, { recursive: true, force: true });
 }
 
 run(process.execPath, [resolveNextCli(), "build"]);

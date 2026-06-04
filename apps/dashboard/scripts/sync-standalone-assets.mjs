@@ -32,4 +32,10 @@ if (fs.existsSync(strayGameEngineDir)) {
   fs.rmSync(strayGameEngineDir, { recursive: true, force: true });
 }
 
+const strayDesktopDistDir = path.join(standaloneAppDir, "..", "desktop", "dist");
+if (fs.existsSync(strayDesktopDistDir)) {
+  fs.rmSync(strayDesktopDistDir, { recursive: true, force: true });
+  console.log("[sync-standalone-assets] removed traced apps/desktop/dist from standalone");
+}
+
 materializeStandaloneBundle();

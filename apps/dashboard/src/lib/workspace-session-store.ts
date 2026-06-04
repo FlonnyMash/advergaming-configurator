@@ -44,6 +44,8 @@ function writeStorage(snapshot: SessionSnapshot): void {
 }
 
 interface WorkspaceSessionStore extends SessionSnapshot {
+  /** False until sessionStorage is read on the client (keeps SSR and hydration aligned). */
+  sessionHydrated: boolean;
   setActiveStudioTemplate: (templateId: string | null) => void;
   setActiveConfiguratorProject: (projectId: string | null) => void;
   clearStudioSession: () => void;
@@ -61,12 +63,16 @@ let hasRehydratedFromStorage = false;
 export function rehydrateWorkspaceSessionFromStorage(): void {
   if (typeof window === "undefined" || hasRehydratedFromStorage) return;
   hasRehydratedFromStorage = true;
-  useWorkspaceSessionStore.setState(readStorage());
+  useWorkspaceSessionStore.setState({
+    ...readStorage(),
+    sessionHydrated: true,
+  });
 }
 
 export const useWorkspaceSessionStore = create<WorkspaceSessionStore>((set, get) => ({
   activeStudioTemplateId: emptySession.activeStudioTemplateId,
   activeConfiguratorProjectId: emptySession.activeConfiguratorProjectId,
+  sessionHydrated: false,
 
   setActiveStudioTemplate: (templateId) => {
     const next = { ...get(), activeStudioTemplateId: templateId };

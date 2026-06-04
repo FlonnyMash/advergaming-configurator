@@ -1,6 +1,6 @@
 {
   "appName": "Mashed Games Studio",
-  "primaryColor": "#4f46e5",
+  "primaryColor": "#000000",
   "logoPath": "/mashed-games-logo.png",
   "features": {
     "enableLeadGen": false,

@@ -32,6 +32,10 @@ const nextConfig: NextConfig = {
       "**/Anwendungsdaten/**",
       "**/.pnpm-store/**",
       "**/pnpm/store/**",
+      "**/apps/desktop/dist/**",
+      "**/apps/dashboard/.next/**",
+      "**/apps/game-engine/dist/**",
+      "**/apps/game-engine/node_modules/**",
     ],
   },
   turbopack: {

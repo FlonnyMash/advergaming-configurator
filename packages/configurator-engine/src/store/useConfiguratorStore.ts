@@ -1,6 +1,7 @@
 import {
   assertPermission,
   buildConfigWithFrozenSystem,
+  ClientProjectPayloadSchema,
   exportClientPayload,
   enrichClientMeta,
   mergeBrandingPatch,
@@ -98,11 +99,62 @@ function buildConfiguratorConfig(templateId: GameTemplateId): GameMasterConfig {
 
 const initialTemplateId = firstProductionTemplateId();
 
+function sanitizeBrandingForPersist(
+  branding: BrandingSettings,
+): BrandingSettings {
+  const next = structuredClone(branding);
+  if (next.theme.logoTexture === "") {
+    next.theme.logoTexture = null;
+  }
+  if (next.theme.playerTexture === "") {
+    next.theme.playerTexture = null;
+  }
+  return next;
+}
+
+function buildPersistedClientPayload(
+  config: GameMasterConfig,
+  manifest: GameProjectManifest | null,
+): ClientProjectPayload {
+  const payload = exportClientPayload(config);
+  const raw: ClientProjectPayload = manifest
+    ? {
+        meta: enrichClientMeta(payload.meta, {
+          projectId: manifest.projectId,
+          parentTemplateId: manifest.parentTemplateId,
+          parentPinnedVersion:
+            payload.meta.parentPinnedVersion ?? manifest.parentVersion,
+        }),
+        branding: sanitizeBrandingForPersist(payload.branding),
+      }
+    : {
+        meta: payload.meta,
+        branding: sanitizeBrandingForPersist(payload.branding),
+      };
+
+  const parsed = ClientProjectPayloadSchema.safeParse(raw);
+  return parsed.success ? parsed.data : raw;
+}
+
+function stableStringify(value: unknown): string {
+  return JSON.stringify(value, (_key, val) => {
+    if (val && typeof val === "object" && !Array.isArray(val)) {
+      return Object.keys(val as object)
+        .sort()
+        .reduce<Record<string, unknown>>((acc, key) => {
+          acc[key] = (val as Record<string, unknown>)[key];
+          return acc;
+        }, {});
+    }
+    return val;
+  });
+}
+
 function clientPayloadEquals(
   a: ClientProjectPayload,
   b: ClientProjectPayload,
 ): boolean {
-  return JSON.stringify(a) === JSON.stringify(b);
+  return stableStringify(a) === stableStringify(b);
 }
 
 export const useConfiguratorStore = create<ConfiguratorStore>((set, get) => ({
@@ -169,21 +221,8 @@ export const useConfiguratorStore = create<ConfiguratorStore>((set, get) => ({
       };
     }),
 
-  exportClientPayload: () => {
-    const state = get();
-    const payload = exportClientPayload(state.config);
-    if (state.projectManifest) {
-      return {
-        meta: enrichClientMeta(payload.meta, {
-          projectId: state.projectManifest.projectId,
-          parentTemplateId: state.projectManifest.parentTemplateId,
-          parentPinnedVersion: state.projectManifest.parentVersion,
-        }),
-        branding: payload.branding,
-      };
-    }
-    return payload;
-  },
+  exportClientPayload: () =>
+    buildPersistedClientPayload(get().config, get().projectManifest),
 
   resetBranding: () => {
     const { selectedTemplateId, projectMode, projectManifest } = get();
@@ -206,6 +245,9 @@ export const useConfiguratorStore = create<ConfiguratorStore>((set, get) => ({
       projectMode: true,
       systemReadonly: true,
     });
+    set({
+      savedClient: buildPersistedClientPayload(get().config, manifest),
+    });
   },
 
   clearProject: () => {
@@ -221,8 +263,12 @@ export const useConfiguratorStore = create<ConfiguratorStore>((set, get) => ({
   },
 
   markClientSaved: () => {
-    const client = get().exportClientPayload();
-    set({ savedClient: client });
+    set({
+      savedClient: buildPersistedClientPayload(
+        get().config,
+        get().projectManifest,
+      ),
+    });
   },
 
   updateProjectManifest: (manifest) => {
@@ -234,7 +280,10 @@ export const useConfiguratorStore = create<ConfiguratorStore>((set, get) => ({
     if (!projectMode || !savedClient) {
       return false;
     }
-    const current = get().exportClientPayload();
+    const current = buildPersistedClientPayload(
+      get().config,
+      get().projectManifest,
+    );
     return !clientPayloadEquals(savedClient, current);
   },
 }));

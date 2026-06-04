@@ -33,29 +33,37 @@ function hasManifestOnDisk(parentTemplateId: GameTemplateId): boolean {
   return existsSync(manifestPath(parentTemplateId));
 }
 
-function isBundledProductionTemplate(parentTemplateId: GameTemplateId): boolean {
-  if (!isWorkspaceDesktop()) {
-    return false;
-  }
-
-  const bundled = getDesktopBundledTemplateIds();
-  if (bundled && !bundled.includes(parentTemplateId)) {
-    return false;
-  }
-
+function getRegistryProductionEntry(parentTemplateId: GameTemplateId) {
   const entry = getCatalogEntry(parentTemplateId);
-  return (
-    entry?.source === "library" && entry.manifest.status === "production"
-  );
+  if (entry?.source !== "library" || entry.manifest.status !== "production") {
+    return null;
+  }
+  return entry;
 }
 
-/** True when the template is on disk in library/ or shipped in the desktop build. */
+/** Baked catalog when library/ is not on disk (desktop) or disk path is unavailable. */
+function canUseRegistryTemplate(parentTemplateId: GameTemplateId): boolean {
+  if (!getRegistryProductionEntry(parentTemplateId)) {
+    return false;
+  }
+
+  if (isWorkspaceDesktop()) {
+    const bundled = getDesktopBundledTemplateIds();
+    if (bundled && !bundled.includes(parentTemplateId)) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+/** True when the template is on disk in library/ or in the production catalog registry. */
 export function isParentTemplateInLibrary(
   parentTemplateId: GameTemplateId,
 ): boolean {
   return (
     hasManifestOnDisk(parentTemplateId) ||
-    isBundledProductionTemplate(parentTemplateId)
+    canUseRegistryTemplate(parentTemplateId)
   );
 }
 
@@ -73,11 +81,8 @@ export function readParentManifest(
     return manifest;
   }
 
-  if (isBundledProductionTemplate(parentTemplateId)) {
-    const entry = getCatalogEntry(parentTemplateId);
-    if (!entry) {
-      throw new Error(`Parent template "${parentTemplateId}" not found.`);
-    }
+  const entry = getRegistryProductionEntry(parentTemplateId);
+  if (entry && canUseRegistryTemplate(parentTemplateId)) {
     return entry.manifest;
   }
 
@@ -93,7 +98,7 @@ export function loadPublishedSystemFromDisk(
     ) as SystemSettings;
   }
 
-  if (isBundledProductionTemplate(parentTemplateId)) {
+  if (canUseRegistryTemplate(parentTemplateId)) {
     return getPublishedSystemDefaults(parentTemplateId);
   }
 
