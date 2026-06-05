@@ -155,7 +155,7 @@ export { Scene };
 function buildGameSceneTs(sceneKey: string, sceneClassName: string, label: string): string {
   return `import {
   getPrimaryBrandColor,
-  type GameMasterConfig,
+  type GameConfig,
 } from "@mashedgames/shared";
 import Phaser from "phaser";
 import type { TemplateScene } from "../../types.ts";
@@ -187,11 +187,33 @@ export class ${sceneClassName} extends Phaser.Scene implements TemplateScene {
     this.drawAccent();
   }
 
-  updateConfig(config: GameMasterConfig): void {
+  updateConfig(config: GameConfig): void {
     this.cameras.main.setBackgroundColor(getPrimaryBrandColor(config));
-    this.titleText.setText(config.branding.domOverlay.startScreenTitle);
-    this.motionSpeed = readNumber(config.system.mechanics.playerSpeed, this.motionSpeed);
-    this.gravity = readNumber(config.system.physics.gravity?.y, this.gravity);
+    const domOverlay =
+      typeof config.domOverlay === "object" && config.domOverlay !== null
+        ? config.domOverlay
+        : {};
+    this.titleText.setText(
+      typeof domOverlay.startScreenTitle === "string"
+        ? domOverlay.startScreenTitle
+        : ${JSON.stringify(label)},
+    );
+    this.motionSpeed = readNumber(
+      typeof config.playerSpeed === "number" ? config.playerSpeed : undefined,
+      this.motionSpeed,
+    );
+    const physics =
+      typeof config.physics === "object" && config.physics !== null
+        ? config.physics
+        : {};
+    const gravity =
+      typeof physics.gravity === "object" && physics.gravity !== null
+        ? physics.gravity
+        : {};
+    this.gravity = readNumber(
+      typeof gravity.y === "number" ? gravity.y : undefined,
+      this.gravity,
+    );
     if (this.physics?.world) {
       this.physics.world.gravity.y = this.gravity;
     }

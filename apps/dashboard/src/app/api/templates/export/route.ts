@@ -1,7 +1,7 @@
 import { buildTemplateZip } from "@/lib/template-export";
 import {
-  normalizeGameMasterConfig,
-  type GameMasterConfig,
+  normalizeGameConfig,
+  type GameConfig,
   type GameTemplateId,
 } from "@mashedgames/shared";
 import type { NextRequest } from "next/server";
@@ -44,11 +44,11 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  let studioConfig: GameMasterConfig | undefined;
+  let studioConfig: GameConfig | undefined;
   try {
     const body = (await request.json()) as { config?: unknown };
     if (body.config) {
-      const normalized = normalizeGameMasterConfig(
+      const normalized = normalizeGameConfig(
         body.config,
         templateId as GameTemplateId,
       );

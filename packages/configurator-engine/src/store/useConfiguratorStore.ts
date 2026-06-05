@@ -1,15 +1,13 @@
 import {
+  applyPath,
   assertPermission,
   buildConfigWithFrozenSystem,
   ClientProjectPayloadSchema,
   exportClientPayload,
   enrichClientMeta,
-  mergeBrandingPatch,
-  type BrandingPatch,
-  type BrandingSettings,
   type ClientProjectPayload,
   type ControlFieldSchema,
-  type GameMasterConfig,
+  type GameConfig,
   type GameProjectManifest,
   type GameTemplateId,
 } from "@mashedgames/shared";
@@ -44,7 +42,7 @@ function firstProductionTemplateId(): GameTemplateId {
 }
 
 export interface ConfiguratorStore {
-  config: GameMasterConfig;
+  config: GameConfig;
   selectedTemplateId: GameTemplateId;
   systemReadonly: boolean;
   projectId: string | null;
@@ -52,13 +50,13 @@ export interface ConfiguratorStore {
   savedClient: ClientProjectPayload | null;
   projectMode: boolean;
   setSelectedTemplateId: (id: GameTemplateId) => void;
-  patchBranding: (patch: BrandingPatch) => void;
+  patchConfigPath: (path: string, value: unknown) => void;
   patchBrandingPath: (path: string, value: unknown) => void;
-  exportClientPayload: () => Pick<GameMasterConfig, "meta" | "branding">;
+  exportClientPayload: () => ClientProjectPayload;
   resetBranding: () => void;
   hydrateProject: (input: {
     manifest: GameProjectManifest;
-    config: GameMasterConfig;
+    config: GameConfig;
     client: ClientProjectPayload;
   }) => void;
   clearProject: () => void;
@@ -73,24 +71,7 @@ export interface ConfiguratorStore {
   ) => Promise<void>;
 }
 
-function applyPath(
-  root: Record<string, unknown>,
-  path: string,
-  value: unknown,
-): void {
-  const parts = path.split(".");
-  let current = root;
-  for (let i = 0; i < parts.length - 1; i++) {
-    const key = parts[i]!;
-    if (typeof current[key] !== "object" || current[key] === null) {
-      current[key] = {};
-    }
-    current = current[key] as Record<string, unknown>;
-  }
-  current[parts[parts.length - 1]!] = value;
-}
-
-function buildConfiguratorConfig(templateId: GameTemplateId): GameMasterConfig {
+function buildConfiguratorConfig(templateId: GameTemplateId): GameConfig {
   assertPermission(CONFIGURATOR_MODE, "schema:branding");
   const schema = getConfiguratorGameSchema(templateId);
   const systemDefaults = getFrozenSystemDefaults(templateId);
@@ -99,41 +80,39 @@ function buildConfiguratorConfig(templateId: GameTemplateId): GameMasterConfig {
 
 const initialTemplateId = firstProductionTemplateId();
 
-function sanitizeBrandingForPersist(
-  branding: BrandingSettings,
-): BrandingSettings {
-  const next = structuredClone(branding);
-  if (next.theme.logoTexture === "") {
-    next.theme.logoTexture = null;
+function sanitizeConfigForPersist(config: GameConfig): GameConfig {
+  const next = structuredClone(config) as Record<string, unknown>;
+  if (next.logoUrl === "") next.logoUrl = null;
+  const catchGame = next.catchGame;
+  if (typeof catchGame === "object" && catchGame !== null) {
+    const assets = (catchGame as Record<string, unknown>).assets;
+    if (typeof assets === "object" && assets !== null) {
+      const player = (assets as Record<string, unknown>).player;
+      if (player === "") {
+        (assets as Record<string, unknown>).player = null;
+      }
+    }
   }
-  if (next.theme.playerTexture === "") {
-    next.theme.playerTexture = null;
-  }
-  return next;
+  return next as GameConfig;
 }
 
 function buildPersistedClientPayload(
-  config: GameMasterConfig,
+  config: GameConfig,
   manifest: GameProjectManifest | null,
 ): ClientProjectPayload {
   const payload = exportClientPayload(config);
   const raw: ClientProjectPayload = manifest
-    ? {
-        meta: enrichClientMeta(payload.meta, {
-          projectId: manifest.projectId,
-          parentTemplateId: manifest.parentTemplateId,
-          parentPinnedVersion:
-            payload.meta.parentPinnedVersion ?? manifest.parentVersion,
-        }),
-        branding: sanitizeBrandingForPersist(payload.branding),
-      }
-    : {
-        meta: payload.meta,
-        branding: sanitizeBrandingForPersist(payload.branding),
-      };
+    ? enrichClientMeta(payload, {
+        projectId: manifest.projectId,
+        parentTemplateId: manifest.parentTemplateId,
+        parentPinnedVersion:
+          payload.parentPinnedVersion ?? manifest.parentVersion,
+      })
+    : payload;
 
-  const parsed = ClientProjectPayloadSchema.safeParse(raw);
-  return parsed.success ? parsed.data : raw;
+  const sanitized = sanitizeConfigForPersist(raw);
+  const parsed = ClientProjectPayloadSchema.safeParse(sanitized);
+  return parsed.success ? parsed.data : sanitized;
 }
 
 function stableStringify(value: unknown): string {
@@ -184,7 +163,7 @@ export const useConfiguratorStore = create<ConfiguratorStore>((set, get) => ({
       targetPath: control.targetPath,
     });
 
-    get().patchBrandingPath(control.targetPath, result.relativePath);
+    get().patchConfigPath(control.targetPath, result.relativePath);
     if (result.manifest) {
       get().updateProjectManifest(result.manifest);
     }
@@ -202,24 +181,14 @@ export const useConfiguratorStore = create<ConfiguratorStore>((set, get) => ({
     });
   },
 
-  patchBranding: (patch) =>
-    set((state) => ({
-      config: mergeBrandingPatch(state.config, patch),
-    })),
-
-  patchBrandingPath: (path, value) =>
+  patchConfigPath: (path, value) =>
     set((state) => {
-      const branding = structuredClone(
-        state.config.branding,
-      ) as unknown as Record<string, unknown>;
-      applyPath(branding, path, value);
-      return {
-        config: {
-          ...state.config,
-          branding: branding as unknown as BrandingSettings,
-        },
-      };
+      const next = structuredClone(state.config) as Record<string, unknown>;
+      applyPath(next, path, value);
+      return { config: next as GameConfig };
     }),
+
+  patchBrandingPath: (path, value) => get().patchConfigPath(path, value),
 
   exportClientPayload: () =>
     buildPersistedClientPayload(get().config, get().projectManifest),

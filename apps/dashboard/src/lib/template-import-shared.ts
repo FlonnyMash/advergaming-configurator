@@ -10,7 +10,6 @@ export const TEMPLATE_LIBRARY_SKIP_SEGMENTS = new Set([
 
 export const TEMPLATE_EXPORT_SKIP_FILES = new Set([
   "package-lock.json",
-  "pnpm-lock.yaml",
   "yarn.lock",
 ]);
 

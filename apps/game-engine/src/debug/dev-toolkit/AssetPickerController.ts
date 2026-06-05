@@ -1,4 +1,4 @@
-import type { DevToolkitPickedAsset, GameMasterConfig } from "@mashedgames/shared";
+import type { DevToolkitPickedAsset, GameConfig } from "@mashedgames/shared";
 import Phaser from "phaser";
 import { textureFrameToDataUrl } from "./assetPickerSnapshot.ts";
 import { enrichPickedAsset } from "./resolvePickedAssetLayout.ts";
@@ -58,7 +58,7 @@ export class AssetPickerController {
   private readonly canvas: HTMLCanvasElement;
   private readonly game: Phaser.Game;
   private readonly onPicked: (asset: DevToolkitPickedAsset) => void;
-  private readonly getMasterConfig: () => GameMasterConfig | null;
+  private readonly getMasterConfig: () => GameConfig | null;
   private readonly sceneHandlers = new Map<
     string,
     (pointer: Phaser.Input.Pointer) => void
@@ -67,7 +67,7 @@ export class AssetPickerController {
   constructor(
     game: Phaser.Game,
     onPicked: (asset: DevToolkitPickedAsset) => void,
-    getMasterConfig: () => GameMasterConfig | null,
+    getMasterConfig: () => GameConfig | null,
   ) {
     this.game = game;
     this.onPicked = onPicked;

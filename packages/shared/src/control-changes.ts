@@ -1,10 +1,10 @@
 import { filterSchemaControls } from "./permissions";
 import { getConfigValue } from "./config-utils";
+import type { GameConfig } from "./game-config-bridge";
 import type {
   AppMode,
   ControlFieldSchema,
   ControlValue,
-  GameMasterConfig,
   GameSchema,
 } from "./game-schema";
 
@@ -38,8 +38,8 @@ export function controlsForMode(
 
 export function listControlChanges(
   controls: ControlFieldSchema[],
-  saved: GameMasterConfig,
-  current: GameMasterConfig,
+  saved: GameConfig,
+  current: GameConfig,
 ): ControlChange[] {
   const changes: ControlChange[] = [];
 
@@ -63,8 +63,8 @@ export function listControlChanges(
 export function listSchemaControlChanges(
   schema: GameSchema,
   mode: AppMode,
-  saved: GameMasterConfig,
-  current: GameMasterConfig,
+  saved: GameConfig,
+  current: GameConfig,
 ): ControlChange[] {
   return listControlChanges(controlsForMode(schema, mode), saved, current);
 }

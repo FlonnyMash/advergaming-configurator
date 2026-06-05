@@ -1,5 +1,9 @@
 import AdmZip from "adm-zip";
-import { isTemplateManifest, type GameMasterConfig } from "@mashedgames/shared";
+import {
+  isTemplateManifest,
+  mergeFlatConfigIntoTemplateJson,
+  type GameConfig,
+} from "@mashedgames/shared";
 import {
   existsSync,
   readFileSync,
@@ -9,7 +13,6 @@ import {
 } from "node:fs";
 import { mkdir, readdir, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { mergeStudioConfigIntoLegacyConfig } from "@/lib/legacy-config-merge";
 import { TEMPLATE_ID_PATTERN } from "@/lib/template-import-normalize";
 import {
   isNestedTemplateMirrorPath,
@@ -162,7 +165,7 @@ function rewriteAssetPathsForExport(value: unknown): unknown {
 function buildConfigJsonForZip(
   templateDir: string,
   templateId: string,
-  studioConfig?: GameMasterConfig,
+  studioConfig?: GameConfig,
 ): string | null {
   const configPath = path.join(templateDir, "public", "config.json");
   if (!existsSync(configPath) && !studioConfig) {
@@ -175,7 +178,7 @@ function buildConfigJsonForZip(
   }
 
   if (studioConfig) {
-    base = mergeStudioConfigIntoLegacyConfig(base, studioConfig);
+    base = mergeFlatConfigIntoTemplateJson(base, studioConfig);
   }
 
   return `${JSON.stringify(rewriteAssetPathsForExport(base), null, 2)}\n`;
@@ -290,7 +293,7 @@ async function writeExportFile(
 export async function exportTemplateToDirectory(
   templateId: string,
   destDir: string,
-  studioConfig?: GameMasterConfig,
+  studioConfig?: GameConfig,
   options?: ExportTemplateOptions,
 ): Promise<ExportTemplateToDirectoryResult> {
   if (!TEMPLATE_ID_PATTERN.test(templateId)) {
@@ -361,7 +364,7 @@ export async function exportTemplateToDirectory(
 
 export function buildTemplateZip(
   templateId: string,
-  studioConfig?: GameMasterConfig,
+  studioConfig?: GameConfig,
   options?: ExportTemplateOptions,
 ): BuildTemplateZipResult {
   if (!TEMPLATE_ID_PATTERN.test(templateId)) {

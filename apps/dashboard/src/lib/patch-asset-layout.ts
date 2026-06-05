@@ -1,7 +1,7 @@
 import type {
   DevToolkitAssetConfigBinding,
   DevToolkitAssetLayout,
-  GameMasterConfig,
+  GameConfig,
 } from "@mashedgames/shared";
 
 function configRootPath(binding: DevToolkitAssetConfigBinding): string {
@@ -120,23 +120,14 @@ function readLayoutEntry(entry: unknown): DevToolkitAssetLayout | undefined {
   return undefined;
 }
 
-/** Reads layout from branding, then system (same precedence as runtime). */
+/** Reads layout from flat config (`catchGame.assets.*`). */
 export function readAssetLayoutFromStudioConfig(
-  config: GameMasterConfig,
+  config: GameConfig,
   binding: DevToolkitAssetConfigBinding,
 ): DevToolkitAssetLayout | undefined {
   const root = configRootPath(binding);
-  for (const slice of [
-    config.branding as unknown as Record<string, unknown>,
-    config.system as unknown as Record<string, unknown>,
-  ]) {
-    const entry = readPath(slice, root);
-    const layout = readLayoutEntry(entry);
-    if (layout) {
-      return layout;
-    }
-  }
-  return undefined;
+  const entry = readPath(config as Record<string, unknown>, root);
+  return readLayoutEntry(entry);
 }
 
 export function layoutsEqual(

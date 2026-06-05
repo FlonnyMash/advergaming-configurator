@@ -57,6 +57,11 @@ function templatePublicAssetsPlugin(): Plugin {
     configureServer(server) {
       server.middlewares.use((req, res, next) => {
         const url = req.url?.split("?")[0] ?? "";
+        if (url.endsWith("/phaser.js.map") || url.endsWith("phaser.js.map")) {
+          res.setHeader("Content-Type", "application/json");
+          res.end("{}");
+          return;
+        }
         const match = /^\/template-assets\/([^/]+)\/(.*)$/.exec(url);
         if (!match) {
           next();

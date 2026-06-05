@@ -232,6 +232,7 @@ class DashboardMessenger {
   }
 
   sendLoadTemplate(templateId: GameTemplateId): void {
+    this.expectedTemplateId = templateId;
     if (this.iframeReady && this.targetWindow) {
       this.postLoadTemplate(templateId);
       return;

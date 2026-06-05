@@ -1,9 +1,10 @@
 import {
+  applyPath,
   filterSchemaControls,
   getConfigValue,
   type ControlFieldSchema,
   type ControlValue,
-  type GameMasterConfig,
+  type GameConfig,
   type GameSchema,
 } from "@mashedgames/shared";
 
@@ -15,12 +16,12 @@ export function controlSnapshotKey(control: ControlFieldSchema): string {
   return `${control.targetCategory}:${control.targetPath}`;
 }
 
-export function cloneGameMasterConfig(config: GameMasterConfig): GameMasterConfig {
+export function cloneGameConfig(config: GameConfig): GameConfig {
   return structuredClone(config);
 }
 
 export function captureGameControlsSnapshot(
-  config: GameMasterConfig,
+  config: GameConfig,
   controls: ControlFieldSchema[],
 ): GameControlsSnapshot {
   const snapshot: GameControlsSnapshot = {};
@@ -31,21 +32,18 @@ export function captureGameControlsSnapshot(
 }
 
 export function applyGameControlsSnapshot(
-  config: GameMasterConfig,
+  config: GameConfig,
   controls: ControlFieldSchema[],
   snapshot: GameControlsSnapshot,
-): GameMasterConfig {
-  const next = cloneGameMasterConfig(config);
+): GameConfig {
+  const next = cloneGameConfig(config);
+  const root = next as Record<string, unknown>;
   for (const control of controls) {
     const value = snapshot[controlSnapshotKey(control)];
     if (value === undefined) {
       continue;
     }
-    const slice =
-      control.targetCategory === "system"
-        ? (next.system as unknown as Record<string, unknown>)
-        : (next.branding as unknown as Record<string, unknown>);
-    applyControlValue(slice, control.targetPath, value);
+    applyPath(root, control.targetPath, value);
   }
   return next;
 }
@@ -66,72 +64,18 @@ export function studioControlsForSchema(schema: GameSchema): ControlFieldSchema[
 }
 
 export function mergeGameControlsFromSaved(
-  current: GameMasterConfig,
-  saved: GameMasterConfig,
+  current: GameConfig,
+  saved: GameConfig,
   controls: ControlFieldSchema[],
-): GameMasterConfig {
-  const next = cloneGameMasterConfig(current);
+): GameConfig {
+  const next = cloneGameConfig(current);
 
   for (const control of controls) {
     const value = getConfigValue(saved, control);
-    const slice =
-      control.targetCategory === "system"
-        ? (next.system as unknown as Record<string, unknown>)
-        : (next.branding as unknown as Record<string, unknown>);
-    applyControlValue(slice, control.targetPath, value);
+    applyPath(next as Record<string, unknown>, control.targetPath, value);
   }
 
   return next;
-}
-
-function applyControlValue(
-  slice: Record<string, unknown>,
-  path: string,
-  value: ControlValue,
-): void {
-  const parts = path.split(".");
-  let current: unknown = slice;
-
-  for (let i = 0; i < parts.length - 1; i++) {
-    const key = parts[i]!;
-    const nextKey = parts[i + 1]!;
-    const nextIsIndex = /^\d+$/.test(nextKey);
-
-    if (Array.isArray(current)) {
-      const index = Number(key);
-      if (
-        current[index] === undefined ||
-        (typeof current[index] !== "object" && !Array.isArray(current[index]))
-      ) {
-        current[index] = nextIsIndex ? [] : {};
-      }
-      current = current[index];
-      continue;
-    }
-
-    if (typeof current !== "object" || current === null) {
-      return;
-    }
-
-    const record = current as Record<string, unknown>;
-    if (
-      !(key in record) ||
-      record[key] === null ||
-      (typeof record[key] !== "object" && !Array.isArray(record[key]))
-    ) {
-      record[key] = nextIsIndex ? [] : {};
-    }
-    current = record[key];
-  }
-
-  const last = parts[parts.length - 1]!;
-  if (Array.isArray(current)) {
-    current[Number(last)] = value;
-    return;
-  }
-  if (typeof current === "object" && current !== null) {
-    (current as Record<string, unknown>)[last] = value;
-  }
 }
 
 export type GameControlChange = {
@@ -143,8 +87,8 @@ export type GameControlChange = {
 
 export function listGameControlChanges(
   schema: GameSchema,
-  saved: GameMasterConfig,
-  current: GameMasterConfig,
+  saved: GameConfig,
+  current: GameConfig,
 ): GameControlChange[] {
   const controls = studioControlsForSchema(schema);
   const changes: GameControlChange[] = [];
@@ -167,8 +111,8 @@ export function listGameControlChanges(
 
 export function hasUnsavedGameControls(
   schema: GameSchema,
-  saved: GameMasterConfig,
-  current: GameMasterConfig,
+  saved: GameConfig,
+  current: GameConfig,
 ): boolean {
   return listGameControlChanges(schema, saved, current).length > 0;
 }

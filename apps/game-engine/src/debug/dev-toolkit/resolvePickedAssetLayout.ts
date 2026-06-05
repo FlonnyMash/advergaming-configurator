@@ -3,7 +3,7 @@ import type {
   DevToolkitAssetLayout,
   DevToolkitPickedAsset,
 } from "@mashedgames/shared";
-import type { GameMasterConfig } from "@mashedgames/shared";
+import type { GameConfig } from "@mashedgames/shared";
 import Phaser from "phaser";
 import { readRuntimeArcadeBodyLayout } from "../../game/arcadeSpriteLayout.ts";
 
@@ -59,18 +59,14 @@ function readLayoutFromConfigEntry(entry: unknown): DevToolkitAssetLayout | unde
   return undefined;
 }
 
-function readCatchGameAssets(config: GameMasterConfig): LayoutRecord | undefined {
-  for (const slice of [
-    (config.branding as LayoutRecord).catchGame,
-    (config.system as LayoutRecord).catchGame,
-  ]) {
-    if (!isRecord(slice)) {
-      continue;
-    }
-    const assets = slice.assets;
-    if (isRecord(assets)) {
-      return assets;
-    }
+function readCatchGameAssets(config: GameConfig): LayoutRecord | undefined {
+  const slice = config.catchGame;
+  if (!isRecord(slice)) {
+    return undefined;
+  }
+  const assets = slice.assets;
+  if (isRecord(assets)) {
+    return assets;
   }
   return undefined;
 }
@@ -79,7 +75,7 @@ function resolveCatchGameBinding(
   textureKey: string,
   itemType: string | undefined,
   itemIndex: number | undefined,
-  config: GameMasterConfig,
+  config: GameConfig,
 ): DevToolkitAssetConfigBinding | null {
   if (textureKey === PLAYER_TEXTURE_KEY || textureKey.startsWith(`${PLAYER_TEXTURE_KEY}-`)) {
     return { scope: "branding", itemKind: "playerSprite" };
@@ -138,7 +134,7 @@ function mergeLayoutSlices(
 
 function readLayoutForBinding(
   binding: DevToolkitAssetConfigBinding,
-  config: GameMasterConfig,
+  config: GameConfig,
 ): DevToolkitAssetLayout | undefined {
   const fromSystem = readLayoutForScope(binding, config, "system");
   const fromBranding = readLayoutForScope(binding, config, "branding");
@@ -158,13 +154,11 @@ function readLayoutForBinding(
 
 function readLayoutForScope(
   binding: DevToolkitAssetConfigBinding,
-  config: GameMasterConfig,
+  config: GameConfig,
   scope: DevToolkitAssetConfigBinding["scope"],
 ): DevToolkitAssetLayout | undefined {
-  const slice =
-    scope === "branding"
-      ? (config.branding as LayoutRecord).catchGame
-      : (config.system as LayoutRecord).catchGame;
+  void scope;
+  const slice = config.catchGame;
 
   if (!isRecord(slice) || !isRecord(slice.assets)) {
     return undefined;
@@ -205,7 +199,7 @@ function readOriginFromObject(
 export function enrichPickedAsset(
   base: DevToolkitPickedAsset,
   object: Phaser.GameObjects.GameObject,
-  masterConfig: GameMasterConfig | null,
+  masterConfig: GameConfig | null,
 ): DevToolkitPickedAsset {
   try {
     return enrichPickedAssetUnsafe(base, object, masterConfig);
@@ -220,7 +214,7 @@ export function enrichPickedAsset(
 function enrichPickedAssetUnsafe(
   base: DevToolkitPickedAsset,
   object: Phaser.GameObjects.GameObject,
-  masterConfig: GameMasterConfig | null,
+  masterConfig: GameConfig | null,
 ): DevToolkitPickedAsset {
   const itemType =
     "getData" in object && typeof object.getData === "function"

@@ -1,12 +1,4 @@
 import { z } from "zod";
-import { mergeBrandingPatch, normalizeGameMasterConfig } from "./config-utils";
-import {
-  isBrandingPatchShape,
-  type BrandingPatch,
-  type GameMasterConfig,
-  type GameTemplateId,
-} from "./game-schema";
-import { DEFAULT_GAME_MASTER_CONFIG } from "./types";
 
 const WorkspaceModeSchema = z.enum(["studio", "configurator"]);
 
@@ -14,17 +6,6 @@ export const EditorStateSchema = z.object({
   workspaceMode: WorkspaceModeSchema,
   isAssetInspectorActive: z.boolean(),
   activeEntityId: z.string().nullable(),
-});
-
-function lazyGameMasterConfigSchema(): z.ZodType<GameMasterConfig> {
-  const { GameMasterConfigSchema } =
-    require("./game-schema") as typeof import("./game-schema");
-  return GameMasterConfigSchema;
-}
-
-export const BridgePayloadSchema = z.object({
-  editorState: EditorStateSchema,
-  gameConfig: z.lazy(lazyGameMasterConfigSchema),
 });
 
 export const HitboxUpdatePayloadSchema = z.object({
@@ -41,7 +22,6 @@ export const HitboxUpdatedMessageSchema = z.object({
 });
 
 export type EditorState = z.infer<typeof EditorStateSchema>;
-export type BridgePayload = z.infer<typeof BridgePayloadSchema>;
 export type HitboxUpdatePayload = z.infer<typeof HitboxUpdatePayloadSchema>;
 export type HitboxUpdatedMessage = z.infer<typeof HitboxUpdatedMessageSchema>;
 
@@ -83,11 +63,6 @@ export function parseEntityId(
   return { scope, itemKind, itemIndex };
 }
 
-export function parseBridgePayload(data: unknown): BridgePayload | null {
-  const result = BridgePayloadSchema.safeParse(data);
-  return result.success ? result.data : null;
-}
-
 export function parseHitboxUpdatedMessage(
   data: unknown,
 ): HitboxUpdatedMessage | null {
@@ -101,71 +76,7 @@ export function isHitboxUpdatedMessage(
   return parseHitboxUpdatedMessage(data) !== null;
 }
 
-export function isBridgePayloadShape(data: unknown): data is BridgePayload {
-  return parseBridgePayload(data) !== null;
-}
-
-export function coerceUpdateConfigPayload(
-  payload: unknown,
-  templateId: GameTemplateId,
-  previousConfig: GameMasterConfig,
-): BridgePayload | null {
-  const bridgePayload = parseBridgePayload(payload);
-  if (bridgePayload) {
-    return bridgePayload;
-  }
-
-  if (isBrandingPatchShape(payload)) {
-    return cloneForBridgePostMessage({
-      editorState: DEFAULT_EDITOR_STATE,
-      gameConfig: mergeBrandingPatch(previousConfig, payload as BrandingPatch),
-    });
-  }
-
-  const normalized = normalizeGameMasterConfig(payload, templateId);
-  if (!normalized) {
-    return null;
-  }
-
-  return cloneForBridgePostMessage({
-    editorState: DEFAULT_EDITOR_STATE,
-    gameConfig: normalized,
-  });
-}
-
-export function buildBridgePayload(
-  editorState: EditorState,
-  gameConfig: GameMasterConfig,
-  appMode: EditorState["workspaceMode"],
-): BridgePayload {
-  const sanitizedEditorState: EditorState =
-    appMode === "configurator"
-      ? {
-          workspaceMode: "configurator",
-          isAssetInspectorActive: false,
-          activeEntityId: null,
-        }
-      : { ...editorState, workspaceMode: appMode };
-
-  return cloneForBridgePostMessage({
-    editorState: sanitizedEditorState,
-    gameConfig,
-  });
-}
-
 /** Deep clone using JSON so postMessage never sees functions or live store refs. */
 export function cloneForBridgePostMessage<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
-}
-
-export function defaultBridgePayload(
-  templateId: GameTemplateId = DEFAULT_GAME_MASTER_CONFIG.meta.templateId,
-): BridgePayload {
-  return {
-    editorState: DEFAULT_EDITOR_STATE,
-    gameConfig: {
-      ...DEFAULT_GAME_MASTER_CONFIG,
-      meta: { ...DEFAULT_GAME_MASTER_CONFIG.meta, templateId },
-    },
-  };
 }

@@ -2,7 +2,7 @@ import {
   encodeEntityId,
   parseEntityId,
   type EditorState,
-  type GameMasterConfig,
+  type GameConfig,
 } from "@mashedgames/shared";
 import Phaser from "phaser";
 import {
@@ -41,7 +41,7 @@ function readCatchItemIndex(value: unknown): number | undefined {
 
 function entityIdForObject(
   object: Phaser.GameObjects.GameObject,
-  masterConfig: GameMasterConfig,
+  masterConfig: GameConfig,
 ): string | null {
   if (!("getData" in object) || typeof object.getData !== "function") {
     return null;
@@ -88,7 +88,7 @@ function entityIdForObject(
 function findTargetSprite(
   game: Phaser.Game,
   entityId: string,
-  masterConfig: GameMasterConfig,
+  masterConfig: GameConfig,
 ): ArcadeTarget | null {
   const parsed = parseEntityId(entityId);
   if (!parsed) {
@@ -137,7 +137,7 @@ function findTargetSprite(
 
 export class HitboxEditorController {
   private readonly game: Phaser.Game;
-  private readonly getMasterConfig: () => GameMasterConfig;
+  private readonly getMasterConfig: () => GameConfig;
   private activeEntityId: string | null = null;
   private target: ArcadeTarget | null = null;
   private outline: Phaser.GameObjects.Graphics | null = null;
@@ -152,7 +152,7 @@ export class HitboxEditorController {
     offsetY: 0,
   };
 
-  constructor(game: Phaser.Game, getMasterConfig: () => GameMasterConfig) {
+  constructor(game: Phaser.Game, getMasterConfig: () => GameConfig) {
     this.game = game;
     this.getMasterConfig = getMasterConfig;
   }

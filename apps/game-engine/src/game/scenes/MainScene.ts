@@ -1,6 +1,6 @@
 import {
   resolvePhaserSceneKeys,
-  type GameMasterConfig,
+  type GameConfig,
   type GameTemplateId,
 } from "@mashedgames/shared";
 import Phaser from "phaser";
@@ -23,7 +23,6 @@ export const MAIN_SCENE_KEY = "MainScene";
 export type MainSceneLoadCompleteHandler = () => void;
 
 export class MainScene extends Phaser.Scene {
-  private currentTemplateId: GameTemplateId | null = null;
   private loading = false;
   private onLoadComplete: MainSceneLoadCompleteHandler | null = null;
   private previousTemplateId: GameTemplateId | null = null;
@@ -42,7 +41,7 @@ export class MainScene extends Phaser.Scene {
 
   async loadTemplate(
     templateId: GameTemplateId,
-    config: GameMasterConfig,
+    config: GameConfig,
   ): Promise<void> {
     if (this.loading) return;
 
@@ -65,7 +64,6 @@ export class MainScene extends Phaser.Scene {
     gameChromeOverlayManager.clear();
     purgeTemplateTextures(this);
 
-    this.currentTemplateId = templateId;
     this.previousTemplateId = templateId;
 
     const sceneKeys = resolvePhaserSceneKeys(entry.manifest);
@@ -99,15 +97,6 @@ export class MainScene extends Phaser.Scene {
 
     this.loading = false;
     this.onLoadComplete?.();
-  }
-
-  updateConfig(config: GameMasterConfig): void {
-    if (this.loading || !this.game) return;
-
-    if (this.currentTemplateId !== "catch-game-demo") {
-      updateDomOverlays(config);
-    }
-    updatePhaserMechanics(config, this.game);
   }
 
   private unmountChildScenes(): void {

@@ -4,7 +4,8 @@ import { ParentDriftDialog } from "@/components/configurator/ParentDriftDialog";
 import { useConfiguratorStore } from "@mashedgames/configurator-engine";
 import type {
   ClientProjectPayload,
-  GameMasterConfig,
+  GameConfig,
+  flattenLegacyConfig,
   GameProjectManifest,
   ParentDriftReport,
 } from "@mashedgames/shared";
@@ -75,7 +76,7 @@ export function ConfiguratorProjectGate({
           ok?: boolean;
           error?: string;
           manifest?: GameProjectManifest;
-          config?: GameMasterConfig;
+          config?: GameConfig;
           client?: ClientProjectPayload;
           runtimeAssets?: Record<string, string>;
         };

@@ -14,7 +14,7 @@ export {
   selectStudioConfig,
 } from "./store/useStudioConfigStore";
 export {
-  cloneGameMasterConfig,
+  cloneGameConfig,
   hasUnsavedGameControls,
   listGameControlChanges,
   studioControlsForSchema,

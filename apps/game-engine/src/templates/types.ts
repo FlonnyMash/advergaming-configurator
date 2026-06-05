@@ -1,7 +1,7 @@
-import type { GameMasterConfig } from "@mashedgames/shared";
+import type { GameConfig } from "@mashedgames/shared";
 import type Phaser from "phaser";
 
 export interface TemplateScene extends Phaser.Scene {
-  updateConfig?(config: GameMasterConfig): void;
+  updateConfig?(config: GameConfig): void;
   start?(): void;
 }

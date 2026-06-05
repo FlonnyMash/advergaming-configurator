@@ -1,9 +1,6 @@
 import { z } from "zod";
-import {
-  GameMasterConfigSchema,
-  GameMasterConfigMetaSchema,
-  GameTemplateIdSchema,
-} from "./game-schema";
+import { GameConfigSchema } from "./game-config-bridge";
+import { GameTemplateIdSchema } from "./game-schema";
 
 /** Kebab-case slug for project folder names (same rules as template ids). */
 export const PROJECT_ID_PATTERN = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/;
@@ -24,10 +21,7 @@ export const GameProjectManifestSchema = z.object({
 
 export type GameProjectManifest = z.infer<typeof GameProjectManifestSchema>;
 
-export const ClientProjectPayloadSchema = z.object({
-  meta: GameMasterConfigMetaSchema,
-  branding: GameMasterConfigSchema.shape.branding,
-});
+export const ClientProjectPayloadSchema = GameConfigSchema;
 
 export type ClientProjectPayload = z.infer<typeof ClientProjectPayloadSchema>;
 
@@ -36,7 +30,7 @@ export const ParentLockSnapshotSchema = z.object({
   parentTemplateId: GameTemplateIdSchema,
   parentVersion: z.string(),
   parentSchemaVersion: z.string(),
-  config: GameMasterConfigSchema,
+  config: GameConfigSchema,
 });
 
 export type ParentLockSnapshot = z.infer<typeof ParentLockSnapshotSchema>;

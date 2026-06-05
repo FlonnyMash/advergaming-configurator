@@ -1,4 +1,4 @@
-import type { GameMasterConfig } from "@mashedgames/shared";
+import type { GameConfig } from "@mashedgames/shared";
 import type Phaser from "phaser";
 import { resolveTextureUrl } from "../bridge/asset-loader.ts";
 import { getRuntimeAssets } from "../bridge/runtime-assets.ts";
@@ -64,11 +64,10 @@ function textureKeyFromUrl(url: string, index: number): string {
 export function preloadTemplateAssets(
   scene: Phaser.Scene,
   templateId: string,
-  config: GameMasterConfig,
+  config: GameConfig,
 ): Promise<void> {
   const urls = new Set<string>();
-  collectImageUrls(config.branding, urls);
-  collectImageUrls(config.system, urls);
+  collectImageUrls(config, urls);
 
   const runtimeAssets = getRuntimeAssets();
   for (const rel of Object.keys(runtimeAssets)) {
@@ -76,7 +75,7 @@ export function preloadTemplateAssets(
   }
 
   const resolveContext = {
-    projectId: config.meta.projectId,
+    projectId: config.projectId,
     runtimeAssets,
   };
 

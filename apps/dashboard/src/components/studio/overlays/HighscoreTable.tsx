@@ -1,9 +1,10 @@
 "use client";
 
+import { getDomOverlayForUi } from "@mashedgames/shared";
 import type { TemplateOverlayProps } from "./types";
 
 export function HighscoreTable({ config, disabled }: TemplateOverlayProps) {
-  const domOverlay = config.branding.domOverlay;
+  const domOverlay = getDomOverlayForUi(config);
 
   if (!domOverlay.showHighscores) {
     return null;

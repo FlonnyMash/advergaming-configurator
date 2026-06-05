@@ -1,7 +1,7 @@
 import {
   DevToolkitAssetLayoutSchema,
   type DevToolkitAssetLayout,
-  type GameMasterConfig,
+  type GameConfig as BridgeGameConfig,
 } from '@mashedgames/shared';
 import Phaser from 'phaser';
 import { applyArcadeSpriteLayout } from '../../../../../../game/arcadeSpriteLayout.ts';
@@ -78,7 +78,7 @@ interface GameViewportConfig {
   backgroundColor?: string;
 }
 
-interface GameConfig {
+interface CatchGameTemplateConfig {
   game?: GameViewportConfig;
   assets: AssetConfig;
   physics: PhysicsConfig;
@@ -101,7 +101,7 @@ export class PlayScene extends Phaser.Scene implements TemplateScene {
   private groundTopY = 0;
   private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
   private itemGroup!: Phaser.Physics.Arcade.Group;
-  private config!: GameConfig;
+  private config!: CatchGameTemplateConfig;
   private minFallSpeed = 0;
   private maxFallSpeed = 0;
   private isPlaying = false;
@@ -155,11 +155,11 @@ export class PlayScene extends Phaser.Scene implements TemplateScene {
     super('PlayScene');
   }
 
-  updateConfig(_config: GameMasterConfig): void {
+  updateConfig(_config: BridgeGameConfig): void {
     // Legacy bridge scene owns live config; avoid double-applying (breaks Phaser loader).
   }
 
-  private buildTextureSignature(config: GameConfig): string {
+  private buildTextureSignature(config: CatchGameTemplateConfig): string {
     return JSON.stringify({
       player: config.assets.player,
       ground: config.assets.ground.image,
@@ -169,7 +169,7 @@ export class PlayScene extends Phaser.Scene implements TemplateScene {
   }
 
   /** Apply physics, gameplay, and background tweaks without touching textures. */
-  private applyRuntimeSettings(config: GameConfig): void {
+  private applyRuntimeSettings(config: CatchGameTemplateConfig): void {
     this.config = config;
 
     const bg = config.game?.backgroundColor;
@@ -208,7 +208,7 @@ export class PlayScene extends Phaser.Scene implements TemplateScene {
       return;
     }
 
-    let nextConfig: GameConfig;
+    let nextConfig: CatchGameTemplateConfig;
     try {
       nextConfig = this.getConfig();
     } catch (error) {
@@ -788,13 +788,13 @@ export class PlayScene extends Phaser.Scene implements TemplateScene {
     this.game.events.emit('timerUpdated', this.timeRemaining);
   }
 
-  private getConfig(): GameConfig {
+  private getConfig(): CatchGameTemplateConfig {
     const rawConfig = this.game.registry.get('config');
     if (!rawConfig) {
       throw new Error('Game config is not available in registry under key "config".');
     }
 
-    const config = rawConfig as Partial<GameConfig>;
+    const config = rawConfig as Partial<CatchGameTemplateConfig>;
     if (
       typeof config.assets?.ground?.image !== 'string' ||
       typeof config.assets.ground.height !== 'number' ||
@@ -818,7 +818,7 @@ export class PlayScene extends Phaser.Scene implements TemplateScene {
       throw new Error('Invalid config shape. Verify assets, physics, and gameplay values in public/config.json.');
     }
 
-    return config as GameConfig;
+    return config as CatchGameTemplateConfig;
   }
 
   private isValidGoodItems(items: unknown): items is GoodItemConfig[] {

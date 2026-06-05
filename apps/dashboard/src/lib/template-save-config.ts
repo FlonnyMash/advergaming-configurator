@@ -1,21 +1,22 @@
 import {
   getConfigValue,
   isTemplateManifest,
-  type GameMasterConfig,
+  mergeFlatConfigIntoTemplateJson,
+  type GameConfig,
   type TemplateConfigJsonSchema,
   type TemplateManifest,
 } from "@mashedgames/shared";
-import { existsSync, readFileSync, statSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
-import { mergeStudioConfigIntoLegacyConfig } from "@/lib/legacy-config-merge";
 import { TEMPLATE_ID_PATTERN } from "@/lib/template-import-normalize";
+import { resolveTemplateLocation } from "@/lib/template-studio-meta";
 import { templateLibraryRoot } from "@/lib/template-library-root";
 
 export { templateLibraryRoot };
 
 function syncManifestSchemaDefaults(
   node: TemplateConfigJsonSchema,
-  config: GameMasterConfig,
+  config: GameConfig,
   defaultCategory: "system" | "branding" = "branding",
 ): void {
   const xControl = node["x-control"];
@@ -35,7 +36,16 @@ function syncManifestSchemaDefaults(
         surface: xControl.surface ?? "studio",
         defaultValue: node.default,
       };
-      const value = getConfigValue(config, control);
+      const value = getConfigValue(config, {
+        ...control,
+        defaultValue:
+          typeof control.defaultValue === "string" ||
+          typeof control.defaultValue === "number" ||
+          typeof control.defaultValue === "boolean" ||
+          control.defaultValue === null
+            ? control.defaultValue
+            : null,
+      });
       if (
         typeof value === "string" ||
         typeof value === "number" ||
@@ -58,37 +68,46 @@ function syncManifestSchemaDefaults(
 
 function buildLegacyConfigJson(
   templateDir: string,
-  studioConfig: GameMasterConfig,
+  studioConfig: GameConfig,
 ): string {
   const configPath = path.join(templateDir, "public", "config.json");
   let base: Record<string, unknown> = {};
   if (existsSync(configPath)) {
     base = JSON.parse(readFileSync(configPath, "utf8")) as Record<string, unknown>;
   }
-  const merged = mergeStudioConfigIntoLegacyConfig(base, studioConfig);
+  const merged = mergeFlatConfigIntoTemplateJson(base, studioConfig);
+  mkdirSync(path.dirname(configPath), { recursive: true });
   return `${JSON.stringify(merged, null, 2)}\n`;
 }
 
 export type SaveTemplateConfigResult =
-  | { ok: true; templateId: string; wroteConfig: boolean; wroteManifest: boolean }
+  | {
+      ok: true;
+      templateId: string;
+      source: "library" | "development";
+      wroteConfig: boolean;
+      wroteManifest: boolean;
+    }
   | { ok: false; error: string; status: number };
 
 export function saveTemplateConfigToLibrary(
   templateId: string,
-  studioConfig: GameMasterConfig,
+  studioConfig: GameConfig,
 ): SaveTemplateConfigResult {
   if (!TEMPLATE_ID_PATTERN.test(templateId)) {
     return { ok: false, error: "Invalid template ID.", status: 400 };
   }
 
-  const templateDir = path.join(templateLibraryRoot, templateId);
-  if (!existsSync(templateDir) || !statSync(templateDir).isDirectory()) {
+  const location = resolveTemplateLocation(templateId);
+  if (!location) {
     return {
       ok: false,
-      error: `Template "${templateId}" is not installed in library/.`,
+      error: `Template "${templateId}" was not found in library/ or development/.`,
       status: 404,
     };
   }
+
+  const templateDir = location.directoryPath;
 
   const configPath = path.join(templateDir, "public", "config.json");
   const configJson = buildLegacyConfigJson(templateDir, studioConfig);
@@ -113,6 +132,7 @@ export function saveTemplateConfigToLibrary(
   return {
     ok: true,
     templateId,
+    source: location.source,
     wroteConfig: true,
     wroteManifest,
   };

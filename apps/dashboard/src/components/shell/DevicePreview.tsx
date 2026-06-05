@@ -4,12 +4,14 @@ import {
   createDashboardMessenger,
   gameEngineOrigin,
   getGameEngineOrigin,
+  resolveGameEnginePreviewUrl,
 } from "@/bridge/messenger";
 import { useHitboxInboundBridge } from "@/hooks/useHitboxInboundBridge";
 import { useGameChromeOverlayStore } from "@/lib/game-chrome-overlay-store";
 import { usePreviewBridgeStore } from "@/lib/preview-bridge-store";
 import { useBridgeSync } from "@/store/useBridgeSync";
-import type { AppMode, ConfigUpdateMode, GameMasterConfig, GameTemplateId } from "@mashedgames/shared";
+import { useConfigStore } from "@/store/useConfigStore";
+import type { AppMode, GameTemplateId } from "@mashedgames/shared";
 import {
   GAME_CHROME_BRIDGE_EVENTS,
   parseGameChromeOverlaysRegistryPayload,
@@ -22,14 +24,6 @@ const PHONE_FRAME_HEIGHT = 844;
 export interface DevicePreviewProps {
   appMode: AppMode;
   initialTemplateId: GameTemplateId;
-  getConfig: () => GameMasterConfig;
-  subscribe: (
-    listener: (state: {
-      config: GameMasterConfig;
-      selectedTemplateId: GameTemplateId;
-    }) => void,
-  ) => () => void;
-  configUpdateMode?: ConfigUpdateMode;
   /** Keep iframe mounted but pause dashboard ↔ game bridge (e.g. hidden workspace). */
   suspended?: boolean;
   /** @deprecated Alias for `suspended` used by CenterWorkspace. */
@@ -41,9 +35,6 @@ export interface DevicePreviewProps {
 export function DevicePreview({
   appMode,
   initialTemplateId,
-  getConfig,
-  subscribe,
-  configUpdateMode = "full",
   suspended: suspendedProp = false,
   previewSuspended,
   overlaySlot,
@@ -63,18 +54,46 @@ export function DevicePreview({
   );
 
   const iframeSrc = useMemo(() => {
-    const url = new URL("/engine/index.html", window.location.origin);
-    url.searchParams.set("game", bootTemplateIdRef.current);
-    url.searchParams.set("appMode", appMode);
-    return url.toString();
+    return resolveGameEnginePreviewUrl(bootTemplateIdRef.current, appMode);
   }, [appMode]);
+
+  useEffect(() => {
+    if (suspended) {
+      return;
+    }
+
+    const iframe = iframeRef.current;
+    if (!iframe) {
+      return;
+    }
+
+    const bindIframeTarget = () => {
+      const contentWindow = iframe.contentWindow;
+      if (!contentWindow || contentWindow === window) {
+        return;
+      }
+      useConfigStore.getState().setIframeTarget(contentWindow);
+      useConfigStore.getState().setEngineReady(true);
+      messenger.setTarget(contentWindow);
+    };
+
+    bindIframeTarget();
+    iframe.addEventListener("load", bindIframeTarget);
+
+    return () => {
+      iframe.removeEventListener("load", bindIframeTarget);
+      useConfigStore.getState().setIframeTarget(null);
+      messenger.setTarget(null);
+    };
+  }, [iframeSrc, messenger, suspended]);
+
+  useEffect(() => {
+    useConfigStore.getState().setSelectedTemplateId(initialTemplateId);
+  }, [initialTemplateId]);
 
   useBridgeSync({
     appMode,
-    getConfig,
-    subscribe,
     messenger,
-    configUpdateMode,
     suspended,
     iframeRef,
     previewTemplateId: initialTemplateId,
@@ -214,4 +233,4 @@ export function DevicePreview({
   );
 }
 
-export { getGameEngineOrigin, gameEngineOrigin };
+export { getBridgePostMessageTargetOrigin, getGameEngineOrigin, gameEngineOrigin, resolveGameEnginePreviewUrl };

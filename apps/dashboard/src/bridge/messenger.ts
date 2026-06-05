@@ -1,32 +1,27 @@
 import {
   AssetReadyPayloadSchema,
+  AssetLoadErrorMessageSchema,
   BRIDGE_MESSAGE_TYPE,
-  DEFAULT_EDITOR_STATE,
-  DiagnosticsPayloadMessageSchema,
-  IframeReadyMessageSchema,
+  ConfigUpdatedMessageSchema,
+  EngineReadyMessageSchema,
+  GameConfigSchema,
   LoadExternalAssetPayloadSchema,
   SetRuntimeAssetsPayloadSchema,
-  buildBridgePayload,
   cloneForBridgePostMessage,
-  isDiagnosticsPayloadMessage,
+  isAssetLoadErrorMessage,
+  isEngineReadyMessage,
   isGameEventMessage,
   isHitboxUpdatedMessage,
-  isIframeReadyMessage,
-  type AssetReadyPayload,
-  type BridgePayload,
-  type GameEventMessage,
-  type HitboxUpdatePayload,
-  type IframeReadyMessage,
-  LoadTemplateMessageSchema,
-  RequestDiagnosticsMessageSchema,
-  UpdateConfigMessageSchema,
+  isLoadTemplateMessage,
+  resolveGameEngineBaseUrl,
   type AppMode,
-  type BrandingPatch,
-  type ConfigUpdateMode,
-  type GameMasterConfig,
+  type AssetLoadErrorPayload,
+  type AssetReadyPayload,
+  type GameConfig,
+  type GameEventMessage,
   type GameTemplateId,
-  type LoadTemplateMessage,
-  type UpdateConfigMessage,
+  type HitboxUpdatePayload,
+  LoadTemplateMessageSchema,
 } from "@mashedgames/shared";
 
 const isDev = process.env.NODE_ENV === "development";
@@ -55,15 +50,78 @@ function warnIfInvalid(
 const DEV_GAME_ENGINE_URL =
   process.env.NEXT_PUBLIC_GAME_ENGINE_URL ?? "http://localhost:5173";
 
-/** Static engine preview is same-origin under `/engine` (desktop + production web). */
+/** Origin of inbound postMessage events from the game-engine iframe. */
 export function getGameEngineOrigin(): string {
-  if (typeof window !== "undefined") {
-    return window.location.origin;
+  if (typeof window === "undefined") {
+    return new URL(DEV_GAME_ENGINE_URL).origin;
   }
-  return new URL(DEV_GAME_ENGINE_URL).origin;
+
+  const base = resolveGameEngineBaseUrl().replace(/\/$/, "");
+  if (base.startsWith("http://") || base.startsWith("https://")) {
+    return new URL(base).origin;
+  }
+
+  return window.location.origin;
 }
 
-/** @deprecated Prefer getGameEngineOrigin() for runtime same-origin embedded engine. */
+/**
+ * targetOrigin for dashboard → iframe postMessage.
+ * Dev uses '*' so cross-origin Vite preview (localhost:5173) always receives.
+ */
+export function getBridgePostMessageTargetOrigin(): string {
+  if (isDev) {
+    return "*";
+  }
+  return getGameEngineOrigin();
+}
+
+export function resolveGameEnginePreviewUrl(
+  templateId: GameTemplateId,
+  appMode: AppMode,
+): string {
+  const base = resolveGameEngineBaseUrl().replace(/\/$/, "");
+  const url =
+    base.startsWith("http://") || base.startsWith("https://")
+      ? new URL(`${base}/index.html`)
+      : new URL(`${base}/index.html`, window.location.origin);
+  url.searchParams.set("game", templateId);
+  url.searchParams.set("appMode", appMode);
+  return url.toString();
+}
+
+function isAllowedEngineMessageOrigin(origin: string): boolean {
+  if (origin === getGameEngineOrigin()) {
+    return true;
+  }
+  if (!isDev) {
+    return false;
+  }
+  try {
+    const { hostname } = new URL(origin);
+    return hostname === "localhost" || hostname === "127.0.0.1";
+  } catch {
+    return false;
+  }
+}
+
+function postMessageToIframe(
+  targetWindow: Window,
+  message: unknown,
+  label: string,
+): void {
+  const targetOrigin = getBridgePostMessageTargetOrigin();
+  if (isDev && label === "CONFIG_UPDATED") {
+    console.log(
+      `[Dashboard Bridge] Sending ${label}:`,
+      (message as { payload?: unknown }).payload ?? message,
+      "→ iframe",
+      targetOrigin,
+    );
+  }
+  targetWindow.postMessage(message, targetOrigin);
+}
+
+/** @deprecated Prefer getGameEngineOrigin() for runtime embedded engine origin checks. */
 export const gameEngineOrigin = getGameEngineOrigin();
 
 export function getDashboardAppMode(): AppMode {
@@ -71,35 +129,23 @@ export function getDashboardAppMode(): AppMode {
   return mode === "configurator" ? "configurator" : "studio";
 }
 
-type ConfigSender = GameMasterConfig | BrandingPatch;
-
-type PendingBridgeUpdate = {
-  payload: BridgePayload;
-  updateMode: ConfigUpdateMode;
-};
-
-type PendingLegacyUpdate = {
-  payload: ConfigSender;
-  updateMode: ConfigUpdateMode;
-};
-
 class DashboardMessenger {
   private targetWindow: Window | null = null;
-  private iframeReady = false;
+  private engineReady = false;
   private expectedTemplateId: GameTemplateId | null = null;
-  private pendingUpdates: PendingBridgeUpdate[] = [];
-  private pendingLegacyUpdates: PendingLegacyUpdate[] = [];
+  private pendingConfig: GameConfig | null = null;
   private pendingLoadTemplate: GameTemplateId | null = null;
-  private diagnosticsHandler: ((payload: unknown) => void) | null = null;
   private gameEventHandler: ((message: GameEventMessage) => void) | null =
     null;
   private hitboxUpdatedHandler: ((payload: HitboxUpdatePayload) => void) | null =
     null;
   private assetReadyHandler: ((payload: AssetReadyPayload) => void) | null =
     null;
-  private iframeReadyHandler:
-    | ((capabilities: IframeReadyMessage["capabilities"]) => void)
+  private engineReadyHandler:
+    | ((payload: { activeTemplateId: GameTemplateId }) => void)
     | null = null;
+  private assetLoadErrorHandler: ((payload: AssetLoadErrorPayload) => void) | null =
+    null;
   private readonly senderMode: AppMode;
 
   constructor(senderMode: AppMode = getDashboardAppMode()) {
@@ -108,17 +154,13 @@ class DashboardMessenger {
 
   setTarget(contentWindow: Window | null): void {
     this.targetWindow = contentWindow;
-    if (this.iframeReady && contentWindow) {
+    if (this.engineReady && contentWindow) {
       this.flush();
     }
   }
 
-  /**
-   * Call when the preview iframe finishes loading a new game URL.
-   * Binds the content window and records which template this navigation expects.
-   */
   initSync(contentWindow: Window | null, templateId: GameTemplateId): void {
-    this.iframeReady = false;
+    this.engineReady = false;
     this.armIframe(contentWindow, templateId);
   }
 
@@ -127,10 +169,6 @@ class DashboardMessenger {
     this.setTarget(contentWindow);
   }
 
-  /**
-   * Re-bind a preview iframe that stayed mounted while this messenger was suspended
-   * (e.g. switching Studio ↔ Configurator). Assumes the game is already running.
-   */
   reactivateAttachedIframe(
     contentWindow: Window | null,
     templateId: GameTemplateId,
@@ -138,29 +176,28 @@ class DashboardMessenger {
     this.expectedTemplateId = templateId;
     this.targetWindow = contentWindow;
     if (!contentWindow) {
-      this.iframeReady = false;
+      this.engineReady = false;
       return;
     }
-    this.iframeReady = true;
+    this.engineReady = true;
     this.flush();
   }
 
   onIframeNavigation(expectedTemplateId: GameTemplateId): void {
-    this.iframeReady = false;
+    this.engineReady = false;
     this.targetWindow = null;
     this.expectedTemplateId = expectedTemplateId;
-    this.pendingUpdates = [];
-    this.pendingLegacyUpdates = [];
+    this.pendingConfig = null;
     this.pendingLoadTemplate = null;
   }
 
-  private acceptsIframeReady(
+  private acceptsEngineReady(
     event: MessageEvent,
-    capabilities: IframeReadyMessage["capabilities"],
+    payload: { activeTemplateId: GameTemplateId },
   ): boolean {
     if (
       this.expectedTemplateId !== null &&
-      capabilities.templateId !== this.expectedTemplateId
+      payload.activeTemplateId !== this.expectedTemplateId
     ) {
       return false;
     }
@@ -174,15 +211,15 @@ class DashboardMessenger {
   }
 
   handleWindowMessage(event: MessageEvent): void {
-    if (event.origin !== getGameEngineOrigin()) return;
+    if (!isAllowedEngineMessageOrigin(event.origin)) return;
 
-    if (isIframeReadyMessage(event.data)) {
-      warnIfInvalid(IframeReadyMessageSchema, event.data, "IFRAME_READY");
-      if (!this.acceptsIframeReady(event, event.data.capabilities)) {
+    if (isEngineReadyMessage(event.data)) {
+      warnIfInvalid(EngineReadyMessageSchema, event.data, "ENGINE_READY");
+      if (!this.acceptsEngineReady(event, event.data.payload)) {
         return;
       }
-      this.iframeReady = true;
-      this.iframeReadyHandler?.(event.data.capabilities);
+      this.engineReady = true;
+      this.engineReadyHandler?.(event.data.payload);
       this.flush();
       return;
     }
@@ -194,6 +231,18 @@ class DashboardMessenger {
 
     if (isHitboxUpdatedMessage(event.data)) {
       this.hitboxUpdatedHandler?.(event.data.payload);
+      return;
+    }
+
+    if (isAssetLoadErrorMessage(event.data)) {
+      warnIfInvalid(AssetLoadErrorMessageSchema, event.data, "ASSET_LOAD_ERROR");
+      if (isDev) {
+        console.warn(
+          "[DashboardMessenger] Asset load error:",
+          event.data.payload,
+        );
+      }
+      this.assetLoadErrorHandler?.(event.data.payload);
       return;
     }
 
@@ -212,28 +261,15 @@ class DashboardMessenger {
       }
       return;
     }
-
-    if (isDiagnosticsPayloadMessage(event.data)) {
-      warnIfInvalid(
-        DiagnosticsPayloadMessageSchema,
-        event.data,
-        "DIAGNOSTICS_PAYLOAD",
-      );
-      this.diagnosticsHandler?.(event.data.payload);
-    }
   }
 
-  onDiagnostics(handler: (payload: unknown) => void): void {
-    this.diagnosticsHandler = handler;
-  }
-
-  onIframeReady(
-    handler: (capabilities: IframeReadyMessage["capabilities"]) => void,
+  onEngineReady(
+    handler: (payload: { activeTemplateId: GameTemplateId }) => void,
   ): () => void {
-    this.iframeReadyHandler = handler;
+    this.engineReadyHandler = handler;
     return () => {
-      if (this.iframeReadyHandler === handler) {
-        this.iframeReadyHandler = null;
+      if (this.engineReadyHandler === handler) {
+        this.engineReadyHandler = null;
       }
     };
   }
@@ -265,8 +301,19 @@ class DashboardMessenger {
     };
   }
 
+  onAssetLoadError(
+    handler: (payload: AssetLoadErrorPayload) => void,
+  ): () => void {
+    this.assetLoadErrorHandler = handler;
+    return () => {
+      if (this.assetLoadErrorHandler === handler) {
+        this.assetLoadErrorHandler = null;
+      }
+    };
+  }
+
   sendLoadExternalAsset(key: string, absolutePath: string): void {
-    if (!this.iframeReady || !this.targetWindow) return;
+    if (!this.engineReady || !this.targetWindow) return;
     const message = {
       type: BRIDGE_MESSAGE_TYPE.LOAD_EXTERNAL_ASSET,
       payload: { key, absolutePath },
@@ -274,11 +321,11 @@ class DashboardMessenger {
     if (isDev) {
       LoadExternalAssetPayloadSchema.safeParse(message.payload);
     }
-    this.targetWindow.postMessage(message, getGameEngineOrigin());
+    this.targetWindow.postMessage(message, getBridgePostMessageTargetOrigin());
   }
 
   sendRuntimeAssets(assets: Record<string, string>): void {
-    if (!this.iframeReady || !this.targetWindow) return;
+    if (!this.engineReady || !this.targetWindow) return;
     const message = {
       type: BRIDGE_MESSAGE_TYPE.SET_RUNTIME_ASSETS,
       payload: { assets },
@@ -286,80 +333,37 @@ class DashboardMessenger {
     if (isDev) {
       SetRuntimeAssetsPayloadSchema.safeParse(message.payload);
     }
-    this.targetWindow.postMessage(message, getGameEngineOrigin());
+    this.targetWindow.postMessage(message, getBridgePostMessageTargetOrigin());
   }
 
-  sendBridgePayload(
-    payload: BridgePayload,
-    updateMode: ConfigUpdateMode = "full",
-  ): void {
-    const safePayload = cloneForBridgePostMessage(payload);
-    if (this.iframeReady && this.targetWindow) {
-      this.postBridgePayload(safePayload, updateMode);
+  sendConfigUpdated(config: GameConfig): void {
+    const safeConfig = cloneForBridgePostMessage(config);
+    const parsed = GameConfigSchema.safeParse(safeConfig);
+    if (!parsed.success) {
+      devWarn("sendConfigUpdated rejected", parsed.error.flatten());
       return;
     }
-    this.pendingUpdates = [{ payload: safePayload, updateMode }];
+
+    if (this.engineReady && this.targetWindow) {
+      this.postConfigUpdated(parsed.data);
+      return;
+    }
+    this.pendingConfig = parsed.data;
   }
 
   sendGameEvent(eventName: string, data: unknown): void {
-    if (!this.iframeReady || !this.targetWindow) return;
+    if (!this.engineReady || !this.targetWindow) return;
     const message: GameEventMessage = {
       type: BRIDGE_MESSAGE_TYPE.GAME_EVENT,
       eventName,
       data,
     };
-    this.targetWindow.postMessage(message, getGameEngineOrigin());
-  }
-
-  requestDiagnostics(): void {
-    if (!this.iframeReady || !this.targetWindow) return;
-    const message = { type: BRIDGE_MESSAGE_TYPE.REQUEST_DIAGNOSTICS };
-    warnIfInvalid(
-      RequestDiagnosticsMessageSchema,
-      message,
-      "REQUEST_DIAGNOSTICS",
-    );
-    this.targetWindow.postMessage(message, getGameEngineOrigin());
-  }
-
-  sendConfig(
-    payload: ConfigSender,
-    updateMode: ConfigUpdateMode = "full",
-    editorState = DEFAULT_EDITOR_STATE,
-  ): void {
-    if (
-      typeof payload === "object" &&
-      payload !== null &&
-      "editorState" in payload &&
-      "gameConfig" in payload
-    ) {
-      this.sendBridgePayload(payload as BridgePayload, updateMode);
-      return;
-    }
-
-    if (
-      typeof payload === "object" &&
-      payload !== null &&
-      "meta" in payload &&
-      "system" in payload &&
-      "branding" in payload
-    ) {
-      this.sendBridgePayload(
-        buildBridgePayload(editorState, payload as GameMasterConfig, this.senderMode),
-        updateMode,
-      );
-      return;
-    }
-
-    if (this.iframeReady && this.targetWindow) {
-      this.postLegacyUpdateConfig(payload, updateMode);
-      return;
-    }
-    this.pendingLegacyUpdates = [{ payload, updateMode }];
+    this.targetWindow.postMessage(message, getBridgePostMessageTargetOrigin());
   }
 
   sendLoadTemplate(templateId: GameTemplateId): void {
-    if (this.iframeReady && this.targetWindow) {
+    this.expectedTemplateId = templateId;
+    if (this.engineReady && this.targetWindow) {
       this.postLoadTemplate(templateId);
       return;
     }
@@ -374,71 +378,38 @@ class DashboardMessenger {
       this.pendingLoadTemplate = null;
     }
 
-    const queue = this.pendingUpdates;
-    this.pendingUpdates = [];
-
-    for (const item of queue) {
-      this.postBridgePayload(item.payload, item.updateMode);
-    }
-
-    const legacyQueue = this.pendingLegacyUpdates;
-    this.pendingLegacyUpdates = [];
-    for (const item of legacyQueue) {
-      this.postLegacyUpdateConfig(item.payload, item.updateMode);
+    if (this.pendingConfig !== null) {
+      this.postConfigUpdated(this.pendingConfig);
+      this.pendingConfig = null;
     }
   }
 
-  private postLegacyUpdateConfig(
-    payload: ConfigSender,
-    updateMode: ConfigUpdateMode,
-  ): void {
-    if (!this.targetWindow) return;
+  private postConfigUpdated(config: GameConfig): void {
+    if (!this.targetWindow || this.targetWindow === window) return;
 
-    const safePayload =
-      typeof payload === "object" &&
-      payload !== null &&
-      "meta" in payload &&
-      "system" in payload &&
-      "branding" in payload
-        ? cloneForBridgePostMessage(payload as GameMasterConfig)
-        : payload;
-
-    const message: UpdateConfigMessage = {
-      type: BRIDGE_MESSAGE_TYPE.UPDATE_CONFIG,
-      payload: safePayload,
-      updateMode,
-      senderMode: this.senderMode,
+    const message = {
+      type: BRIDGE_MESSAGE_TYPE.CONFIG_UPDATED,
+      payload: config,
     };
-    warnIfInvalid(UpdateConfigMessageSchema, message, "UPDATE_CONFIG");
-    this.targetWindow.postMessage(message, getGameEngineOrigin());
-  }
-
-  private postBridgePayload(
-    payload: BridgePayload,
-    updateMode: ConfigUpdateMode,
-  ): void {
-    if (!this.targetWindow) return;
-
-    const message: UpdateConfigMessage = {
-      type: BRIDGE_MESSAGE_TYPE.UPDATE_CONFIG,
-      payload,
-      updateMode,
-      senderMode: this.senderMode,
-    };
-    warnIfInvalid(UpdateConfigMessageSchema, message, "UPDATE_CONFIG");
-    this.targetWindow.postMessage(message, getGameEngineOrigin());
+    warnIfInvalid(ConfigUpdatedMessageSchema, message, "CONFIG_UPDATED");
+    postMessageToIframe(this.targetWindow, message, "CONFIG_UPDATED");
   }
 
   private postLoadTemplate(templateId: GameTemplateId): void {
-    if (!this.targetWindow) return;
+    if (!this.targetWindow || this.targetWindow === window) return;
 
-    const message: LoadTemplateMessage = {
+    const message = {
       type: BRIDGE_MESSAGE_TYPE.LOAD_TEMPLATE,
       payload: templateId,
     };
     warnIfInvalid(LoadTemplateMessageSchema, message, "LOAD_TEMPLATE");
-    this.targetWindow.postMessage(message, getGameEngineOrigin());
+    this.targetWindow.postMessage(message, getBridgePostMessageTargetOrigin());
   }
+}
+
+function devWarn(label: string, detail: unknown): void {
+  if (!isDev) return;
+  console.warn(`[DashboardMessenger] ${label}:`, detail);
 }
 
 export const dashboardMessenger = new DashboardMessenger();

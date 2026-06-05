@@ -1,7 +1,7 @@
 import { saveTemplateConfigToLibrary } from "@/lib/template-save-config";
 import {
-  normalizeGameMasterConfig,
-  type GameMasterConfig,
+  normalizeGameConfig,
+  type GameConfig,
   type GameTemplateId,
 } from "@mashedgames/shared";
 import type { NextRequest } from "next/server";
@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  let studioConfig: GameMasterConfig | undefined;
+  let studioConfig: GameConfig | undefined;
   try {
     const body = (await request.json()) as { config?: unknown };
     if (!body.config) {
@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
         { status: 400 },
       );
     }
-    const normalized = normalizeGameMasterConfig(
+    const normalized = normalizeGameConfig(
       body.config,
       templateId as GameTemplateId,
     );
@@ -52,6 +52,7 @@ export async function POST(request: NextRequest) {
   return Response.json({
     ok: true,
     templateId: result.templateId,
+    source: result.source,
     wroteConfig: result.wroteConfig,
     wroteManifest: result.wroteManifest,
   });

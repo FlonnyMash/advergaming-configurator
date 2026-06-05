@@ -9,7 +9,8 @@ import {
   PROJECT_ID_PATTERN,
   slugifyProjectId,
   type ClientProjectPayload,
-  type GameMasterConfig,
+  type GameConfig,
+  flattenLegacyConfig,
   type GameProjectManifest,
   type GameTemplateId,
   type ParentLockSnapshot,
@@ -35,6 +36,7 @@ import {
   isParentTemplateInLibrary,
   readParentManifest,
 } from "@/lib/project-parent-config";
+import { getPublishedSystemDefaults } from "@mashedgames/game-engine/templates/schemas";
 
 export type ProjectIoResult<T> =
   | { ok: true; data: T }
@@ -46,14 +48,14 @@ async function writeJson(filePath: string, data: unknown): Promise<void> {
 
 function buildParentLockSnapshot(
   parentTemplateId: GameTemplateId,
-  config: GameMasterConfig,
+  config: GameConfig,
   manifestVersion: string,
 ): ParentLockSnapshot {
   return {
     lockedAt: new Date().toISOString(),
     parentTemplateId,
     parentVersion: manifestVersion,
-    parentSchemaVersion: config.meta.schemaVersion,
+    parentSchemaVersion: config.schemaVersion ?? "1.0.0",
     config: structuredClone(config),
   };
 }
@@ -207,7 +209,7 @@ export async function createProject(input: {
     suffix += 1;
   }
 
-  let parentConfig: GameMasterConfig;
+  let parentConfig: GameConfig;
   try {
     ({ config: parentConfig } = buildLiveParentConfig(parentTemplateId));
   } catch (error) {
@@ -224,7 +226,7 @@ export async function createProject(input: {
     displayName: input.displayName.trim(),
     parentTemplateId,
     parentVersion: manifest.version,
-    parentSchemaVersion: parentConfig.meta.schemaVersion,
+    parentSchemaVersion: parentConfig.schemaVersion ?? "1.0.0",
     lastParentAckAt: now,
     createdAt: now,
   };
@@ -251,7 +253,7 @@ export async function loadProject(projectId: string): Promise<
   ProjectIoResult<{
     manifest: GameProjectManifest;
     client: ClientProjectPayload;
-    config: GameMasterConfig;
+    config: GameConfig;
     parentLock: ParentLockSnapshot | null;
     runtimeAssets: Record<string, string>;
   }>
@@ -276,18 +278,22 @@ export async function loadProject(projectId: string): Promise<
       await readFile(path.join(projectDir, PROJECT_FILES.client), "utf8"),
     );
     const clientParsed = ClientProjectPayloadSchema.safeParse(clientRaw);
-    if (!clientParsed.success) {
+    const client =
+      clientParsed.success
+        ? clientParsed.data
+        : flattenLegacyConfig(clientRaw, manifest.parentTemplateId);
+    if (!client) {
       return { ok: false, error: "Invalid client.json.", status: 500 };
     }
 
     const parentManifest = readParentManifest(manifest.parentTemplateId);
     const schema = gameSchemaFromManifestForMode(parentManifest, "configurator");
     const { config: liveParent } = buildLiveParentConfig(manifest.parentTemplateId);
-    const systemDefaults = liveParent.system;
+    const systemDefaults = getPublishedSystemDefaults(manifest.parentTemplateId);
     const config = buildProjectConfigFromClient(
       schema,
       systemDefaults,
-      clientParsed.data,
+      client,
       manifest.parentTemplateId,
     );
 
@@ -305,7 +311,7 @@ export async function loadProject(projectId: string): Promise<
       ok: true,
       data: {
         manifest,
-        client: clientParsed.data,
+        client,
         config,
         parentLock,
         runtimeAssets: manifest.runtimeAssets ?? {},
@@ -368,20 +374,15 @@ export async function importProjectAsset(
       input.fileName,
     );
 
-    const branding = structuredClone(
-      clientParsed.data.branding,
-    ) as Record<string, unknown>;
-    applyPath(branding, targetPath, relativePath);
+    const nextClient = structuredClone(clientParsed.data) as Record<string, unknown>;
+    applyPath(nextClient, targetPath, relativePath);
 
     const runtimeAssets = {
       ...(manifestParsed.data.runtimeAssets ?? {}),
       [relativePath]: absolutePath,
     };
 
-    const client: ClientProjectPayload = {
-      ...clientParsed.data,
-      branding: branding as ClientProjectPayload["branding"],
-    };
+    const client = nextClient as ClientProjectPayload;
 
     const manifest: GameProjectManifest = {
       ...manifestParsed.data,
@@ -438,14 +439,11 @@ export async function saveProjectClient(
 
       const migrated = await migrateClientBrandingAssets(
         projectId,
-        parsed.data.branding,
+        parsed.data,
         manifestParsed.data.runtimeAssets ?? {},
       );
 
-      clientToSave = {
-        ...parsed.data,
-        branding: migrated.branding,
-      };
+      clientToSave = migrated.branding;
 
       manifestUpdate = {
         ...manifestParsed.data,
@@ -490,7 +488,7 @@ export async function ackParentLock(projectId: string): Promise<
     const updatedManifest: GameProjectManifest = {
       ...manifest,
       parentVersion: parentManifest.version,
-      parentSchemaVersion: liveParent.meta.schemaVersion,
+      parentSchemaVersion: liveParent.schemaVersion ?? "1.0.0",
       lastParentAckAt: now,
     };
 

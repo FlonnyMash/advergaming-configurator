@@ -1,6 +1,6 @@
 "use client";
 
-import { normalizeGameMasterConfig } from "@mashedgames/shared";
+import { normalizeGameConfig } from "@mashedgames/shared";
 import { useRef, useState } from "react";
 import { useStudioConfigStore } from "../store/useStudioConfigStore";
 
@@ -45,7 +45,7 @@ export function StudioConfigJsonTools() {
           const reader = new FileReader();
           reader.onload = () => {
             try {
-              const parsed = normalizeGameMasterConfig(
+              const parsed = normalizeGameConfig(
                 JSON.parse(reader.result as string),
                 selectedTemplateId,
               );

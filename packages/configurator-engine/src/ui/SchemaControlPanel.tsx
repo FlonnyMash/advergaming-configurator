@@ -5,7 +5,7 @@ import {
   groupControlsByElement,
   type ControlFieldSchema,
   type ControlValue,
-  type GameMasterConfig,
+  type GameConfig,
   type GameSchema,
 } from "@mashedgames/shared";
 import { useRef, useState } from "react";
@@ -272,7 +272,7 @@ function SchemaControl({
 
 export interface SchemaControlPanelProps {
   schema: GameSchema;
-  config: GameMasterConfig;
+  config: GameConfig;
   onControlChange: (control: ControlFieldSchema, value: ControlValue) => void;
   imageUploadMode?: ImageUploadMode;
   onImageFile?: (

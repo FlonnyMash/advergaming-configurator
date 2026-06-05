@@ -2,8 +2,8 @@ import { loadProject } from "@/lib/project-io";
 import { PROJECT_FILES, resolveProjectDir } from "@/lib/project-paths";
 import { exportTemplateToDirectory } from "@/lib/template-export";
 import {
-  normalizeGameMasterConfig,
-  type GameMasterConfig,
+  normalizeGameConfig,
+  type GameConfig,
   type GameTemplateId,
 } from "@mashedgames/shared";
 import { mkdtemp, rm } from "node:fs/promises";
@@ -39,7 +39,7 @@ export async function POST(request: NextRequest) {
     };
 
     let templateId: GameTemplateId;
-    let config: GameMasterConfig | undefined;
+    let config: GameConfig | undefined;
 
     if (body.projectId) {
       const loaded = await loadProject(body.projectId);
@@ -52,7 +52,7 @@ export async function POST(request: NextRequest) {
       templateId = loaded.data.manifest.parentTemplateId;
       config = loaded.data.config;
     } else if (body.templateId && body.config) {
-      const normalized = normalizeGameMasterConfig(
+      const normalized = normalizeGameConfig(
         body.config,
         body.templateId as GameTemplateId,
       );

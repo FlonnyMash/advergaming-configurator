@@ -1,40 +1,34 @@
-import { normalizeGameMasterConfig } from "./config-utils";
-import {
+export {
   BRIDGE_MESSAGE_TYPE,
+  AssetLoadErrorMessageSchema,
+  AssetReadyMessageSchema,
   BridgeMessageSchema,
-  BrandingPatchSchema,
-  DiagnosticsPayloadMessageSchema,
+  ConfigUpdatedMessageSchema,
+  EngineReadyMessageSchema,
   GameEventMessageSchema,
-  IframeReadyMessageSchema,
-  isBrandingPatchShape,
+  GameConfigSchema,
+  LoadExternalAssetMessageSchema,
   LoadTemplateMessageSchema,
-  RequestDiagnosticsMessageSchema,
-  UpdateConfigMessageSchema,
-  type BrandingPatch,
+  SetRuntimeAssetsMessageSchema,
+  isAssetLoadErrorMessage,
+  isConfigUpdatedMessage,
+  isEngineReadyMessage,
+  isGameEventMessage,
+  isLoadTemplateMessage,
+  parseBridgeMessage,
+  parseGameConfig,
+  type AssetLoadErrorMessage,
+  type AssetLoadErrorPayload,
+  type AssetReadyMessage,
   type BridgeMessage,
-  type DiagnosticsPayloadMessage,
+  type ConfigUpdatedMessage,
+  type EngineReadyMessage,
+  type GameConfig,
   type GameEventMessage,
-  type GameMasterConfig,
-  type IframeReadyMessage,
+  type LoadExternalAssetMessage,
   type LoadTemplateMessage,
-  type RequestDiagnosticsMessage,
-  type UpdateConfigMessage,
-} from "./game-schema";
-
-export { BRIDGE_MESSAGE_TYPE };
-export type {
-  AssetReadyMessage,
-  BridgeMessage,
-  ConfigUpdateMode,
-  DiagnosticsPayloadMessage,
-  GameEventMessage,
-  IframeReadyMessage,
-  LoadExternalAssetMessage,
-  LoadTemplateMessage,
-  RequestDiagnosticsMessage,
-  SetRuntimeAssetsMessage,
-  UpdateConfigMessage,
-} from "./game-schema";
+  type SetRuntimeAssetsMessage,
+} from "./game-config-bridge";
 
 export {
   AssetReadyPayloadSchema,
@@ -45,54 +39,6 @@ export {
   type SetRuntimeAssetsPayload,
 } from "./asset-bridge";
 
-export function isGameMasterConfig(data: unknown): data is GameMasterConfig {
-  return normalizeGameMasterConfig(data) !== null;
-}
-
-export function isBrandingPatch(data: unknown): data is BrandingPatch {
-  return BrandingPatchSchema.safeParse(data).success;
-}
-
-export function isIframeReadyMessage(data: unknown): data is IframeReadyMessage {
-  return IframeReadyMessageSchema.safeParse(data).success;
-}
-
-export function isUpdateConfigMessage(
-  data: unknown,
-): data is UpdateConfigMessage {
-  return UpdateConfigMessageSchema.safeParse(data).success;
-}
-
-export function isLoadTemplateMessage(
-  data: unknown,
-): data is LoadTemplateMessage {
-  const result = LoadTemplateMessageSchema.safeParse(data);
-  if (!result.success) return false;
-  return /^[\w-]+$/.test(result.data.payload);
-}
-
-export function isRequestDiagnosticsMessage(
-  data: unknown,
-): data is RequestDiagnosticsMessage {
-  return RequestDiagnosticsMessageSchema.safeParse(data).success;
-}
-
-export function isDiagnosticsPayloadMessage(
-  data: unknown,
-): data is DiagnosticsPayloadMessage {
-  return DiagnosticsPayloadMessageSchema.safeParse(data).success;
-}
-
-export function isGameEventMessage(data: unknown): data is GameEventMessage {
-  return GameEventMessageSchema.safeParse(data).success;
-}
-
-export function parseBridgeMessage(data: unknown): BridgeMessage | null {
-  const result = BridgeMessageSchema.safeParse(data);
-  return result.success ? result.data : null;
-}
-
-export { isBrandingPatchShape };
 export {
   isHitboxUpdatedMessage,
   parseHitboxUpdatedMessage,

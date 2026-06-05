@@ -3,6 +3,7 @@ import {
   BRIDGE_MESSAGE_TYPE,
   isProjectRelativeAssetPath,
 } from "@mashedgames/shared";
+import { engineMessenger } from "./messenger.ts";
 import Phaser from "phaser";
 import type { Game as PhaserGame } from "phaser";
 import {
@@ -58,8 +59,19 @@ export function loadExternalAsset(
     );
   };
 
+  const onError = (file: Phaser.Loader.File) => {
+    if (file.key !== key) return;
+    loader.off(Phaser.Loader.Events.FILE_LOAD_ERROR, onError);
+    engineMessenger.sendAssetLoadError({
+      key,
+      message: `Failed to load external asset: ${url}`,
+      source: absolutePath,
+    });
+  };
+
   loader.off(Phaser.Loader.Events.COMPLETE, onComplete);
   loader.once(Phaser.Loader.Events.COMPLETE, onComplete);
+  loader.once(Phaser.Loader.Events.FILE_LOAD_ERROR, onError);
   loader.image(key, url);
   if (!loader.isLoading()) {
     loader.start();

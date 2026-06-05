@@ -7,6 +7,10 @@ import type {
   TemplateCatalogEntry,
   TemplateManifest,
 } from "@mashedgames/shared";
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
 import {
   buildConfigFromSchema,
   DEFAULT_GAME_TEMPLATE_ID,
@@ -138,16 +142,25 @@ export function getPublishedSystemDefaults(
 ): SystemSettings {
   const baked = PUBLISHED_SYSTEM_BY_ID[templateId];
   if (baked) {
-    const frozen = structuredClone(baked);
-    frozen.physics.debugDraw = false;
+    const frozen: SystemSettings = structuredClone(baked);
+    if (isRecord(frozen.physics)) {
+      frozen.physics = { ...frozen.physics, debugDraw: false };
+    }
     return frozen;
   }
 
   const schema = getGameSchema(templateId);
   const config = buildConfigFromSchema(schema, templateId);
-  const system = structuredClone(config.system);
-  system.physics.debugDraw = false;
-  return system;
+  const frozen: SystemSettings = structuredClone(
+    config as Record<string, unknown>,
+  );
+  if (isRecord(frozen.physics)) {
+    frozen.physics = {
+      ...frozen.physics,
+      debugDraw: false,
+    };
+  }
+  return frozen;
 }
 
 export function getCatalogEntriesForMode(

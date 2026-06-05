@@ -11,7 +11,7 @@ import {
   readAssetLayoutFromStudioConfig,
 } from "@/lib/patch-asset-layout";
 import {
-  cloneGameMasterConfig,
+  cloneGameConfig,
   getStudioGameSchema,
   hasUnsavedGameControls,
   listGameControlChanges,
@@ -99,7 +99,7 @@ export function discardStudioUnsavedChanges(): void {
   const savedConfig = state.savedConfig;
 
   useStudioConfigStore.setState({
-    config: cloneGameMasterConfig(savedConfig),
+    config: cloneGameConfig(savedConfig),
     controlHistoryPast: [],
     controlHistoryFuture: [],
   });
@@ -130,10 +130,6 @@ export function discardConfiguratorUnsavedChanges(): void {
   }
 
   useConfiguratorStore.setState({
-    config: {
-      ...state.config,
-      meta: { ...state.config.meta, ...savedClient.meta },
-      branding: structuredClone(savedClient.branding),
-    },
+    config: structuredClone(savedClient),
   });
 }

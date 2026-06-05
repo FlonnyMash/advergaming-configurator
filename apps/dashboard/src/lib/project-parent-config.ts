@@ -3,7 +3,7 @@ import {
   gameSchemaFromManifestForMode,
   getDesktopBundledTemplateIds,
   parseTemplateManifest,
-  type GameMasterConfig,
+  type GameConfig,
   type GameTemplateId,
   type SystemSettings,
   type TemplateManifest,
@@ -110,7 +110,7 @@ export function loadPublishedSystemFromDisk(
 export function buildLiveParentConfig(
   parentTemplateId: GameTemplateId,
   mode: "configurator" | "studio" = "configurator",
-): { manifest: TemplateManifest; config: GameMasterConfig } {
+): { manifest: TemplateManifest; config: GameConfig } {
   const manifest = readParentManifest(parentTemplateId);
   const schema = gameSchemaFromManifestForMode(manifest, mode);
   const systemDefaults = loadPublishedSystemFromDisk(parentTemplateId);
@@ -119,6 +119,6 @@ export function buildLiveParentConfig(
     systemDefaults,
     parentTemplateId,
   );
-  config.meta.schemaVersion = manifest.version ?? config.meta.schemaVersion;
+  config.schemaVersion = manifest.version ?? config.schemaVersion;
   return { manifest, config };
 }

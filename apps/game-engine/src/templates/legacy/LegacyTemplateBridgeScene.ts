@@ -1,4 +1,4 @@
-import type { GameMasterConfig } from "@mashedgames/shared";
+import type { GameConfig } from "@mashedgames/shared";
 import Phaser from "phaser";
 import type { TemplateScene } from "../types.ts";
 import { rewriteLegacyAssetUrls } from "./legacyAssetUrls.ts";
@@ -59,31 +59,20 @@ function deepMerge(target: unknown, source: unknown): unknown {
   return result;
 }
 
-function readCatchGameSlice(config: GameMasterConfig): Record<string, unknown> {
-  const system = config.system as unknown as Record<string, unknown>;
-  const slice = system.catchGame;
-  return isPlainObject(slice) ? slice : {};
-}
-
-function readCatchGameBranding(config: GameMasterConfig): Record<string, unknown> {
-  const branding = config.branding as unknown as Record<string, unknown>;
-  const slice = branding.catchGame;
+function readCatchGameSlice(config: GameConfig): Record<string, unknown> {
+  const slice = config.catchGame;
   return isPlainObject(slice) ? slice : {};
 }
 
 export function mergeLegacyConfigFromMaster(
   base: LegacyGameConfig,
-  master: GameMasterConfig,
+  master: GameConfig,
 ): LegacyGameConfig {
   let merged = structuredClone(base) as LegacyGameConfig;
-  const fromSystem = readCatchGameSlice(master);
-  const fromBranding = readCatchGameBranding(master);
+  const fromCatchGame = readCatchGameSlice(master);
 
-  if (Object.keys(fromSystem).length > 0) {
-    merged = deepMerge(merged, fromSystem) as LegacyGameConfig;
-  }
-  if (Object.keys(fromBranding).length > 0) {
-    merged = deepMerge(merged, fromBranding) as LegacyGameConfig;
+  if (Object.keys(fromCatchGame).length > 0) {
+    merged = deepMerge(merged, fromCatchGame) as LegacyGameConfig;
   }
 
   return merged;
@@ -99,7 +88,6 @@ export interface LegacyBridgeOptions {
   assetUrlPrefix: string;
   SceneClass: typeof Phaser.Scene;
   sceneKey: string;
-  /** Mount template-specific DOM (score HUD, touch controls, etc.). */
   onMountUi?: (game: Phaser.Game, config: LegacyGameConfig) => void;
   onUnmountUi?: () => void;
 }
@@ -160,9 +148,9 @@ export function createLegacyBridgeScene(
       });
     }
 
-    updateConfig(config: GameMasterConfig): void {
+    updateConfig(config: GameConfig): void {
       this.workingConfig = mergeLegacyConfigFromMaster(baseConfig, config);
-      this.game.registry.set("projectId", config.meta.projectId ?? null);
+      this.game.registry.set("projectId", config.projectId ?? null);
       this.syncRegistry();
 
       const playScene = this.getPlayScene();

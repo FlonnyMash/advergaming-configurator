@@ -1,10 +1,10 @@
 import type { createDashboardMessenger } from "@/bridge/messenger";
-import type { GameMasterConfig } from "@mashedgames/shared";
+import type { GameConfig } from "@mashedgames/shared";
 
 export type DashboardMessenger = ReturnType<typeof createDashboardMessenger>;
 
 export interface TemplateOverlayProps {
-  config: GameMasterConfig;
+  config: GameConfig;
   messenger: DashboardMessenger | null;
   disabled?: boolean;
 }

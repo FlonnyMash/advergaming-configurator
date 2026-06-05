@@ -1,15 +1,19 @@
 import "./style.css";
 import {
-  DEFAULT_GAME_MASTER_CONFIG,
+  DEFAULT_GAME_CONFIG,
   getPrimaryBrandColor,
-  normalizeGameMasterConfig,
+  normalizeGameConfig,
   parseGameTemplateId,
-  type GameMasterConfig,
+  patchConfig,
+  type GameConfig,
   type GameTemplateId,
-  type EditorState,
 } from "@mashedgames/shared";
 import Phaser from "phaser";
-import { setupBridge, setBridgeTemplateId } from "./bridge/messenger.ts";
+import {
+  engineMessenger,
+  setupBridge,
+  setBridgeTemplateId,
+} from "./bridge/messenger.ts";
 import { HitboxEditorController } from "./bridge/hitbox-editor-controller.ts";
 import { setupGameChromeBridge } from "./bridge/game-chrome-bridge.ts";
 import { getEngineMode } from "./env/app-mode.ts";
@@ -38,12 +42,9 @@ let currentTemplateId: GameTemplateId = parseGameTemplateId(
 setBridgeTemplateId(currentTemplateId);
 let game: Phaser.Game | null = null;
 let mainScene: MainScene | null = null;
-let latestConfig: GameMasterConfig = {
-  ...DEFAULT_GAME_MASTER_CONFIG,
-  meta: {
-    ...DEFAULT_GAME_MASTER_CONFIG.meta,
-    templateId: currentTemplateId,
-  },
+let latestConfig: GameConfig = {
+  ...DEFAULT_GAME_CONFIG,
+  activeTemplateId: currentTemplateId,
 };
 
 let debugTeardown: (() => void) | null = null;
@@ -54,28 +55,33 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
 
-function resolveGameBackgroundColor(config: GameMasterConfig): string {
-  const branding = config.branding as unknown as Record<string, unknown>;
-  const system = config.system as unknown as Record<string, unknown>;
-  for (const catchGame of [branding.catchGame, system.catchGame]) {
-    if (!isRecord(catchGame)) continue;
+function resolveGameBackgroundColor(config: GameConfig): string {
+  const catchGame = config.catchGame;
+  if (isRecord(catchGame)) {
     const gameSection = catchGame.game;
     if (isRecord(gameSection) && typeof gameSection.backgroundColor === "string") {
       return gameSection.backgroundColor;
     }
   }
+  if (typeof config.backgroundColor === "string") {
+    return config.backgroundColor;
+  }
   return getPrimaryBrandColor(config);
 }
 
-function applyLegacyArcadeDebug(config: GameMasterConfig): void {
+function applyLegacyArcadeDebug(config: GameConfig): void {
   if (!game?.config.physics?.arcade) return;
-  const system = config.system as unknown as Record<string, unknown>;
-  const catchGame = system.catchGame;
+  const catchGame = config.catchGame;
   if (!isRecord(catchGame)) return;
   const physics = catchGame.physics;
   if (isRecord(physics) && typeof physics.debug === "boolean") {
     game.config.physics.arcade.debug = physics.debug;
   }
+}
+
+function freezeConfiguratorSystem(config: GameConfig, templateId: GameTemplateId): GameConfig {
+  const frozen = getPublishedSystemDefaults(templateId);
+  return patchConfig(config, frozen as Partial<GameConfig>);
 }
 
 function canLoadTemplate(id: GameTemplateId): boolean {
@@ -155,12 +161,14 @@ function ensureGame(): void {
 
     mainScene.setOnLoadComplete(() => {
       applyLegacyArcadeDebug(latestConfig);
+      applyConfigNow(latestConfig);
       if (game) {
         if (!hitboxEditor) {
           hitboxEditor = new HitboxEditorController(game, () => latestConfig);
         }
         window.dispatchEvent(new Event("resize"));
         void mountStudioToolkit(game);
+        engineMessenger.sendEngineReady();
       }
     });
 
@@ -170,7 +178,7 @@ function ensureGame(): void {
 
 function loadTemplate(
   id: GameTemplateId,
-  config: GameMasterConfig,
+  config: GameConfig,
   options?: { preserveSystem?: boolean },
 ): void {
   if (!canLoadTemplate(id)) return;
@@ -184,15 +192,15 @@ function loadTemplate(
   setBridgeTemplateId(id);
   latestConfig = {
     ...config,
-    meta: { ...config.meta, templateId: id },
+    activeTemplateId: id,
   };
 
-  if (
-    !options?.preserveSystem &&
-    getEngineMode() === "configurator"
-  ) {
-    latestConfig.system = structuredClone(getPublishedSystemDefaults(id));
+  if (!options?.preserveSystem && getEngineMode() === "configurator") {
+    latestConfig = freezeConfiguratorSystem(latestConfig, id);
   }
+
+  game?.registry.set("config", latestConfig);
+  game?.registry.set("projectId", latestConfig.projectId ?? null);
 
   ensureGame();
 
@@ -204,9 +212,12 @@ function loadTemplate(
 
 let configApplyTimer: ReturnType<typeof setTimeout> | null = null;
 
-function applyConfigNow(config: GameMasterConfig): void {
+function applyConfigNow(config: GameConfig): void {
   latestConfig = config;
-  const requestedTemplateId = config.meta.templateId;
+  const requestedTemplateId = config.activeTemplateId;
+
+  // Template scenes own registry shape (legacy bridge writes CatchGameTemplateConfig).
+  game?.registry.set("projectId", latestConfig.projectId ?? null);
 
   if (requestedTemplateId !== currentTemplateId) {
     loadTemplate(requestedTemplateId, config);
@@ -217,6 +228,7 @@ function applyConfigNow(config: GameMasterConfig): void {
 
   const scene = getMainScene();
   if (scene?.isLoading) {
+    // latestConfig is stored; onLoadComplete will call applyConfigNow again.
     return;
   }
 
@@ -230,14 +242,10 @@ function applyConfigNow(config: GameMasterConfig): void {
   }
 
   applyLegacyArcadeDebug(config);
-  if (scene) {
-    scene.updateConfig(config);
-  } else {
-    updatePhaserMechanics(config, game);
-  }
+  updatePhaserMechanics(config, game);
 }
 
-function applyConfig(config: GameMasterConfig): void {
+function applyConfig(config: GameConfig): void {
   if (configApplyTimer) {
     clearTimeout(configApplyTimer);
   }
@@ -245,16 +253,6 @@ function applyConfig(config: GameMasterConfig): void {
     configApplyTimer = null;
     applyConfigNow(config);
   }, 80);
-}
-
-function applyEditorState(state: EditorState): void {
-  if (!game) {
-    return;
-  }
-  if (!hitboxEditor) {
-    hitboxEditor = new HitboxEditorController(game, () => latestConfig);
-  }
-  hitboxEditor.applyEditorState(state);
 }
 
 function handleLoadTemplate(templateId: GameTemplateId): void {
@@ -265,7 +263,7 @@ function handleLoadTemplate(templateId: GameTemplateId): void {
   }
   loadTemplate(templateId, {
     ...latestConfig,
-    meta: { ...latestConfig.meta, templateId },
+    activeTemplateId: templateId,
   });
 }
 
@@ -275,8 +273,7 @@ window.addEventListener("GAME_START", () => {
 });
 
 setupBridge({
-  onUpdate: applyConfig,
-  onEditorState: applyEditorState,
+  onConfigUpdate: applyConfig,
   onLoadTemplate: handleLoadTemplate,
   getCurrentConfig: () => latestConfig,
   getCurrentTemplateId: () => currentTemplateId,
@@ -301,15 +298,15 @@ async function bootstrapStandaloneExport(): Promise<void> {
       new URLSearchParams(window.location.search).get("game"),
       TEMPLATE_CATALOG_IDS,
     );
-    const config = normalizeGameMasterConfig(data, urlTemplateId);
+    const config = normalizeGameConfig(data, urlTemplateId);
     if (!config) {
-      console.warn("[engine] config.json is not a valid GameMasterConfig.");
+      console.warn("[engine] config.json is not a valid GameConfig.");
       loadTemplate(currentTemplateId, latestConfig);
       return;
     }
 
     const templateId = parseGameTemplateId(
-      config.meta.templateId,
+      config.activeTemplateId,
       TEMPLATE_CATALOG_IDS,
     );
     loadTemplate(templateId, config, { preserveSystem: true });

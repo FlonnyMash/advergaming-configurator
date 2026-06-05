@@ -1,18 +1,9 @@
-import {
-  buildConfigWithFrozenSystem,
-  exportClientPayload,
-  mergeBrandingPatch,
-} from "./config-utils";
-import type {
-  BrandingSettings,
-  GameMasterConfig,
-  GameMasterConfigMeta,
-  GameSchema,
-  GameTemplateId,
-  SystemSettings,
-} from "./game-schema";
+import { patchConfig } from "./config-utils";
+import type { GameConfig } from "./game-config-bridge";
+import type { GameSchema, GameTemplateId } from "./game-schema";
 import type { ClientProjectPayload, GameProjectManifest } from "./game-project";
 import { DEFAULT_SCHEMA_VERSION } from "./types";
+import { buildConfigWithFrozenSystem, exportClientPayload } from "./config-utils";
 
 export function slugifyProjectId(displayName: string): string {
   const slug = displayName
@@ -31,57 +22,54 @@ export function slugifyProjectId(displayName: string): string {
 }
 
 export function enrichClientMeta(
-  meta: GameMasterConfigMeta,
+  config: GameConfig,
   project: Pick<GameProjectManifest, "projectId" | "parentTemplateId"> & {
     parentPinnedVersion?: string;
   },
-): GameMasterConfigMeta {
+): GameConfig {
   return {
-    ...meta,
-    templateId: project.parentTemplateId,
+    ...config,
+    activeTemplateId: project.parentTemplateId,
     projectId: project.projectId,
     parentTemplateId: project.parentTemplateId,
-    parentPinnedVersion: project.parentPinnedVersion ?? meta.parentPinnedVersion,
-    lastParentSyncAt: meta.lastParentSyncAt,
+    parentPinnedVersion:
+      project.parentPinnedVersion ?? config.parentPinnedVersion,
+    lastParentSyncAt: config.lastParentSyncAt,
   };
 }
 
 export function buildInitialClientPayload(
   project: Pick<GameProjectManifest, "projectId" | "parentTemplateId">,
-  config: GameMasterConfig,
+  config: GameConfig,
   parentPinnedVersion: string,
 ): ClientProjectPayload {
   const payload = exportClientPayload(config);
-  return {
-    meta: {
-      ...enrichClientMeta(payload.meta, {
-        ...project,
-        parentPinnedVersion,
-      }),
+  return enrichClientMeta(
+    {
+      ...payload,
       lastParentSyncAt: new Date().toISOString(),
+      parentPinnedVersion,
     },
-    branding: payload.branding,
-  };
+    project,
+  );
 }
 
 export function buildProjectConfigFromClient(
   schema: GameSchema,
-  systemDefaults: SystemSettings,
+  systemDefaults: Record<string, unknown>,
   client: ClientProjectPayload,
   parentTemplateId: GameTemplateId,
-): GameMasterConfig {
+): GameConfig {
   const base = buildConfigWithFrozenSystem(
     schema,
     systemDefaults,
     parentTemplateId,
   );
-  base.meta = {
-    ...base.meta,
-    ...client.meta,
-    templateId: parentTemplateId,
-    schemaVersion: client.meta.schemaVersion ?? base.meta.schemaVersion,
-  };
-  return mergeBrandingPatch(base, client.branding as Partial<BrandingSettings>);
+  return patchConfig(base, {
+    ...client,
+    activeTemplateId: parentTemplateId,
+    schemaVersion: client.schemaVersion ?? base.schemaVersion,
+  });
 }
 
 export function defaultProjectManifestFields(

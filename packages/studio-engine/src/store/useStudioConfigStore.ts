@@ -3,18 +3,16 @@ import {
   assertPermission,
   buildConfigFromSchema,
   getConfigValue,
-  type BrandingSettings,
   type ControlValue,
-  type GameMasterConfig,
+  type GameConfig,
   type GameTemplateId,
-  type SystemSettings,
 } from "@mashedgames/shared";
 import { getStudioGameSchema } from "../registry/studioSchemaRegistry";
 import { DEFAULT_GAME_TEMPLATE_ID } from "@mashedgames/shared";
 import {
   applyGameControlsSnapshot,
   captureGameControlsSnapshot,
-  cloneGameMasterConfig,
+  cloneGameConfig,
   controlValuesEqual,
   findStudioControl,
   mergeGameControlsFromSaved,
@@ -46,16 +44,24 @@ function pushControlSnapshot(
   };
 }
 
+function patchFlatPath(config: GameConfig, path: string, value: unknown): GameConfig {
+  const next = cloneGameConfig(config);
+  applyPath(next as Record<string, unknown>, path, value);
+  if (path === "theme.primaryColor" && typeof value === "string") {
+    next.themeColor = value;
+  }
+  return next;
+}
+
 interface StudioConfigStore {
-  config: GameMasterConfig;
-  savedConfig: GameMasterConfig;
+  config: GameConfig;
+  savedConfig: GameConfig;
   controlHistoryPast: GameControlsSnapshot[];
   controlHistoryFuture: GameControlsSnapshot[];
   selectedTemplateId: GameTemplateId;
   setSelectedTemplateId: (id: GameTemplateId) => void;
-  setConfig: (config: GameMasterConfig) => void;
-  setSystem: (system: Partial<SystemSettings>) => void;
-  setBranding: (branding: Partial<BrandingSettings>) => void;
+  setConfig: (config: GameConfig) => void;
+  patchConfigPath: (path: string, value: unknown) => void;
   patchBrandingPath: (path: string, value: unknown) => void;
   patchSystemPath: (path: string, value: unknown) => void;
   patchBrandingPathFromControls: (path: string, value: unknown) => void;
@@ -69,7 +75,7 @@ interface StudioConfigStore {
 
 export const useStudioConfigStore = create<StudioConfigStore>((set, get) => ({
   config: initialConfig,
-  savedConfig: cloneGameMasterConfig(initialConfig),
+  savedConfig: cloneGameConfig(initialConfig),
   controlHistoryPast: [],
   controlHistoryFuture: [],
   selectedTemplateId: DEFAULT_GAME_TEMPLATE_ID,
@@ -80,7 +86,7 @@ export const useStudioConfigStore = create<StudioConfigStore>((set, get) => ({
     set({
       selectedTemplateId: id,
       config,
-      savedConfig: cloneGameMasterConfig(config),
+      savedConfig: cloneGameConfig(config),
       controlHistoryPast: [],
       controlHistoryFuture: [],
     });
@@ -91,49 +97,14 @@ export const useStudioConfigStore = create<StudioConfigStore>((set, get) => ({
     set({ config });
   },
 
-  setSystem: (system) =>
-    set((state) => ({
-      config: {
-        ...state.config,
-        system: { ...state.config.system, ...system },
-      },
-    })),
-
-  setBranding: (branding) =>
-    set((state) => ({
-      config: {
-        ...state.config,
-        branding: { ...state.config.branding, ...branding },
-      },
-    })),
+  patchConfigPath: (path, value) =>
+    set((state) => ({ config: patchFlatPath(state.config, path, value) })),
 
   patchBrandingPath: (path, value) =>
-    set((state) => {
-      const branding = structuredClone(
-        state.config.branding,
-      ) as unknown as Record<string, unknown>;
-      applyPath(branding, path, value);
-      return {
-        config: {
-          ...state.config,
-          branding: branding as unknown as BrandingSettings,
-        },
-      };
-    }),
+    set((state) => ({ config: patchFlatPath(state.config, path, value) })),
 
   patchSystemPath: (path, value) =>
-    set((state) => {
-      const system = structuredClone(
-        state.config.system,
-      ) as unknown as Record<string, unknown>;
-      applyPath(system, path, value);
-      return {
-        config: {
-          ...state.config,
-          system: system as unknown as SystemSettings,
-        },
-      };
-    }),
+    set((state) => ({ config: patchFlatPath(state.config, path, value) })),
 
   patchBrandingPathFromControls: (path, value) =>
     set((state) => {
@@ -145,16 +116,9 @@ export const useStudioConfigStore = create<StudioConfigStore>((set, get) => ({
         return state;
       }
 
-      const branding = structuredClone(
-        state.config.branding,
-      ) as unknown as Record<string, unknown>;
-      applyPath(branding, path, value);
       return {
         ...pushControlSnapshot(state),
-        config: {
-          ...state.config,
-          branding: branding as unknown as BrandingSettings,
-        },
+        config: patchFlatPath(state.config, path, value),
       };
     }),
 
@@ -168,16 +132,9 @@ export const useStudioConfigStore = create<StudioConfigStore>((set, get) => ({
         return state;
       }
 
-      const system = structuredClone(
-        state.config.system,
-      ) as unknown as Record<string, unknown>;
-      applyPath(system, path, value);
       return {
         ...pushControlSnapshot(state),
-        config: {
-          ...state.config,
-          system: system as unknown as SystemSettings,
-        },
+        config: patchFlatPath(state.config, path, value),
       };
     }),
 
@@ -230,7 +187,7 @@ export const useStudioConfigStore = create<StudioConfigStore>((set, get) => ({
   markGameControlsSaved: () => {
     const { config } = get();
     set({
-      savedConfig: cloneGameMasterConfig(config),
+      savedConfig: cloneGameConfig(config),
       controlHistoryPast: [],
       controlHistoryFuture: [],
     });
@@ -244,7 +201,7 @@ export const useStudioConfigStore = create<StudioConfigStore>((set, get) => ({
     );
     set({
       config,
-      savedConfig: cloneGameMasterConfig(config),
+      savedConfig: cloneGameConfig(config),
       controlHistoryPast: [],
       controlHistoryFuture: [],
     });

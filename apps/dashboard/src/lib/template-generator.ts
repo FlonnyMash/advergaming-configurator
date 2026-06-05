@@ -190,7 +190,7 @@ Restart the game engine dev server and open **Studio** (\`/studio\`) — the tem
 |---------------|----------------|
 | \`apps/dashboard\` | Next.js UI, state config, iframe preview, postMessage sender |
 | \`apps/game-engine\` | Vite + Phaser canvas, template scenes, DOM overlays, postMessage receiver |
-| \`packages/shared\` | \`GameMasterConfig\`, \`BridgeMessage\`, manifest types, config helpers |
+| \`packages/shared\` | \`GameConfig\`, \`BridgeMessage\`, manifest types, config helpers |
 | \`packages/studio-engine\` | Studio sidebar + schema-driven controls |
 
 **Never** put dashboard React code in the game engine, or Phaser logic in the dashboard.
@@ -218,17 +218,17 @@ Until migrated, Studio schema controls may not bind correctly.
 Flow:
 
 \`\`\`
-Dashboard (state) → postMessage UPDATE_CONFIG → game-engine bridge → applyConfig → scene
+Dashboard (state) → postMessage CONFIG_UPDATED → game-engine bridge → applyConfig → scene
 \`\`\`
 
 Implement **\`TemplateScene\`** in \`GameScene.ts\`:
 
 \`\`\`ts
-import type { GameMasterConfig } from "@mashedgames/shared";
+import type { GameConfig } from "@mashedgames/shared";
 import type { TemplateScene } from "../../types.ts"; // adjust relative path after install
 
 export class GameScene extends Phaser.Scene implements TemplateScene {
-  updateConfig(config: GameMasterConfig): void {
+  updateConfig(config: GameConfig): void {
     // Apply branding.theme.*, system.mechanics.*, textures, etc.
   }
 }

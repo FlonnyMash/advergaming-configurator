@@ -10,11 +10,12 @@ import {
   usePreviewBridgeStore,
 } from "@/lib/preview-bridge-store";
 import { isWorkspaceDesktopClient } from "@/lib/runtime-env";
+import { useConfigStore } from "@/store/useConfigStore";
 import {
   ConfiguratorSidebar,
   useConfiguratorStore,
 } from "@mashedgames/configurator-engine";
-import { useCallback, useEffect } from "react";
+import { useEffect } from "react";
 
 export function ConfiguratorWorkspace({
   suspended = false,
@@ -31,6 +32,17 @@ export function ConfiguratorWorkspace({
   const setAssetSaveHandler = useConfiguratorStore((s) => s.setAssetSaveHandler);
 
   const imageUploadMode = isWorkspaceDesktopClient() ? "workspace-file" : "base64";
+
+  useEffect(() => {
+    const syncFromConfigurator = (
+      state: ReturnType<typeof useConfiguratorStore.getState>,
+    ) => {
+      useConfigStore.getState().setSelectedTemplateId(state.selectedTemplateId);
+      useConfigStore.getState().setConfig(state.config);
+    };
+    syncFromConfigurator(useConfiguratorStore.getState());
+    return useConfiguratorStore.subscribe(syncFromConfigurator);
+  }, []);
 
   useEffect(() => {
     if (!projectId || imageUploadMode !== "workspace-file") {
@@ -62,27 +74,6 @@ export function ConfiguratorWorkspace({
     return () => setAssetSaveHandler(null);
   }, [imageUploadMode, projectId, setAssetSaveHandler]);
 
-  const getConfig = useCallback(
-    () => useConfiguratorStore.getState().config,
-    [],
-  );
-
-  const subscribe = useCallback(
-    (
-      listener: (state: {
-        config: ReturnType<typeof getConfig>;
-        selectedTemplateId: typeof initialTemplateId;
-      }) => void,
-    ) =>
-      useConfiguratorStore.subscribe((state) =>
-        listener({
-          config: state.config,
-          selectedTemplateId: state.selectedTemplateId,
-        }),
-      ),
-    [],
-  );
-
   return (
     <div className="flex min-h-0 flex-1 overflow-hidden">
       <DevToolkitBridgeHost
@@ -96,9 +87,6 @@ export function ConfiguratorWorkspace({
       <CenterWorkspace
         appMode="configurator"
         initialTemplateId={initialTemplateId}
-        getConfig={getConfig}
-        subscribe={subscribe}
-        configUpdateMode="branding-patch"
         previewSuspended={suspended}
       />
       <ConfiguratorToolsShell />

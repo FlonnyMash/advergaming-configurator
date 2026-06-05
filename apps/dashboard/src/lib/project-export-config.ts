@@ -1,4 +1,4 @@
-import type { GameMasterConfig } from "@mashedgames/shared";
+import { flattenLegacyConfig, type GameConfig } from "@mashedgames/shared";
 import { loadProject } from "@/lib/project-io";
 
 function rewriteAssetPathsForFlatExport(value: unknown): unknown {
@@ -38,7 +38,7 @@ export async function buildProjectExportConfigJson(
 
   const config = rewriteAssetPathsForFlatExport(
     loaded.data.config,
-  ) as GameMasterConfig;
+  ) as GameConfig;
 
   return {
     ok: true,

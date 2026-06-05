@@ -1,5 +1,5 @@
-import type { GameMasterConfig } from "@mashedgames/shared";
-import { getDomOverlayForUi } from "@mashedgames/shared";
+import type { GameConfig } from "@mashedgames/shared";
+import { getDomOverlayForUi, getPrimaryBrandColor } from "@mashedgames/shared";
 import { resolveTextureUrl } from "../bridge/asset-loader.ts";
 import { getRuntimeAssets } from "../bridge/runtime-assets.ts";
 
@@ -62,9 +62,12 @@ function ensureUI(): void {
 }
 
 export function updateUI(config: UIConfig): void;
-export function updateUI(config: GameMasterConfig): void;
-export function updateUI(config: UIConfig | GameMasterConfig): void {
-  const ui = "branding" in config ? getDomOverlayForUi(config) : config;
+export function updateUI(config: GameConfig): void;
+export function updateUI(config: UIConfig | GameConfig): void {
+  const ui: UIConfig =
+    "startScreenTitle" in config && "primaryColor" in config
+      ? (config as UIConfig)
+      : getDomOverlayForUi(config as GameConfig);
   ensureUI();
 
   if (startTitle) {
@@ -90,20 +93,32 @@ export function updateUI(config: UIConfig | GameMasterConfig): void {
 /**
  * Maps branding config to CSS variables and DOM nodes above the Phaser canvas.
  */
-export function updateDomOverlays(config: GameMasterConfig): void {
+export function updateDomOverlays(config: GameConfig): void {
   const root = document.documentElement;
-  const { theme } = config.branding;
+  const primaryColor = getPrimaryBrandColor(config);
+  const secondaryColor =
+    typeof config.secondaryColor === "string"
+      ? config.secondaryColor
+      : primaryColor;
+  const fontFamily =
+    typeof config.fontFamily === "string"
+      ? config.fontFamily
+      : "system-ui, sans-serif";
 
-  root.style.setProperty("--theme-primary", theme.primaryColor);
-  root.style.setProperty("--theme-secondary", theme.secondaryColor);
-  root.style.setProperty("--theme-font-family", theme.fontFamily);
+  root.style.setProperty("--theme-primary", primaryColor);
+  root.style.setProperty("--theme-secondary", secondaryColor);
+  root.style.setProperty("--theme-font-family", fontFamily);
+
+  const logoUrl =
+    config.logoUrl ??
+    (typeof config.playerTexture === "string" ? config.playerTexture : null);
 
   const leadFormBackground = document.getElementById(
     "lead-form-bg",
   ) as HTMLImageElement | null;
-  if (leadFormBackground && theme.logoTexture) {
-    leadFormBackground.src = resolveTextureUrl(theme.logoTexture, {
-      projectId: config.meta.projectId,
+  if (leadFormBackground && logoUrl) {
+    leadFormBackground.src = resolveTextureUrl(logoUrl, {
+      projectId: config.projectId,
       runtimeAssets: getRuntimeAssets(),
     });
   }

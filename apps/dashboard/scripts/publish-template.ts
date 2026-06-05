@@ -6,12 +6,18 @@
  * Example: pnpm publish-template my-game-template
  */
 import {
+  applyPath,
   buildConfigFromSchema,
   bumpSemverPatch,
   gameSchemaFromManifest,
+  getConfigValue,
   isTemplateManifest,
   type TemplateManifest,
 } from "@mashedgames/shared";
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
 import { spawnSync } from "node:child_process";
 import {
   cpSync,
@@ -111,14 +117,23 @@ function main(): void {
 
   const schema = gameSchemaFromManifest(publishedManifest);
   const bakedConfig = buildConfigFromSchema(schema, templateId);
-  bakedConfig.system.physics.debugDraw = false;
+  const systemPayload: Record<string, unknown> = {};
+  for (const control of schema.controls) {
+    if (control.targetCategory !== "system") {
+      continue;
+    }
+    applyPath(systemPayload, control.targetPath, getConfigValue(bakedConfig, control));
+  }
+  if (isRecord(systemPayload.physics)) {
+    systemPayload.physics = { ...systemPayload.physics, debugDraw: false };
+  }
   const publishedSystemPath = path.join(
     destinationDir,
     "published-system.json",
   );
   writeFileSync(
     publishedSystemPath,
-    `${JSON.stringify(bakedConfig.system, null, 2)}\n`,
+    `${JSON.stringify(systemPayload, null, 2)}\n`,
     "utf8",
   );
 

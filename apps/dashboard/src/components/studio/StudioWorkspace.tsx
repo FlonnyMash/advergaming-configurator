@@ -11,9 +11,10 @@ import {
   GAME_PREVIEW_PANE_ID,
   useWorkspaceCenterStore,
 } from "@/lib/workspace-center-store";
+import { useConfigStore } from "@/store/useConfigStore";
 import { getCatalogEntry } from "@mashedgames/game-engine/templates/schemas";
 import { StudioSidebar, useStudioConfigStore } from "@mashedgames/studio-engine";
-import { useCallback, useEffect, useMemo } from "react";
+import { useEffect, useMemo } from "react";
 
 export function StudioWorkspace({ suspended = false }: { suspended?: boolean }) {
   const initialTemplateId = useStudioConfigStore.getState().selectedTemplateId;
@@ -27,26 +28,14 @@ export function StudioWorkspace({ suspended = false }: { suspended?: boolean }) 
     useAssetLayoutSavedStore.getState().clearSavedLayouts();
   }, [selectedTemplateId]);
 
-  const getConfig = useCallback(
-    () => useStudioConfigStore.getState().config,
-    [],
-  );
-
-  const subscribe = useCallback(
-    (
-      listener: (state: {
-        config: ReturnType<typeof getConfig>;
-        selectedTemplateId: typeof initialTemplateId;
-      }) => void,
-    ) =>
-      useStudioConfigStore.subscribe((state) =>
-        listener({
-          config: state.config,
-          selectedTemplateId: state.selectedTemplateId,
-        }),
-      ),
-    [],
-  );
+  useEffect(() => {
+    const syncFromStudio = (state: ReturnType<typeof useStudioConfigStore.getState>) => {
+      useConfigStore.getState().setSelectedTemplateId(state.selectedTemplateId);
+      useConfigStore.getState().setConfig(state.config);
+    };
+    syncFromStudio(useStudioConfigStore.getState());
+    return useStudioConfigStore.subscribe(syncFromStudio);
+  }, []);
 
   const activeManifest = useMemo(
     () => getCatalogEntry(selectedTemplateId)?.manifest ?? null,
@@ -54,7 +43,10 @@ export function StudioWorkspace({ suspended = false }: { suspended?: boolean }) 
   );
 
   const templateOverlaySlot = (
-    <TemplateOverlayLayer manifest={activeManifest} getConfig={getConfig} />
+    <TemplateOverlayLayer
+      manifest={activeManifest}
+      getConfig={() => useStudioConfigStore.getState().config}
+    />
   );
 
   return (
@@ -89,9 +81,6 @@ export function StudioWorkspace({ suspended = false }: { suspended?: boolean }) 
       <CenterWorkspace
         appMode="studio"
         initialTemplateId={initialTemplateId}
-        getConfig={getConfig}
-        subscribe={subscribe}
-        configUpdateMode="full"
         previewSuspended={suspended}
         overlaySlot={templateOverlaySlot}
       />

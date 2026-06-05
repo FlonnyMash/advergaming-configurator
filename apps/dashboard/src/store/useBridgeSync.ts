@@ -2,15 +2,9 @@
 
 import { pushRuntimeAssetsToPreview } from "@/lib/preview-bridge-store";
 import { useGameChromeOverlayStore } from "@/lib/game-chrome-overlay-store";
-import { useEditorStore } from "@/store/useEditorStore";
+import { flushConfigToIframe, useConfigStore } from "@/store/useConfigStore";
 import { useTemplateBridgeStore } from "@/store/useTemplateBridgeStore";
-import {
-  buildBridgePayload,
-  type AppMode,
-  type ConfigUpdateMode,
-  type GameMasterConfig,
-  type GameTemplateId,
-} from "@mashedgames/shared";
+import type { AppMode, GameTemplateId } from "@mashedgames/shared";
 import { useEffect, useRef } from "react";
 
 type DashboardMessenger = {
@@ -19,41 +13,26 @@ type DashboardMessenger = {
     contentWindow: Window | null,
     templateId: GameTemplateId,
   ) => void;
-  sendBridgePayload: (
-    payload: ReturnType<typeof buildBridgePayload>,
-    updateMode?: ConfigUpdateMode,
-  ) => void;
+  sendConfigUpdated: (config: ReturnType<typeof useConfigStore.getState>["config"]) => void;
   sendLoadTemplate: (templateId: GameTemplateId) => void;
   sendRuntimeAssets?: (assets: Record<string, string>) => void;
   setTarget: (contentWindow: Window | null) => void;
-  onIframeReady: (
-    handler: (capabilities: { templateId: GameTemplateId }) => void,
+  onEngineReady: (
+    handler: (payload: { activeTemplateId: GameTemplateId }) => void,
   ) => () => void;
 };
 
 export interface UseBridgeSyncOptions {
   appMode: AppMode;
-  getConfig: () => GameMasterConfig;
-  subscribe: (
-    listener: (state: {
-      config: GameMasterConfig;
-      selectedTemplateId: GameTemplateId;
-    }) => void,
-  ) => () => void;
   messenger: DashboardMessenger;
-  configUpdateMode?: ConfigUpdateMode;
   suspended?: boolean;
   iframeRef: React.RefObject<HTMLIFrameElement | null>;
-  /** Initial template id before subscribe delivers state. */
   previewTemplateId: GameTemplateId;
 }
 
 export function useBridgeSync({
   appMode,
-  getConfig,
-  subscribe,
   messenger,
-  configUpdateMode = "full",
   suspended = false,
   iframeRef,
   previewTemplateId,
@@ -65,98 +44,65 @@ export function useBridgeSync({
   }, [previewTemplateId]);
 
   useEffect(() => {
-    useEditorStore.getState().setWorkspaceMode(appMode);
-  }, [appMode]);
-
-  useEffect(() => {
     if (suspended) {
       return;
     }
 
-    const offReady = messenger.onIframeReady((capabilities) => {
+    const offReady = messenger.onEngineReady((payload) => {
+      useConfigStore.getState().setEngineReady(true);
+      const contentWindow = iframeRef.current?.contentWindow ?? null;
+      useConfigStore.getState().setIframeTarget(contentWindow);
+      if (contentWindow) {
+        messenger.setTarget(contentWindow);
+      }
       useTemplateBridgeStore
         .getState()
-        .completeTemplateChange(capabilities.templateId);
+        .completeTemplateChange(payload.activeTemplateId);
       messenger.reactivateAttachedIframe(
         iframeRef.current?.contentWindow ?? null,
-        capabilities.templateId,
+        payload.activeTemplateId,
       );
-      previewTemplateIdRef.current = capabilities.templateId;
+      previewTemplateIdRef.current = payload.activeTemplateId;
+      flushConfigToIframe();
+      pushRuntimeAssetsToPreview();
     });
-
-    const pushBridgePayload = () => {
-      if (useTemplateBridgeStore.getState().templateChangeInProgress) {
-        return;
-      }
-      const payload = buildBridgePayload(
-        useEditorStore.getState(),
-        getConfig(),
-        appMode,
-      );
-      messenger.sendBridgePayload(payload, configUpdateMode);
-    };
 
     let lastTemplateId = previewTemplateIdRef.current;
 
-    const unsubscribeConfig = subscribe((state) => {
+    const unsubscribeConfig = useConfigStore.subscribe((state, prev) => {
       const templateChanged = state.selectedTemplateId !== lastTemplateId;
       if (templateChanged) {
         lastTemplateId = state.selectedTemplateId;
         previewTemplateIdRef.current = state.selectedTemplateId;
-        useEditorStore.getState().reset();
         useGameChromeOverlayStore.getState().clearRegistry();
         useTemplateBridgeStore
           .getState()
           .beginTemplateChange(state.selectedTemplateId);
-
         messenger.sendLoadTemplate(state.selectedTemplateId);
-
-        const payload = buildBridgePayload(
-          useEditorStore.getState(),
-          {
-            ...state.config,
-            meta: {
-              ...state.config.meta,
-              templateId: state.selectedTemplateId,
-            },
-          },
-          appMode,
-        );
-        messenger.sendBridgePayload(payload, configUpdateMode);
+        flushConfigToIframe();
         return;
       }
-
-      pushBridgePayload();
-    });
-
-    const unsubscribeEditor = useEditorStore.subscribe(() => {
-      pushBridgePayload();
     });
 
     const iframe = iframeRef.current;
-    if (iframe?.contentWindow) {
+    if (iframe?.contentWindow && iframe.contentWindow !== window) {
+      useConfigStore.getState().setIframeTarget(iframe.contentWindow);
+      messenger.setTarget(iframe.contentWindow);
       messenger.reactivateAttachedIframe(
         iframe.contentWindow,
         previewTemplateIdRef.current,
       );
-      pushBridgePayload();
+      flushConfigToIframe();
     }
 
     return () => {
       offReady();
       unsubscribeConfig();
-      unsubscribeEditor();
+      useConfigStore.getState().setEngineReady(false);
+      useConfigStore.getState().setIframeTarget(null);
+      messenger.setTarget(null);
     };
-  }, [
-    appMode,
-    configUpdateMode,
-    getConfig,
-    iframeRef,
-    messenger,
-    previewTemplateId,
-    subscribe,
-    suspended,
-  ]);
+  }, [appMode, iframeRef, messenger, previewTemplateId, suspended]);
 
   useEffect(() => {
     if (suspended) {
@@ -168,28 +114,17 @@ export function useBridgeSync({
       return;
     }
 
-    const pushBridgePayload = () => {
-      if (useTemplateBridgeStore.getState().templateChangeInProgress) {
-        return;
-      }
-      const payload = buildBridgePayload(
-        useEditorStore.getState(),
-        getConfig(),
-        appMode,
-      );
-      messenger.sendBridgePayload(payload, configUpdateMode);
-    };
-
     const onLoad = () => {
-      messenger.initSync(
-        iframe.contentWindow ?? null,
-        previewTemplateIdRef.current,
-      );
+      useConfigStore.getState().setEngineReady(false);
+      const contentWindow = iframe.contentWindow;
+      useConfigStore.getState().setIframeTarget(contentWindow ?? null);
+      messenger.setTarget(contentWindow ?? null);
+      messenger.initSync(contentWindow ?? null, previewTemplateIdRef.current);
       useGameChromeOverlayStore.getState().clearRegistry();
-      pushBridgePayload();
+      flushConfigToIframe();
       pushRuntimeAssetsToPreview();
       window.setTimeout(() => {
-        pushBridgePayload();
+        flushConfigToIframe();
         pushRuntimeAssetsToPreview();
       }, 150);
     };
@@ -200,13 +135,5 @@ export function useBridgeSync({
     }
 
     return () => iframe.removeEventListener("load", onLoad);
-  }, [
-    appMode,
-    configUpdateMode,
-    getConfig,
-    iframeRef,
-    messenger,
-    previewTemplateId,
-    suspended,
-  ]);
+  }, [appMode, iframeRef, messenger, previewTemplateId, suspended]);
 }

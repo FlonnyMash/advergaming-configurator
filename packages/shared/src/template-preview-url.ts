@@ -1,6 +1,17 @@
 /** Default template shipped with the Electron desktop installer. */
 export const DESKTOP_BUNDLED_TEMPLATE_ID = "catch-game-demo";
 
+function readEnv(key: string): string | undefined {
+  if (typeof process !== "undefined" && process.env) {
+    return process.env[key];
+  }
+  return undefined;
+}
+
+function isProductionEnv(): boolean {
+  return readEnv("NODE_ENV") === "production";
+}
+
 function hasElectronPreload(): boolean {
   if (typeof window === "undefined") {
     return false;
@@ -12,7 +23,7 @@ function hasElectronPreload(): boolean {
 }
 
 function isDesktopRuntime(): boolean {
-  if (process.env.NEXT_PUBLIC_WORKSPACE_DESKTOP === "1") {
+  if (readEnv("NEXT_PUBLIC_WORKSPACE_DESKTOP") === "1") {
     return true;
   }
 
@@ -24,7 +35,7 @@ export function getDesktopBundledTemplateIds(): string[] | null {
     return null;
   }
 
-  const raw = process.env.NEXT_PUBLIC_BUNDLED_TEMPLATES?.trim();
+  const raw = readEnv("NEXT_PUBLIC_BUNDLED_TEMPLATES")?.trim();
   if (!raw) {
     return [DESKTOP_BUNDLED_TEMPLATE_ID];
   }
@@ -41,17 +52,17 @@ export function getDesktopBundledTemplateIds(): string[] | null {
  */
 export function resolveGameEngineBaseUrl(): string {
   const devUrl = (
-    process.env.NEXT_PUBLIC_GAME_ENGINE_URL ?? "http://localhost:5173"
+    readEnv("NEXT_PUBLIC_GAME_ENGINE_URL") ?? "http://localhost:5173"
   ).replace(/\/$/, "");
 
   if (typeof window !== "undefined") {
-    if (isDesktopRuntime() || process.env.NODE_ENV === "production") {
+    if (isDesktopRuntime() || isProductionEnv()) {
       return `${window.location.origin}/engine`;
     }
     return devUrl;
   }
 
-  if (isDesktopRuntime() || process.env.NODE_ENV === "production") {
+  if (isDesktopRuntime() || isProductionEnv()) {
     return "/engine";
   }
 

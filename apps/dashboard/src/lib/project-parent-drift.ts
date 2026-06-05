@@ -47,10 +47,10 @@ export async function computeParentDrift(
 
   const lockedSchemaVersion =
     parentLock?.parentSchemaVersion ?? manifest.parentSchemaVersion;
-  if (lockedSchemaVersion !== liveParent.meta.schemaVersion) {
+  if (lockedSchemaVersion !== liveParent.schemaVersion) {
     items.push({
       kind: "schema-bump",
-      label: `Schema ${lockedSchemaVersion} → ${liveParent.meta.schemaVersion}`,
+      label: `Schema ${lockedSchemaVersion} → ${liveParent.schemaVersion ?? "1.0.0"}`,
       required: false,
     });
   }

@@ -1,4 +1,4 @@
-import { applyPath, type BrandingSettings } from "@mashedgames/shared";
+import { applyPath, type GameConfig } from "@mashedgames/shared";
 import { createHash } from "node:crypto";
 import { copyFile, mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
@@ -75,9 +75,9 @@ export async function persistDataUrlToProjectAssets(
 
 export async function migrateClientBrandingAssets(
   projectId: string,
-  branding: BrandingSettings,
+  branding: GameConfig,
   existingRuntime: Record<string, string>,
-): Promise<{ branding: BrandingSettings; runtimeAssets: Record<string, string> }> {
+): Promise<{ branding: GameConfig; runtimeAssets: Record<string, string> }> {
   const runtimeAssets = { ...existingRuntime };
   const cloned = structuredClone(branding) as Record<string, unknown>;
 
@@ -109,5 +109,5 @@ export async function migrateClientBrandingAssets(
   }
 
   await walk(cloned, "");
-  return { branding: cloned as BrandingSettings, runtimeAssets };
+  return { branding: cloned as GameConfig, runtimeAssets };
 }

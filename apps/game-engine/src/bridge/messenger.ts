@@ -1,140 +1,150 @@
 import {
   BRIDGE_MESSAGE_TYPE,
-  EditorStateSchema,
-  HitboxUpdatePayloadSchema,
+  BridgeMessageSchema,
+  GameConfigSchema,
   LoadExternalAssetPayloadSchema,
   SetRuntimeAssetsPayloadSchema,
-  coerceUpdateConfigPayload,
-  parseBridgeMessage,
-  type EditorState,
-  type GameMasterConfig,
+  type AssetLoadErrorPayload,
+  type GameConfig,
   type GameTemplateId,
-  type HitboxUpdatePayload,
-  type IframeReadyMessage,
-  type UpdateConfigMessage,
 } from "@mashedgames/shared";
 import { loadExternalAsset } from "./external-asset-loader.ts";
 import { setRuntimeAssets } from "./runtime-assets.ts";
 import type Phaser from "phaser";
-import { supportsExternalTouchControls } from "./studio-touch-bridge.ts";
-import { allowsSystemMutation, getEngineMode } from "../env/app-mode.ts";
-import { applyBrandingPatch } from "../configurator/applyBrandingOnly.ts";
-import { getPublishedSystemDefaults } from "../templates/schema-index.ts";
+import { getEngineMode } from "../env/app-mode.ts";
 import {
   getParentTargetOrigin,
   isAllowedDashboardOrigin,
 } from "./dashboard-origin.ts";
 
-let currentTemplateId: GameTemplateId = "catch-game-demo";
-
-function resolveGameConfig(
-  message: UpdateConfigMessage,
-  bridgePayload: { gameConfig: GameMasterConfig; editorState: EditorState },
-  previous: GameMasterConfig,
-): GameMasterConfig {
-  const engineMode = getEngineMode();
-
-  if (message.updateMode === "branding-patch") {
-    return applyBrandingPatch(previous, bridgePayload.gameConfig.branding);
-  }
-
-  const normalized = bridgePayload.gameConfig;
-  if (engineMode === "configurator" || message.senderMode === "configurator") {
-    const frozen = getPublishedSystemDefaults(currentTemplateId);
-    return {
-      meta: { ...normalized.meta, templateId: currentTemplateId },
-      system: structuredClone(frozen),
-      branding: structuredClone(normalized.branding),
-    };
-  }
-
-  return normalized;
-}
-
-export function setupBridge(handlers: {
-  onUpdate: (config: GameMasterConfig) => void;
-  onEditorState: (state: EditorState) => void;
+export type EngineBridgeHandlers = {
+  onConfigUpdate: (config: GameConfig) => void;
   onLoadTemplate: (templateId: GameTemplateId) => void;
-  getCurrentConfig: () => GameMasterConfig;
+  getCurrentConfig: () => GameConfig;
   getCurrentTemplateId: () => GameTemplateId;
   getGame: () => Phaser.Game | null;
-}): void {
-  const postReady = () => {
-    const iframeReadyMessage: IframeReadyMessage = {
-      type: BRIDGE_MESSAGE_TYPE.IFRAME_READY,
-      capabilities: {
-        engineMode: getEngineMode(),
-        allowsSystemMutation: allowsSystemMutation(),
-        templateId: handlers.getCurrentTemplateId(),
-        externalTouchControls: supportsExternalTouchControls(
-          handlers.getCurrentTemplateId(),
-        ),
-      },
+};
+
+let currentTemplateId: GameTemplateId = "catch-game-demo";
+
+export class EngineMessenger {
+  private configListeners = new Set<(config: GameConfig) => void>();
+  private handlers: EngineBridgeHandlers | null = null;
+  private started = false;
+  private boundListener: ((event: MessageEvent) => void) | null = null;
+
+  start(handlers: EngineBridgeHandlers): void {
+    if (this.started) return;
+    this.started = true;
+    this.handlers = handlers;
+    currentTemplateId = handlers.getCurrentTemplateId();
+
+    this.boundListener = (event: MessageEvent) => {
+      this.handleMessage(event);
     };
-    window.parent.postMessage(iframeReadyMessage, getParentTargetOrigin());
-  };
+    window.addEventListener("message", this.boundListener);
+  }
 
-  postReady();
+  onConfigUpdate(listener: (config: GameConfig) => void): () => void {
+    this.configListeners.add(listener);
+    return () => {
+      this.configListeners.delete(listener);
+    };
+  }
 
-  window.addEventListener("message", (event: MessageEvent) => {
+  sendEngineReady(): void {
+    if (window.parent === window) return;
+
+    const handlers = this.handlers;
+    window.parent.postMessage(
+      {
+        type: BRIDGE_MESSAGE_TYPE.ENGINE_READY,
+        payload: {
+          activeTemplateId: handlers?.getCurrentTemplateId() ?? currentTemplateId,
+          appMode: getEngineMode(),
+        },
+      },
+      getParentTargetOrigin(),
+    );
+  }
+
+  sendAssetLoadError(payload: AssetLoadErrorPayload): void {
+    if (window.parent === window) return;
+
+    window.parent.postMessage(
+      {
+        type: BRIDGE_MESSAGE_TYPE.ASSET_LOAD_ERROR,
+        payload,
+      },
+      getParentTargetOrigin(),
+    );
+  }
+
+  private notifyConfigUpdate(config: GameConfig): void {
+    for (const listener of this.configListeners) {
+      listener(config);
+    }
+    this.handlers?.onConfigUpdate(config);
+  }
+
+  private handleMessage(event: MessageEvent): void {
+    if (import.meta.env.DEV) {
+      console.log("[Engine Bridge] Received message:", event.data);
+    }
+
     if (event.source !== window.parent) return;
-    if (!isAllowedDashboardOrigin(event.origin)) return;
-
-    const message = parseBridgeMessage(event.data);
-    if (!message) {
+    if (!isAllowedDashboardOrigin(event.origin)) {
       if (import.meta.env.DEV) {
-        console.warn("Engine received invalid message format:", event.data);
+        console.warn(
+          "[Engine Bridge] Rejected origin:",
+          event.origin,
+          "(allowed dashboard origins only)",
+        );
       }
       return;
     }
 
-    switch (message.type) {
-      case BRIDGE_MESSAGE_TYPE.UPDATE_CONFIG: {
-        const previous = handlers.getCurrentConfig();
-        const bridgePayload = coerceUpdateConfigPayload(
-          message.payload,
-          currentTemplateId,
-          previous,
+    const parsedMessage = BridgeMessageSchema.safeParse(event.data);
+    if (!parsedMessage.success) {
+      if (import.meta.env.DEV) {
+        console.error(
+          "[Engine Bridge] Zod Validation Failed:",
+          parsedMessage.error,
         );
-        if (!bridgePayload) {
-          break;
+      }
+      return;
+    }
+    const message = parsedMessage.data;
+
+    const handlers = this.handlers;
+    if (!handlers) return;
+
+    switch (message.type) {
+      case BRIDGE_MESSAGE_TYPE.CONFIG_UPDATED: {
+        const parsed = GameConfigSchema.safeParse(message.payload);
+        if (!parsed.success) {
+          if (import.meta.env.DEV) {
+            console.error(
+              "[Engine Bridge] CONFIG_UPDATED payload rejected:",
+              parsed.error,
+            );
+          }
+          return;
         }
-
-        const editorParse = EditorStateSchema.safeParse(bridgePayload.editorState);
-        const editorState = editorParse.success
-          ? editorParse.data
-          : bridgePayload.editorState;
-
-        const resolvedConfig = resolveGameConfig(message, bridgePayload, previous);
-        handlers.onUpdate(resolvedConfig);
-        handlers.onEditorState(editorState);
-
+        if (import.meta.env.DEV) {
+          console.log("[Engine Bridge] Applying CONFIG_UPDATED");
+        }
+        this.notifyConfigUpdate(parsed.data);
         const game = handlers.getGame();
         if (game) {
-          game.events.emit("bridge:editor-state", editorState);
-          game.events.emit("bridge:config-update", resolvedConfig);
+          game.events.emit("bridge:config-update", parsed.data);
         }
         break;
       }
       case BRIDGE_MESSAGE_TYPE.LOAD_TEMPLATE: {
         currentTemplateId = message.payload;
         handlers.onLoadTemplate(message.payload);
-        postReady();
-        break;
-      }
-      case BRIDGE_MESSAGE_TYPE.REQUEST_DIAGNOSTICS: {
-        const config = handlers.getCurrentConfig();
-        window.parent.postMessage(
-          {
-            type: BRIDGE_MESSAGE_TYPE.DIAGNOSTICS_PAYLOAD,
-            payload: {
-              config,
-              templateId: handlers.getCurrentTemplateId(),
-              engineMode: getEngineMode(),
-            },
-          },
-          event.origin,
-        );
+        this.sendEngineReady();
         break;
       }
       case BRIDGE_MESSAGE_TYPE.LOAD_EXTERNAL_ASSET: {
@@ -146,7 +156,7 @@ export function setupBridge(handlers: {
           game,
           parsed.data.key,
           parsed.data.absolutePath,
-          handlers.getCurrentConfig().meta.projectId,
+          handlers.getCurrentConfig().projectId,
         );
         break;
       }
@@ -159,8 +169,21 @@ export function setupBridge(handlers: {
       default:
         break;
     }
-  });
+  }
 }
+
+export const engineMessenger = new EngineMessenger();
+
+export function setupBridge(handlers: EngineBridgeHandlers): void {
+  engineMessenger.start(handlers);
+  engineMessenger.sendEngineReady();
+}
+
+export function setBridgeTemplateId(id: GameTemplateId): void {
+  currentTemplateId = id;
+}
+
+import { HitboxUpdatePayloadSchema, type HitboxUpdatePayload } from "@mashedgames/shared";
 
 export function postHitboxUpdated(payload: HitboxUpdatePayload): void {
   if (window.parent === window) {
@@ -182,8 +205,4 @@ export function postHitboxUpdated(payload: HitboxUpdatePayload): void {
     },
     getParentTargetOrigin(),
   );
-}
-
-export function setBridgeTemplateId(id: GameTemplateId): void {
-  currentTemplateId = id;
 }

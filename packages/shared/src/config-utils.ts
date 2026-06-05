@@ -1,33 +1,21 @@
 import {
-  GameMasterConfigSchema,
-  LegacyGameMasterConfigSchema,
-  type BrandingPatch,
-  type BrandingSettings,
+  flattenLegacyConfig,
+  normalizeGameConfig,
+} from "./config-flatten";
+import {
+  GameConfigSchema,
+  type GameConfig,
+} from "./game-config-bridge";
+import {
   type ControlFieldSchema,
   type ControlValue,
-  type GameMasterConfig,
   type GameSchema,
   type GameTemplateId,
-  type LegacyGameMasterConfig,
-  type SystemSettings,
 } from "./game-schema";
-import {
-  DEFAULT_BRANDING_SETTINGS,
-  DEFAULT_GAME_MASTER_CONFIG,
-  DEFAULT_SCHEMA_VERSION,
-  DEFAULT_SYSTEM_SETTINGS,
-} from "./types";
+import { DEFAULT_GAME_CONFIG, DEFAULT_SCHEMA_VERSION } from "./types";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
-}
-
-function setByPath(
-  target: Record<string, unknown>,
-  path: string,
-  value: ControlValue,
-): void {
-  applyPath(target, path, value);
 }
 
 /** Sets nested values; supports numeric path segments for arrays. */
@@ -102,111 +90,64 @@ function getByPath(
   return undefined;
 }
 
-export function migrateLegacyConfig(
-  legacy: LegacyGameMasterConfig,
-  templateId: GameTemplateId = DEFAULT_GAME_MASTER_CONFIG.meta.templateId,
-): GameMasterConfig {
-  return {
-    meta: {
-      templateId,
-      schemaVersion: DEFAULT_SCHEMA_VERSION,
-    },
-    system: {
-      ...structuredClone(DEFAULT_SYSTEM_SETTINGS),
-      mechanics: {
-        ...DEFAULT_SYSTEM_SETTINGS.mechanics,
-        playerSpeed: legacy.gameplay.playerSpeed,
-      },
-    },
-    branding: {
-      ...structuredClone(DEFAULT_BRANDING_SETTINGS),
-      theme: {
-        ...DEFAULT_BRANDING_SETTINGS.theme,
-        primaryColor: legacy.theme.primaryColor,
-        playerTexture: legacy.theme.playerTexture,
-      },
-      domOverlay: { ...legacy.domOverlay },
-    },
-  };
-}
-
-export function normalizeGameMasterConfig(
-  data: unknown,
-  templateId?: GameTemplateId,
-): GameMasterConfig | null {
-  const parsed = GameMasterConfigSchema.safeParse(data);
-  if (parsed.success) {
-    return parsed.data;
-  }
-
-  const legacy = LegacyGameMasterConfigSchema.safeParse(data);
-  if (legacy.success) {
-    return migrateLegacyConfig(legacy.data, templateId);
-  }
-
-  return null;
-}
+export { normalizeGameConfig, flattenLegacyConfig };
 
 export function buildConfigFromSchema(
   schema: GameSchema,
   templateId: GameTemplateId = schema.id,
-): GameMasterConfig {
-  const config: GameMasterConfig = {
-    meta: {
-      templateId,
-      schemaVersion: DEFAULT_SCHEMA_VERSION,
-    },
-    system: structuredClone(DEFAULT_SYSTEM_SETTINGS),
-    branding: structuredClone(DEFAULT_BRANDING_SETTINGS),
+): GameConfig {
+  const config: GameConfig = {
+    ...structuredClone(DEFAULT_GAME_CONFIG),
+    activeTemplateId: templateId,
+    schemaVersion: DEFAULT_SCHEMA_VERSION,
   };
 
+  const root = config as Record<string, unknown>;
   for (const control of schema.controls) {
-    const slice =
-      control.targetCategory === "system"
-        ? (config.system as unknown as Record<string, unknown>)
-        : (config.branding as unknown as Record<string, unknown>);
-    setByPath(slice, control.targetPath, control.defaultValue);
+    applyPath(root, control.targetPath, control.defaultValue);
   }
 
-  config.meta.templateId = templateId;
   return config;
 }
 
 export function buildConfigWithFrozenSystem(
   schema: GameSchema,
-  systemDefaults: SystemSettings,
+  systemDefaults: Record<string, unknown>,
   templateId: GameTemplateId = schema.id,
-): GameMasterConfig {
+): GameConfig {
   const config = buildConfigFromSchema(schema, templateId);
-  config.system = structuredClone(systemDefaults);
-  config.system.physics.debugDraw = false;
+  const root = config as Record<string, unknown>;
+  for (const [key, value] of Object.entries(systemDefaults)) {
+    if (key === "catchGame" && isRecord(value)) {
+      const existing = isRecord(root.catchGame) ? root.catchGame : {};
+      root.catchGame = deepMerge(existing, value);
+      continue;
+    }
+    root[key] = structuredClone(value);
+  }
   return config;
 }
 
 export function getConfigValue(
-  config: GameMasterConfig,
+  config: GameConfig,
   control: ControlFieldSchema,
 ): ControlValue {
-  const slice =
-    control.targetCategory === "system"
-      ? (config.system as unknown as Record<string, unknown>)
-      : (config.branding as unknown as Record<string, unknown>);
-  const value = getByPath(slice, control.targetPath);
+  const value = getByPath(
+    config as Record<string, unknown>,
+    control.targetPath,
+  );
   if (value !== undefined) return value;
   return control.defaultValue;
 }
 
-export function mergeBrandingPatch(
-  config: GameMasterConfig,
-  patch: BrandingPatch,
-): GameMasterConfig {
-  return {
-    ...config,
-    branding: deepMerge(
-      config.branding as unknown as Record<string, unknown>,
-      patch as unknown as Record<string, unknown>,
-    ) as unknown as BrandingSettings,
-  };
+export function patchConfig(
+  config: GameConfig,
+  patch: Partial<GameConfig>,
+): GameConfig {
+  return deepMerge(
+    config as Record<string, unknown>,
+    patch as Record<string, unknown>,
+  ) as GameConfig;
 }
 
 function deepMerge(
@@ -228,11 +169,30 @@ function deepMerge(
   return result;
 }
 
-export function exportClientPayload(
-  config: GameMasterConfig,
-): Pick<GameMasterConfig, "meta" | "branding"> {
+export function exportClientPayload(config: GameConfig): GameConfig {
+  const {
+    activeTemplateId,
+    projectId,
+    schemaVersion,
+    parentTemplateId,
+    parentPinnedVersion,
+    lastParentSyncAt,
+    ...clientFields
+  } = config;
+
   return {
-    meta: { ...config.meta },
-    branding: structuredClone(config.branding),
+    activeTemplateId,
+    projectId,
+    schemaVersion,
+    parentTemplateId,
+    parentPinnedVersion,
+    lastParentSyncAt,
+    ...structuredClone(clientFields),
   };
+}
+
+export function parseGameConfig(data: unknown): GameConfig | null {
+  const result = GameConfigSchema.safeParse(data);
+  if (result.success) return result.data;
+  return flattenLegacyConfig(data);
 }
