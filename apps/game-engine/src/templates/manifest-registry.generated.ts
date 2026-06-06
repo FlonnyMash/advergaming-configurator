@@ -3,8 +3,6 @@
 import type { TemplateManifest } from "@mashedgames/shared";
 
 import template0 from "./catch-game-demo/manifest.json";
-import template1 from "./dgf/manifest.json";
-import template2 from "./ert/manifest.json";
-import template3 from "./tz/manifest.json";
+import template1 from "./sdaf/manifest.json";
 
-export const ALL_MANIFESTS = [template0, template1, template2, template3] as TemplateManifest[];
+export const ALL_MANIFESTS = [template0, template1] as TemplateManifest[];

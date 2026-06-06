@@ -1,50 +1,27 @@
 {
-  "catchGame": {
-    "game": {
-      "parentElementId": "app"
-    },
-    "assets": {
-      "goodItems": [
-        {
-          "hitbox": {
-            "width": 0.85,
-            "height": 0.7
-          }
-        }
-      ],
-      "badItems": [
-        {
-          "hitbox": {
-            "width": 0.6,
-            "height": 0.5,
-            "offsetX": 0.2,
-            "offsetY": 0.4
-          },
-          "centerOffset": {
-            "x": 0,
-            "y": 0.12
-          },
-          "rotationAnchor": {
-            "x": 1,
-            "y": 1
-          },
-          "fallSpeed": 260,
-          "rotateWhileFalling": false,
-          "fallRotationSpeed": 480
-        }
-      ]
-    },
-    "physics": {
-      "debug": true,
-      "goodItemSpawnRateMs": 1200,
-      "badItemSpawnRateMs": 2000,
-      "itemFallSpeedMin": 120,
-      "itemFallSpeedMax": 260
-    },
-    "gameplay": {
-      "durationSeconds": 30,
-      "scorePerGoodItem": 10,
-      "scorePerBadItem": 5
+  "catchableItems": [
+    {
+      "id": "default-good",
+      "assetUrl": "/template-assets/catch-game-demo/assets/bad-1.png",
+      "scoreValue": 10,
+      "dropSpeed": 200,
+      "spawnWeight": 1
     }
-  }
+  ],
+  "hazardItems": [
+    {
+      "id": "default-hazard",
+      "assetUrl": "/template-assets/catch-game-demo/assets/bad-1.png",
+      "scoreValue": -5,
+      "dropSpeed": 280,
+      "spawnWeight": 1
+    }
+  ],
+  "playerEntity": {
+    "assetUrl": "/template-assets/catch-game-demo/assets/player.png",
+    "speed": 320
+  },
+  "durationSeconds": 30,
+  "itemSpawnRateMs": 1500,
+  "themeColor": "#000080"
 }

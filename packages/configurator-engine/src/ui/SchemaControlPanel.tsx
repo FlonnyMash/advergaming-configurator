@@ -3,17 +3,32 @@
 import {
   getConfigValue,
   groupControlsByElement,
+  resolveControlAssetPreviewSrc,
   type ControlFieldSchema,
   type ControlValue,
+  type EntityArrayItemField,
   type GameConfig,
   type GameSchema,
 } from "@mashedgames/shared";
-import { useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 export const controlInputClass =
   "rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100";
 
 const MAX_TEXTURE_BYTES = 4 * 1024 * 1024;
+
+type EntityRecord = Record<string, string | number | boolean>;
+
+function isEntityRecord(value: unknown): value is EntityRecord {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function readEntityArray(value: ControlValue): EntityRecord[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value.filter(isEntityRecord);
+}
 
 function ChevronIcon({ expanded }: { expanded?: boolean }) {
   return (
@@ -87,6 +102,85 @@ function Field({
   );
 }
 
+const checkerboardClass =
+  "bg-[repeating-conic-gradient(#e4e4e7_0%_25%,#fafafa_0%_50%)] bg-size-[12px_12px]";
+
+function ImageUploadWithPreview({
+  label,
+  value,
+  onChange,
+  onFileSelected,
+}: {
+  label: string;
+  value: string | null;
+  onChange: (value: string | null) => void;
+  onFileSelected: (file: File) => void | Promise<void>;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [previewBroken, setPreviewBroken] = useState(false);
+  const previewSrc = useMemo(
+    () => resolveControlAssetPreviewSrc(value),
+    [value],
+  );
+  const showPreview = Boolean(previewSrc) && !previewBroken;
+
+  useEffect(() => {
+    setPreviewBroken(false);
+  }, [value, previewSrc]);
+
+  return (
+    <Field label={label}>
+      <div className="flex gap-3">
+        <div
+          className={`relative flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-zinc-200 ${checkerboardClass}`}
+        >
+          {showPreview ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={previewSrc!}
+              alt=""
+              className="max-h-full max-w-full object-contain"
+              onError={() => setPreviewBroken(true)}
+            />
+          ) : (
+            <span className="px-1 text-center text-[10px] leading-tight text-zinc-400">
+              {value && !previewSrc ? "Saved" : "No image"}
+            </span>
+          )}
+        </div>
+        <div className="min-w-0 flex-1 space-y-1.5">
+          <input
+            ref={inputRef}
+            type="file"
+            accept="image/png,image/jpeg,image/svg+xml"
+            onChange={(event) => {
+              const file = event.target.files?.[0];
+              if (!file || file.size > MAX_TEXTURE_BYTES) return;
+              setPreviewBroken(false);
+              void Promise.resolve(onFileSelected(file)).finally(() => {
+                event.target.value = "";
+              });
+            }}
+            className={`${controlInputClass} w-full cursor-pointer file:mr-3 file:rounded-md file:border-0 file:bg-indigo-50 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-indigo-700`}
+          />
+          {value ? (
+            <button
+              type="button"
+              onClick={() => {
+                setPreviewBroken(false);
+                onChange(null);
+              }}
+              className="text-xs text-zinc-500 underline"
+            >
+              Clear image
+            </button>
+          ) : null}
+        </div>
+      </div>
+    </Field>
+  );
+}
+
 function clampSliderValue(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
 }
@@ -153,6 +247,173 @@ function SliderControl({
   );
 }
 
+function EntityArrayItemFieldControl({
+  field,
+  item,
+  onItemChange,
+  imageUploadMode,
+  onImageFile,
+}: {
+  field: EntityArrayItemField;
+  item: EntityRecord;
+  onItemChange: (nextItem: EntityRecord) => void;
+  imageUploadMode?: ImageUploadMode;
+  onImageFile?: (file: File) => void | Promise<void>;
+}) {
+  const rawValue = item[field.key];
+
+  if (field.type === "text") {
+    return (
+      <Field label={field.label}>
+        <input
+          type="text"
+          value={typeof rawValue === "string" ? rawValue : String(rawValue ?? "")}
+          onChange={(e) => onItemChange({ ...item, [field.key]: e.target.value })}
+          className={controlInputClass}
+        />
+      </Field>
+    );
+  }
+
+  if (field.type === "slider") {
+    const min = field.min ?? 0;
+    const max = field.max ?? 100;
+    const step = field.step ?? 1;
+    const numericValue =
+      typeof rawValue === "number" ? rawValue : Number(rawValue ?? min);
+    return (
+      <SliderControl
+        label={field.label}
+        min={min}
+        max={max}
+        step={step}
+        value={Number.isFinite(numericValue) ? numericValue : min}
+        onChange={(next) => onItemChange({ ...item, [field.key]: next })}
+      />
+    );
+  }
+
+  const textureValue = typeof rawValue === "string" && rawValue.length > 0 ? rawValue : null;
+  return (
+    <ImageUploadWithPreview
+      label={field.label}
+      value={textureValue}
+      onChange={(next) => onItemChange({ ...item, [field.key]: next ?? "" })}
+      onFileSelected={async (file) => {
+        if (imageUploadMode === "workspace-file" && onImageFile) {
+          await onImageFile(file);
+          return;
+        }
+        const reader = new FileReader();
+        reader.onload = () => {
+          if (typeof reader.result === "string") {
+            onItemChange({ ...item, [field.key]: reader.result });
+          }
+        };
+        reader.readAsDataURL(file);
+      }}
+    />
+  );
+}
+
+function EntityArrayControl({
+  schema,
+  value,
+  onChange,
+  imageUploadMode = "base64",
+  onImageFile,
+}: {
+  schema: ControlFieldSchema;
+  value: ControlValue;
+  onChange: (value: ControlValue) => void;
+  imageUploadMode?: ImageUploadMode;
+  onImageFile?: (
+    file: File,
+    control: ControlFieldSchema,
+  ) => void | Promise<void>;
+}) {
+  const items = readEntityArray(value);
+  const itemFields = schema.itemFields ?? [];
+  const itemLabel = schema.itemLabel ?? "Item";
+  const defaultItem = schema.defaultItem ?? { id: "entity-new" };
+
+  const updateItems = (nextItems: EntityRecord[]) => {
+    onChange(nextItems);
+  };
+
+  const addItem = () => {
+    const baseId =
+      typeof defaultItem.id === "string" ? defaultItem.id : "entity-new";
+    const nextItem: EntityRecord = {
+      ...defaultItem,
+      id: `${baseId}-${items.length + 1}`,
+    };
+    updateItems([...items, nextItem]);
+  };
+
+  const removeItem = (index: number) => {
+    updateItems(items.filter((_, itemIndex) => itemIndex !== index));
+  };
+
+  const updateItem = (index: number, nextItem: EntityRecord) => {
+    updateItems(items.map((item, itemIndex) => (itemIndex === index ? nextItem : item)));
+  };
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-sm font-medium text-zinc-900">{schema.label}</span>
+        <button
+          type="button"
+          onClick={addItem}
+          className="rounded-md border border-indigo-200 bg-indigo-50 px-2.5 py-1 text-xs font-medium text-indigo-800 hover:bg-indigo-100"
+        >
+          Add item
+        </button>
+      </div>
+
+      {items.length === 0 ? (
+        <p className="text-xs text-zinc-500">No items configured. Add one to spawn entities.</p>
+      ) : null}
+
+      {items.map((item, index) => (
+        <div
+          key={`${schema.targetPath}-${index}-${String(item.id ?? index)}`}
+          className="space-y-3 rounded-lg border border-zinc-200 bg-white p-3"
+        >
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+              {itemLabel} {index + 1}
+              {typeof item.id === "string" && item.id ? ` · ${item.id}` : ""}
+            </span>
+            <button
+              type="button"
+              onClick={() => removeItem(index)}
+              className="text-xs font-medium text-red-600 hover:text-red-700"
+            >
+              Remove
+            </button>
+          </div>
+          {itemFields.map((field) => (
+            <EntityArrayItemFieldControl
+              key={`${schema.targetPath}-${index}-${field.key}`}
+              field={field}
+              item={item}
+              onItemChange={(nextItem) => updateItem(index, nextItem)}
+              imageUploadMode={imageUploadMode}
+              onImageFile={
+                onImageFile
+                  ? (file) => onImageFile(file, schema)
+                  : undefined
+              }
+            />
+          ))}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export type ImageUploadMode = "base64" | "workspace-file";
 
 function SchemaControl({
@@ -171,9 +432,17 @@ function SchemaControl({
     control: ControlFieldSchema,
   ) => void | Promise<void>;
 }) {
-  const textureInputRef = useRef<HTMLInputElement>(null);
-
   switch (schema.type) {
+    case "entityArray":
+      return (
+        <EntityArrayControl
+          schema={schema}
+          value={value}
+          onChange={onChange}
+          imageUploadMode={imageUploadMode}
+          onImageFile={onImageFile}
+        />
+      );
     case "slider": {
       const min = schema.min ?? 50;
       const max = schema.max ?? 400;
@@ -240,30 +509,22 @@ function SchemaControl({
     }
     case "image":
       return (
-        <Field label={schema.label}>
-          <input
-            ref={textureInputRef}
-            type="file"
-            accept="image/png,image/jpeg,image/svg+xml"
-            onChange={(event) => {
-              const file = event.target.files?.[0];
-              if (!file || file.size > MAX_TEXTURE_BYTES) return;
-              if (imageUploadMode === "workspace-file" && onImageFile) {
-                void Promise.resolve(onImageFile(file, schema)).finally(() => {
-                  event.target.value = "";
-                });
-                return;
-              }
-              const reader = new FileReader();
-              reader.onload = () => {
-                if (typeof reader.result === "string") onChange(reader.result);
-                event.target.value = "";
-              };
-              reader.readAsDataURL(file);
-            }}
-            className={controlInputClass}
-          />
-        </Field>
+        <ImageUploadWithPreview
+          label={schema.label}
+          value={typeof value === "string" && value.length > 0 ? value : null}
+          onChange={onChange}
+          onFileSelected={async (file) => {
+            if (imageUploadMode === "workspace-file" && onImageFile) {
+              await onImageFile(file, schema);
+              return;
+            }
+            const reader = new FileReader();
+            reader.onload = () => {
+              if (typeof reader.result === "string") onChange(reader.result);
+            };
+            reader.readAsDataURL(file);
+          }}
+        />
       );
     default:
       return null;
@@ -279,6 +540,8 @@ export interface SchemaControlPanelProps {
     file: File,
     control: ControlFieldSchema,
   ) => void | Promise<void>;
+  /** When set, only controls in this category are shown. */
+  categoryFilter?: "branding" | "system";
 }
 
 export function SchemaControlPanel({
@@ -287,11 +550,12 @@ export function SchemaControlPanel({
   onControlChange,
   imageUploadMode = "base64",
   onImageFile,
+  categoryFilter,
 }: SchemaControlPanelProps) {
-  const brandingControls = schema.controls.filter(
-    (control) => control.targetCategory === "branding",
-  );
-  const groups = groupControlsByElement(brandingControls);
+  const controls = categoryFilter
+    ? schema.controls.filter((control) => control.targetCategory === categoryFilter)
+    : schema.controls;
+  const groups = groupControlsByElement(controls);
 
   if (groups.length === 0) return null;
 

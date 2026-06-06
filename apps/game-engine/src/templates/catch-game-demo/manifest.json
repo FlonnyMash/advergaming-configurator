@@ -5,627 +5,202 @@
   "previewUrl": "/previews/catch-game-demo.png",
   "status": "published",
   "label": "Catch Game Demo",
-  "description": "Imported legacy Vite/Phaser project (controls mapped from public/config.json).",
+  "description": "Data-driven catch game — entity arrays drive spawning, scoring, and player movement.",
   "schema": {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "type": "object",
     "properties": {
-      "catchGame": {
+      "themeColor": {
+        "type": "string",
+        "default": "#ff8040",
+        "x-control": {
+          "type": "color",
+          "label": "Background color",
+          "targetCategory": "branding",
+          "targetPath": "themeColor",
+          "surface": "both"
+        }
+      },
+      "durationSeconds": {
+        "type": "number",
+        "default": 27,
+        "minimum": 5,
+        "maximum": 600,
+        "x-control": {
+          "type": "slider",
+          "label": "Round duration (seconds)",
+          "targetCategory": "system",
+          "targetPath": "durationSeconds",
+          "surface": "studio",
+          "step": 1
+        }
+      },
+      "itemSpawnRateMs": {
+        "type": "number",
+        "default": 300,
+        "minimum": 200,
+        "maximum": 10000,
+        "x-control": {
+          "type": "slider",
+          "label": "Item spawn interval (ms)",
+          "targetCategory": "system",
+          "targetPath": "itemSpawnRateMs",
+          "surface": "studio",
+          "step": 50
+        }
+      },
+      "catchableItems": {
+        "type": "array",
+        "default": [
+          {
+            "id": "default-good",
+            "assetUrl": "/template-assets/catch-game-demo/assets/bad-1.png",
+            "scoreValue": 10,
+            "dropSpeed": 200,
+            "spawnWeight": 1
+          }
+        ],
+        "x-control": {
+          "type": "entityArray",
+          "label": "Catchable items",
+          "itemLabel": "Catchable item",
+          "targetCategory": "system",
+          "targetPath": "catchableItems",
+          "surface": "studio",
+          "defaultItem": {
+            "id": "catchable-new",
+            "assetUrl": "",
+            "scoreValue": 10,
+            "dropSpeed": 200,
+            "spawnWeight": 1
+          },
+          "itemFields": [
+            {
+              "key": "id",
+              "label": "Entity ID",
+              "type": "text"
+            },
+            {
+              "key": "assetUrl",
+              "label": "Sprite",
+              "type": "image"
+            },
+            {
+              "key": "scoreValue",
+              "label": "Score value",
+              "type": "slider",
+              "min": 1,
+              "max": 100,
+              "step": 1
+            },
+            {
+              "key": "dropSpeed",
+              "label": "Drop speed",
+              "type": "slider",
+              "min": 50,
+              "max": 500,
+              "step": 10
+            },
+            {
+              "key": "spawnWeight",
+              "label": "Spawn weight",
+              "type": "slider",
+              "min": 0,
+              "max": 10,
+              "step": 1
+            }
+          ]
+        }
+      },
+      "hazardItems": {
+        "type": "array",
+        "default": [
+          {
+            "id": "default-hazard",
+            "assetUrl": "/template-assets/catch-game-demo/assets/bad-1.png",
+            "scoreValue": -5,
+            "dropSpeed": 280,
+            "spawnWeight": 1
+          }
+        ],
+        "x-control": {
+          "type": "entityArray",
+          "label": "Hazard items",
+          "itemLabel": "Hazard item",
+          "targetCategory": "system",
+          "targetPath": "hazardItems",
+          "surface": "studio",
+          "defaultItem": {
+            "id": "hazard-new",
+            "assetUrl": "",
+            "scoreValue": -5,
+            "dropSpeed": 280,
+            "spawnWeight": 1
+          },
+          "itemFields": [
+            {
+              "key": "id",
+              "label": "Entity ID",
+              "type": "text"
+            },
+            {
+              "key": "assetUrl",
+              "label": "Sprite",
+              "type": "image"
+            },
+            {
+              "key": "scoreValue",
+              "label": "Penalty (negative)",
+              "type": "slider",
+              "min": -50,
+              "max": -1,
+              "step": 1
+            },
+            {
+              "key": "dropSpeed",
+              "label": "Drop speed",
+              "type": "slider",
+              "min": 50,
+              "max": 500,
+              "step": 10
+            },
+            {
+              "key": "spawnWeight",
+              "label": "Spawn weight",
+              "type": "slider",
+              "min": 0,
+              "max": 10,
+              "step": 1
+            }
+          ]
+        }
+      },
+      "playerEntity": {
         "type": "object",
         "properties": {
-          "game": {
-            "type": "object",
-            "properties": {
-              "width": {
-                "type": "number",
-                "x-control": {
-                  "type": "slider",
-                  "label": "Width",
-                  "targetCategory": "branding",
-                  "targetPath": "catchGame.game.width",
-                  "surface": "studio",
-                  "step": 1
-                },
-                "default": 360,
-                "minimum": 0,
-                "maximum": 1000
-              },
-              "height": {
-                "type": "number",
-                "x-control": {
-                  "type": "slider",
-                  "label": "Height",
-                  "targetCategory": "branding",
-                  "targetPath": "catchGame.game.height",
-                  "surface": "studio",
-                  "step": 1
-                },
-                "default": 640,
-                "minimum": 0,
-                "maximum": 1000
-              },
-              "backgroundColor": {
-                "type": "string",
-                "x-control": {
-                  "type": "color",
-                  "label": "Background Color",
-                  "targetCategory": "branding",
-                  "targetPath": "catchGame.game.backgroundColor",
-                  "surface": "both"
-                },
-                "default": "#000080"
-              },
-              "parentElementId": {
-                "type": "string",
-                "x-control": {
-                  "type": "text",
-                  "label": "Parent Element Id",
-                  "targetCategory": "system",
-                  "targetPath": "catchGame.game.parentElementId",
-                  "surface": "studio"
-                },
-                "default": "app"
-              }
+          "assetUrl": {
+            "type": "string",
+            "default": "/template-assets/catch-game-demo/assets/player.png",
+            "x-control": {
+              "type": "image",
+              "label": "Player sprite",
+              "targetCategory": "branding",
+              "targetPath": "playerEntity.assetUrl",
+              "surface": "studio"
             }
           },
-          "assets": {
-            "type": "object",
-            "properties": {
-              "player": {
-                "type": "string",
-                "x-control": {
-                  "type": "image",
-                  "label": "Player sprite sheet",
-                  "targetCategory": "branding",
-                  "targetPath": "catchGame.assets.player",
-                  "surface": "studio"
-                },
-                "default": "/assets/player.png"
-              },
-              "playerSprite": {
-                "type": "object",
-                "properties": {
-                  "frameWidth": {
-                    "type": "number",
-                    "x-control": {
-                      "type": "slider",
-                      "label": "Player Frame Width",
-                      "targetCategory": "branding",
-                      "targetPath": "catchGame.assets.playerSprite.frameWidth",
-                      "surface": "studio",
-                      "step": 1
-                    },
-                    "default": 128,
-                    "minimum": 1,
-                    "maximum": 512
-                  },
-                  "frameHeight": {
-                    "type": "number",
-                    "x-control": {
-                      "type": "slider",
-                      "label": "Player Frame Height",
-                      "targetCategory": "branding",
-                      "targetPath": "catchGame.assets.playerSprite.frameHeight",
-                      "surface": "studio",
-                      "step": 1
-                    },
-                    "default": 128,
-                    "minimum": 1,
-                    "maximum": 512
-                  },
-                  "displayWidth": {
-                    "type": "number",
-                    "x-control": {
-                      "type": "slider",
-                      "label": "Player Display Width",
-                      "targetCategory": "branding",
-                      "targetPath": "catchGame.assets.playerSprite.displayWidth",
-                      "surface": "studio",
-                      "step": 1
-                    },
-                    "default": 80,
-                    "minimum": 1,
-                    "maximum": 512
-                  },
-                  "flipXWhenMovingRight": {
-                    "type": "boolean",
-                    "x-control": {
-                      "type": "toggle",
-                      "label": "Flip X When Moving Right",
-                      "targetCategory": "branding",
-                      "targetPath": "catchGame.assets.playerSprite.flipXWhenMovingRight",
-                      "surface": "studio"
-                    },
-                    "default": true
-                  },
-                  "walkAnimationStart": {
-                    "type": "number",
-                    "x-control": {
-                      "type": "slider",
-                      "label": "Walk Animation Start Frame",
-                      "targetCategory": "branding",
-                      "targetPath": "catchGame.assets.playerSprite.walkAnimation.start",
-                      "surface": "studio",
-                      "step": 1
-                    },
-                    "default": 0,
-                    "minimum": 0,
-                    "maximum": 32
-                  },
-                  "walkAnimationEnd": {
-                    "type": "number",
-                    "x-control": {
-                      "type": "slider",
-                      "label": "Walk Animation End Frame",
-                      "targetCategory": "branding",
-                      "targetPath": "catchGame.assets.playerSprite.walkAnimation.end",
-                      "surface": "studio",
-                      "step": 1
-                    },
-                    "default": 3,
-                    "minimum": 0,
-                    "maximum": 32
-                  },
-                  "walkAnimationFrameRate": {
-                    "type": "number",
-                    "x-control": {
-                      "type": "slider",
-                      "label": "Walk Animation Frame Rate",
-                      "targetCategory": "branding",
-                      "targetPath": "catchGame.assets.playerSprite.walkAnimation.frameRate",
-                      "surface": "studio",
-                      "step": 1
-                    },
-                    "default": 12,
-                    "minimum": 1,
-                    "maximum": 60
-                  }
-                }
-              },
-              "ground": {
-                "type": "object",
-                "properties": {
-                  "image": {
-                    "type": "string",
-                    "x-control": {
-                      "type": "image",
-                      "label": "Ground texture",
-                      "targetCategory": "branding",
-                      "targetPath": "catchGame.assets.ground.image",
-                      "surface": "studio"
-                    },
-                    "default": "/assets/ground.png"
-                  },
-                  "height": {
-                    "type": "number",
-                    "x-control": {
-                      "type": "slider",
-                      "label": "Ground Height",
-                      "targetCategory": "branding",
-                      "targetPath": "catchGame.assets.ground.height",
-                      "surface": "studio",
-                      "step": 1
-                    },
-                    "default": 36,
-                    "minimum": 1,
-                    "maximum": 200
-                  }
-                }
-              },
-              "goodItem0": {
-                "type": "object",
-                "properties": {
-                  "image": {
-                    "type": "string",
-                    "x-control": {
-                      "type": "image",
-                      "label": "Good item 1 sprite",
-                      "targetCategory": "branding",
-                      "targetPath": "catchGame.assets.goodItems.0.image",
-                      "surface": "studio"
-                    },
-                    "default": "/assets/bad-1.png"
-                  },
-                  "frameWidth": {
-                    "type": "number",
-                    "x-control": {
-                      "type": "slider",
-                      "label": "Good Item 1 Frame Width",
-                      "targetCategory": "branding",
-                      "targetPath": "catchGame.assets.goodItems.0.frameWidth",
-                      "surface": "studio",
-                      "step": 1
-                    },
-                    "default": 64,
-                    "minimum": 1,
-                    "maximum": 512
-                  },
-                  "frameHeight": {
-                    "type": "number",
-                    "x-control": {
-                      "type": "slider",
-                      "label": "Good Item 1 Frame Height",
-                      "targetCategory": "branding",
-                      "targetPath": "catchGame.assets.goodItems.0.frameHeight",
-                      "surface": "studio",
-                      "step": 1
-                    },
-                    "default": 64,
-                    "minimum": 1,
-                    "maximum": 512
-                  },
-                  "displayWidth": {
-                    "type": "number",
-                    "x-control": {
-                      "type": "slider",
-                      "label": "Good Item 1 Display Width",
-                      "targetCategory": "branding",
-                      "targetPath": "catchGame.assets.goodItems.0.displayWidth",
-                      "surface": "studio",
-                      "step": 1
-                    },
-                    "default": 48,
-                    "minimum": 1,
-                    "maximum": 512
-                  },
-                  "hitboxWidth": {
-                    "type": "number",
-                    "x-control": {
-                      "type": "slider",
-                      "label": "Good Item 1 Hitbox Width",
-                      "targetCategory": "system",
-                      "targetPath": "catchGame.assets.goodItems.0.hitbox.width",
-                      "surface": "studio",
-                      "step": 0.01
-                    },
-                    "default": 0.85,
-                    "minimum": 0,
-                    "maximum": 1
-                  },
-                  "hitboxHeight": {
-                    "type": "number",
-                    "x-control": {
-                      "type": "slider",
-                      "label": "Good Item 1 Hitbox Height",
-                      "targetCategory": "system",
-                      "targetPath": "catchGame.assets.goodItems.0.hitbox.height",
-                      "surface": "studio",
-                      "step": 0.01
-                    },
-                    "default": 0.7,
-                    "minimum": 0,
-                    "maximum": 1
-                  }
-                }
-              },
-              "badItem0": {
-                "type": "object",
-                "properties": {
-                  "image": {
-                    "type": "string",
-                    "x-control": {
-                      "type": "image",
-                      "label": "Bad item 1 sprite",
-                      "targetCategory": "branding",
-                      "targetPath": "catchGame.assets.badItems.0.image",
-                      "surface": "studio"
-                    },
-                    "default": "/assets/bad-1.png"
-                  },
-                  "frameWidth": {
-                    "type": "number",
-                    "x-control": {
-                      "type": "slider",
-                      "label": "Bad Item 1 Frame Width",
-                      "targetCategory": "branding",
-                      "targetPath": "catchGame.assets.badItems.0.frameWidth",
-                      "surface": "studio",
-                      "step": 1
-                    },
-                    "default": 64,
-                    "minimum": 1,
-                    "maximum": 512
-                  },
-                  "frameHeight": {
-                    "type": "number",
-                    "x-control": {
-                      "type": "slider",
-                      "label": "Bad Item 1 Frame Height",
-                      "targetCategory": "branding",
-                      "targetPath": "catchGame.assets.badItems.0.frameHeight",
-                      "surface": "studio",
-                      "step": 1
-                    },
-                    "default": 64,
-                    "minimum": 1,
-                    "maximum": 512
-                  },
-                  "displayWidth": {
-                    "type": "number",
-                    "x-control": {
-                      "type": "slider",
-                      "label": "Bad Item 1 Display Width",
-                      "targetCategory": "branding",
-                      "targetPath": "catchGame.assets.badItems.0.displayWidth",
-                      "surface": "studio",
-                      "step": 1
-                    },
-                    "default": 48,
-                    "minimum": 1,
-                    "maximum": 512
-                  },
-                  "hitboxWidth": {
-                    "type": "number",
-                    "x-control": {
-                      "type": "slider",
-                      "label": "Bad Item 1 Hitbox Width",
-                      "targetCategory": "system",
-                      "targetPath": "catchGame.assets.badItems.0.hitbox.width",
-                      "surface": "studio",
-                      "step": 0.01
-                    },
-                    "default": 0.6,
-                    "minimum": 0,
-                    "maximum": 1
-                  },
-                  "hitboxHeight": {
-                    "type": "number",
-                    "x-control": {
-                      "type": "slider",
-                      "label": "Bad Item 1 Hitbox Height",
-                      "targetCategory": "system",
-                      "targetPath": "catchGame.assets.badItems.0.hitbox.height",
-                      "surface": "studio",
-                      "step": 0.01
-                    },
-                    "default": 0.5,
-                    "minimum": 0,
-                    "maximum": 1
-                  },
-                  "hitboxOffsetX": {
-                    "type": "number",
-                    "x-control": {
-                      "type": "slider",
-                      "label": "Bad Item 1 Hitbox Offset X",
-                      "targetCategory": "system",
-                      "targetPath": "catchGame.assets.badItems.0.hitbox.offsetX",
-                      "surface": "studio",
-                      "step": 0.01
-                    },
-                    "default": 0.2,
-                    "minimum": 0,
-                    "maximum": 1
-                  },
-                  "hitboxOffsetY": {
-                    "type": "number",
-                    "x-control": {
-                      "type": "slider",
-                      "label": "Bad Item 1 Hitbox Offset Y",
-                      "targetCategory": "system",
-                      "targetPath": "catchGame.assets.badItems.0.hitbox.offsetY",
-                      "surface": "studio",
-                      "step": 0.01
-                    },
-                    "default": 0.4,
-                    "minimum": 0,
-                    "maximum": 1
-                  },
-                  "centerOffsetX": {
-                    "type": "number",
-                    "x-control": {
-                      "type": "slider",
-                      "label": "Bad Item 1 Center Offset X",
-                      "targetCategory": "system",
-                      "targetPath": "catchGame.assets.badItems.0.centerOffset.x",
-                      "surface": "studio",
-                      "step": 0.01
-                    },
-                    "default": 0,
-                    "minimum": -1,
-                    "maximum": 1
-                  },
-                  "centerOffsetY": {
-                    "type": "number",
-                    "x-control": {
-                      "type": "slider",
-                      "label": "Bad Item 1 Center Offset Y",
-                      "targetCategory": "system",
-                      "targetPath": "catchGame.assets.badItems.0.centerOffset.y",
-                      "surface": "studio",
-                      "step": 0.01
-                    },
-                    "default": 0.12,
-                    "minimum": -1,
-                    "maximum": 1
-                  },
-                  "rotationAnchorX": {
-                    "type": "number",
-                    "x-control": {
-                      "type": "slider",
-                      "label": "Bad Item 1 Rotation Anchor X",
-                      "targetCategory": "system",
-                      "targetPath": "catchGame.assets.badItems.0.rotationAnchor.x",
-                      "surface": "studio",
-                      "step": 0.01
-                    },
-                    "default": 1,
-                    "minimum": 0,
-                    "maximum": 1
-                  },
-                  "rotationAnchorY": {
-                    "type": "number",
-                    "x-control": {
-                      "type": "slider",
-                      "label": "Bad Item 1 Rotation Anchor Y",
-                      "targetCategory": "system",
-                      "targetPath": "catchGame.assets.badItems.0.rotationAnchor.y",
-                      "surface": "studio",
-                      "step": 0.01
-                    },
-                    "default": 1,
-                    "minimum": 0,
-                    "maximum": 1
-                  },
-                  "fallSpeed": {
-                    "type": "number",
-                    "x-control": {
-                      "type": "slider",
-                      "label": "Bad Item 1 Fall Speed",
-                      "targetCategory": "system",
-                      "targetPath": "catchGame.assets.badItems.0.fallSpeed",
-                      "surface": "studio",
-                      "step": 1
-                    },
-                    "default": 260,
-                    "minimum": 0,
-                    "maximum": 1000
-                  },
-                  "rotateWhileFalling": {
-                    "type": "boolean",
-                    "x-control": {
-                      "type": "toggle",
-                      "label": "Bad Item 1 Rotate While Falling",
-                      "targetCategory": "system",
-                      "targetPath": "catchGame.assets.badItems.0.rotateWhileFalling",
-                      "surface": "studio"
-                    },
-                    "default": false
-                  },
-                  "fallRotationSpeed": {
-                    "type": "number",
-                    "x-control": {
-                      "type": "slider",
-                      "label": "Bad Item 1 Fall Rotation Speed",
-                      "targetCategory": "system",
-                      "targetPath": "catchGame.assets.badItems.0.fallRotationSpeed",
-                      "surface": "studio",
-                      "step": 1
-                    },
-                    "default": 480,
-                    "minimum": 0,
-                    "maximum": 2000
-                  }
-                }
-              }
-            }
-          },
-          "physics": {
-            "type": "object",
-            "properties": {
-              "debug": {
-                "type": "boolean",
-                "x-control": {
-                  "type": "toggle",
-                  "label": "Debug",
-                  "targetCategory": "system",
-                  "targetPath": "catchGame.physics.debug",
-                  "surface": "studio"
-                },
-                "default": true
-              },
-              "goodItemSpawnRateMs": {
-                "type": "number",
-                "x-control": {
-                  "type": "slider",
-                  "label": "Good Item Spawn Rate Ms",
-                  "targetCategory": "system",
-                  "targetPath": "catchGame.physics.goodItemSpawnRateMs",
-                  "surface": "studio",
-                  "step": 50
-                },
-                "default": 1200,
-                "minimum": 0,
-                "maximum": 10000
-              },
-              "badItemSpawnRateMs": {
-                "type": "number",
-                "x-control": {
-                  "type": "slider",
-                  "label": "Bad Item Spawn Rate Ms",
-                  "targetCategory": "system",
-                  "targetPath": "catchGame.physics.badItemSpawnRateMs",
-                  "surface": "studio",
-                  "step": 50
-                },
-                "default": 2000,
-                "minimum": 0,
-                "maximum": 10000
-              },
-              "itemFallSpeedMin": {
-                "type": "number",
-                "x-control": {
-                  "type": "slider",
-                  "label": "Item Fall Speed Min",
-                  "targetCategory": "system",
-                  "targetPath": "catchGame.physics.itemFallSpeedMin",
-                  "surface": "studio",
-                  "step": 1
-                },
-                "default": 120,
-                "minimum": 0,
-                "maximum": 1000
-              },
-              "itemFallSpeedMax": {
-                "type": "number",
-                "x-control": {
-                  "type": "slider",
-                  "label": "Item Fall Speed Max",
-                  "targetCategory": "system",
-                  "targetPath": "catchGame.physics.itemFallSpeedMax",
-                  "surface": "studio",
-                  "step": 1
-                },
-                "default": 260,
-                "minimum": 0,
-                "maximum": 1000
-              }
-            }
-          },
-          "gameplay": {
-            "type": "object",
-            "properties": {
-              "durationSeconds": {
-                "type": "number",
-                "x-control": {
-                  "type": "slider",
-                  "label": "Duration Seconds",
-                  "targetCategory": "system",
-                  "targetPath": "catchGame.gameplay.durationSeconds",
-                  "surface": "studio",
-                  "step": 1
-                },
-                "default": 30,
-                "minimum": 5,
-                "maximum": 600
-              },
-              "scorePerGoodItem": {
-                "type": "number",
-                "x-control": {
-                  "type": "slider",
-                  "label": "Score Per Good Item",
-                  "targetCategory": "system",
-                  "targetPath": "catchGame.gameplay.scorePerGoodItem",
-                  "surface": "studio",
-                  "step": 1
-                },
-                "default": 10,
-                "minimum": 0,
-                "maximum": 1000
-              },
-              "scorePerBadItem": {
-                "type": "number",
-                "x-control": {
-                  "type": "slider",
-                  "label": "Score Per Bad Item",
-                  "targetCategory": "system",
-                  "targetPath": "catchGame.gameplay.scorePerBadItem",
-                  "surface": "studio",
-                  "step": 1
-                },
-                "default": 5,
-                "minimum": 0,
-                "maximum": 1000
-              }
+          "speed": {
+            "type": "number",
+            "default": 320,
+            "minimum": 50,
+            "maximum": 800,
+            "x-control": {
+              "type": "slider",
+              "label": "Player speed",
+              "targetCategory": "system",
+              "targetPath": "playerEntity.speed",
+              "surface": "studio",
+              "step": 10
             }
           }
         }
@@ -633,7 +208,7 @@
     }
   },
   "phaserScenes": [
-    "catch-game-demo-legacy-bridge"
+    "CatchGameScene"
   ],
   "uiOverlayComponents": []
 }

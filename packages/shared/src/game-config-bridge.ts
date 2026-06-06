@@ -6,7 +6,16 @@ import {
   SetRuntimeAssetsPayloadSchema,
 } from "./asset-bridge";
 import { HitboxUpdatedMessageSchema } from "./editor-bridge";
-import { AppModeSchema, GameTemplateIdSchema } from "./game-schema";
+import {
+  AppModeSchema,
+  CatchableItemSchema,
+  GameTemplateIdSchema,
+  HazardItemSchema,
+  PlayerEntitySchema,
+  type CatchableItem,
+  type HazardItem,
+  type PlayerEntity,
+} from "./game-schema";
 
 // ---------------------------------------------------------------------------
 // Flat game config (AI-friendly, top-level keys)
@@ -28,6 +37,9 @@ export const GameConfigSchema = z
     parentPinnedVersion: z.string().optional(),
     lastParentSyncAt: z.string().optional(),
     appMode: AppModeSchema.optional(),
+    catchableItems: z.array(CatchableItemSchema).optional(),
+    hazardItems: z.array(HazardItemSchema).optional(),
+    playerEntity: PlayerEntitySchema.optional(),
   })
   .passthrough();
 
@@ -38,6 +50,49 @@ export const DEFAULT_GAME_CONFIG: GameConfig = {
   themeColor: "#6366f1",
   schemaVersion: "1.0.0",
 };
+
+export const DEFAULT_CATCHABLE_ITEMS: CatchableItem[] = [
+  {
+    id: "default-good",
+    assetUrl: "",
+    scoreValue: 10,
+    dropSpeed: 200,
+    spawnWeight: 1,
+  },
+];
+
+export const DEFAULT_HAZARD_ITEMS: HazardItem[] = [
+  {
+    id: "default-hazard",
+    assetUrl: "",
+    scoreValue: -5,
+    dropSpeed: 280,
+    spawnWeight: 1,
+  },
+];
+
+export const DEFAULT_PLAYER_ENTITY: PlayerEntity = {
+  assetUrl: "",
+  speed: 320,
+};
+
+export function resolveCatchGameEntities(config: GameConfig): {
+  catchableItems: CatchableItem[];
+  hazardItems: HazardItem[];
+  playerEntity: PlayerEntity;
+} {
+  return {
+    catchableItems:
+      config.catchableItems && config.catchableItems.length > 0
+        ? config.catchableItems
+        : DEFAULT_CATCHABLE_ITEMS,
+    hazardItems:
+      config.hazardItems && config.hazardItems.length > 0
+        ? config.hazardItems
+        : DEFAULT_HAZARD_ITEMS,
+    playerEntity: config.playerEntity ?? DEFAULT_PLAYER_ENTITY,
+  };
+}
 
 // ---------------------------------------------------------------------------
 // Bridge message types

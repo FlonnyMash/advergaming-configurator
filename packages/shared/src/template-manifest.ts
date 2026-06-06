@@ -24,6 +24,16 @@ export interface JsonSchemaControlExtension {
   surface?: ControlSurface;
   step?: number;
   placeholder?: string;
+  itemFields?: Array<{
+    key: string;
+    label: string;
+    type: "text" | "slider" | "image";
+    min?: number;
+    max?: number;
+    step?: number;
+  }>;
+  defaultItem?: Record<string, string | number | boolean>;
+  itemLabel?: string;
 }
 
 export interface TemplateConfigJsonSchema {
@@ -234,6 +244,9 @@ function collectControlsFromNode(
       max: node.maximum,
       step: xControl.step,
       placeholder: xControl.placeholder,
+      itemFields: xControl.itemFields,
+      defaultItem: xControl.defaultItem,
+      itemLabel: xControl.itemLabel,
     });
     return controls;
   }

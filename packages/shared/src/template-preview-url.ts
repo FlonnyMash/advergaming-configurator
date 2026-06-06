@@ -77,3 +77,31 @@ export function resolveTemplatePreviewUrl(
   const url = `${resolveGameEngineBaseUrl()}${path}`;
   return options?.cacheBust ? `${url}?t=${options.cacheBust}` : url;
 }
+
+/** Resolves a persisted asset string to a URL suitable for sidebar img previews. */
+export function resolveControlAssetPreviewSrc(
+  assetUrl: string | null | undefined,
+): string | null {
+  if (!assetUrl || assetUrl.trim() === "") {
+    return null;
+  }
+
+  const trimmed = assetUrl.trim();
+  if (trimmed.startsWith("data:")) {
+    return trimmed;
+  }
+  if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
+    return trimmed;
+  }
+  if (trimmed.startsWith("mashedgames-studio://")) {
+    return null;
+  }
+  if (trimmed.startsWith("/")) {
+    return resolveTemplatePreviewUrl(trimmed);
+  }
+  if (trimmed.startsWith("assets/")) {
+    return null;
+  }
+
+  return resolveTemplatePreviewUrl(`/${trimmed.replace(/^\//, "")}`);
+}

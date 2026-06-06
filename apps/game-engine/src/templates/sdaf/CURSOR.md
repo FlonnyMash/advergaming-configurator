@@ -1,7 +1,7 @@
-# Cursor instructions — tz
+# Cursor instructions — sdaf
 
-Template ID: `tz`  
-Scene key: `Tz` (class `GameScene` in `GameScene.ts`)
+Template ID: `sdaf`  
+Scene key: `Sdaf` (class `GameScene` in `GameScene.ts`)
 
 Read this file first. You are extending a **Phaser 3 game template** inside the Mashed Games Studio pnpm monorepo. Follow the rules below exactly; do not invent parallel config or bridge protocols.
 
@@ -12,7 +12,7 @@ Read this file first. You are extending a **Phaser 3 game template** inside the 
 Copy this entire folder into the monorepo at:
 
 ```
-apps/game-engine/src/templates/tz/
+apps/game-engine/src/templates/sdaf/
 ```
 
 Expected files:
@@ -55,7 +55,7 @@ The **published catalog** expects a `TemplateManifest` JSON Schema manifest (see
 
 - Top-level: `id`, `version`, `author`, `previewUrl`, `status`, `label`, `description`
 - `schema` with `properties.branding` / `properties.system` and `x-control` on each leaf
-- `id` must match the folder name `tz`
+- `id` must match the folder name `sdaf`
 
 **Your task:** Replace `manifest.json` with a valid production manifest before publishing. Use `gameSchemaFromManifest` from `@mashedgames/shared` — controls map to `config.branding.*` and `config.system.*` paths via `x-control.targetPath`.
 
@@ -121,7 +121,7 @@ Do not use `export default` — `catalog.ts` reads `mod.manifest` and `mod.Scene
 
 ## 7. Development checklist
 
-1. [ ] Copied to `apps/game-engine/src/templates/tz/`
+1. [ ] Copied to `apps/game-engine/src/templates/sdaf/`
 2. [ ] Ran `sync-manifest-registry`
 3. [ ] Migrated `manifest.json` to published JSON Schema + `x-control`
 4. [ ] `GameScene` implements `TemplateScene` with `updateConfig`
@@ -133,7 +133,7 @@ Do not use `export default` — `catalog.ts` reads `mod.manifest` and `mod.Scene
 Publish to catalog when ready:
 
 ```bash
-cd apps/dashboard && pnpm publish-template tz
+cd apps/dashboard && pnpm publish-template sdaf
 ```
 
 ---

@@ -397,7 +397,7 @@ export async function importProjectAsset(
       data: {
         relativePath,
         absolutePath,
-        textureKey: textureKeyForTargetPath(targetPath),
+        textureKey: textureKeyForTargetPath(targetPath, client),
         client,
         manifest,
       },

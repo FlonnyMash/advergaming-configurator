@@ -118,6 +118,9 @@ export function hasUnsavedGameControls(
 }
 
 export function controlValuesEqual(a: ControlValue, b: ControlValue): boolean {
+  if (Array.isArray(a) && Array.isArray(b)) {
+    return JSON.stringify(a) === JSON.stringify(b);
+  }
   if (typeof a === "string" && typeof b === "string") {
     return a === b;
   }

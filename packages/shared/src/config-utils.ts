@@ -87,6 +87,9 @@ function getByPath(
   ) {
     return current;
   }
+  if (Array.isArray(current)) {
+    return current as ControlValue;
+  }
   return undefined;
 }
 

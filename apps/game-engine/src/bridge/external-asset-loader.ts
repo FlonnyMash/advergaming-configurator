@@ -14,7 +14,8 @@ import {
 import { getParentTargetOrigin } from "./dashboard-origin.ts";
 
 function findLoadableScene(game: PhaserGame): Phaser.Scene | null {
-  const preferred = game.scene.getScene("PlayScene");
+  const preferred =
+    game.scene.getScene("CatchGameScene") ?? game.scene.getScene("PlayScene");
   if (preferred?.load) return preferred;
   return game.scene.scenes.find((s) => Boolean(s.load)) ?? null;
 }

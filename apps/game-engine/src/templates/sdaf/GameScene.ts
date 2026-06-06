@@ -5,13 +5,13 @@ import {
 import Phaser from "phaser";
 import type { TemplateScene } from "../types.ts";
 
-export const SCENE_KEY = "Ert";
+export const SCENE_KEY = "Sdaf";
 
 function readNumber(value: unknown, fallback: number): number {
   return typeof value === "number" && Number.isFinite(value) ? value : fallback;
 }
 
-export class ErtScene extends Phaser.Scene implements TemplateScene {
+export class SdafScene extends Phaser.Scene implements TemplateScene {
   private titleText!: Phaser.GameObjects.Text;
   private accentGraphics?: Phaser.GameObjects.Graphics;
   private motionSpeed = 200;
@@ -24,15 +24,12 @@ export class ErtScene extends Phaser.Scene implements TemplateScene {
   create(): void {
     const { width, height } = this.scale;
     this.titleText = this.add
-      .text(width / 2, height / 2 - 24, "ert", {
+      .text(width / 2, height / 2 - 24, "sdaf", {
         fontSize: "24px",
         color: "#ffffff",
       })
       .setOrigin(0.5);
     this.drawAccent();
-
-    const initialConfig = this.game.registry.get("config") as GameConfig | undefined;
-    if (initialConfig) this.updateConfig(initialConfig);
   }
 
   updateConfig(config: GameConfig): void {
@@ -44,7 +41,7 @@ export class ErtScene extends Phaser.Scene implements TemplateScene {
     this.titleText.setText(
       typeof domOverlay.startScreenTitle === "string"
         ? domOverlay.startScreenTitle
-        : "ert",
+        : "sdaf",
     );
     this.motionSpeed = readNumber(
       typeof config.playerSpeed === "number" ? config.playerSpeed : undefined,

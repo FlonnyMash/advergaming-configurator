@@ -63,6 +63,7 @@ export function ConfiguratorSidebar({
           onControlChange={handleControlChange}
           imageUploadMode={imageUploadMode}
           onImageFile={handleImageFile}
+          categoryFilter="branding"
         />
         {previewSlot}
       </div>

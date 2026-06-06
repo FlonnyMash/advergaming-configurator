@@ -35,6 +35,25 @@ export const useConfigStore = create<ConfigStore>((set, get) => ({
     activeTemplateId: "catch-game-demo",
     themeColor: "#6366f1",
     schemaVersion: "1.0.0",
+    catchableItems: [
+      {
+        id: "default-good",
+        assetUrl: "",
+        scoreValue: 10,
+        dropSpeed: 200,
+        spawnWeight: 1,
+      },
+    ],
+    hazardItems: [
+      {
+        id: "default-hazard",
+        assetUrl: "",
+        scoreValue: -5,
+        dropSpeed: 280,
+        spawnWeight: 1,
+      },
+    ],
+    playerEntity: { assetUrl: "", speed: 320 },
   }),
   selectedTemplateId: "catch-game-demo",
   iframeTarget: null,
@@ -126,6 +145,10 @@ function postConfigToIframe(config: GameConfig): void {
       message.payload,
       "→ iframe",
       targetOrigin,
+    );
+    console.log(
+      "[Dashboard Bridge] catchableItems:",
+      (message.payload as GameConfig).catchableItems,
     );
   }
 

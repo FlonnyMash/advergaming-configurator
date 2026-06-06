@@ -25,6 +25,9 @@ const SECTION_LABEL_OVERRIDES: Record<string, string> = {
   badItem0: "Bad item 1",
   player: "Player",
   ground: "Ground",
+  catchableItems: "Catchable items",
+  hazardItems: "Hazard items",
+  playerEntity: "Player entity",
 };
 
 function getGroupKeyFromPath(targetPath: string): string {

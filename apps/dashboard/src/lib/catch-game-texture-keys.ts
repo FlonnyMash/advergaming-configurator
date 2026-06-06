@@ -1,14 +1,49 @@
-export function textureKeyForTargetPath(targetPath: string): string | null {
-  if (targetPath === "catchGame.assets.player") return "player";
-  if (targetPath === "catchGame.assets.ground.image") return "ground";
+import type { GameConfig } from "@mashedgames/shared";
 
-  const good = /^catchGame\.assets\.goodItems\.(\d+)\.image$/.exec(targetPath);
-  if (good) return `item-good-${good[1]}`;
+function readEntityIdAtPath(
+  config: Record<string, unknown> | GameConfig | undefined,
+  targetPath: string,
+): string | null {
+  if (!config) {
+    return null;
+  }
 
-  const bad = /^catchGame\.assets\.badItems\.(\d+)\.image$/.exec(targetPath);
-  if (bad) return `item-bad-${bad[1]}`;
+  const entityMatch = /^(catchableItems|hazardItems)\.(\d+)\.assetUrl$/.exec(
+    targetPath,
+  );
+  if (!entityMatch) {
+    return null;
+  }
 
-  if (targetPath === "theme.playerTexture") return "player-custom";
+  const arrayKey = entityMatch[1]!;
+  const index = Number(entityMatch[2]);
+  const items = (config as Record<string, unknown>)[arrayKey];
+  if (!Array.isArray(items)) {
+    return null;
+  }
+
+  const item = items[index];
+  if (typeof item !== "object" || item === null) {
+    return null;
+  }
+
+  const id = (item as Record<string, unknown>).id;
+  return typeof id === "string" && id.length > 0 ? id : null;
+}
+
+/** Maps dashboard control paths to Phaser texture keys used by CatchGameScene. */
+export function textureKeyForTargetPath(
+  targetPath: string,
+  config?: Record<string, unknown> | GameConfig,
+): string | null {
+  if (targetPath === "playerEntity.assetUrl") {
+    return "catch_player";
+  }
+
+  const entityId = readEntityIdAtPath(config, targetPath);
+  if (entityId) {
+    return `catch_entity_${entityId}`;
+  }
 
   return null;
 }
