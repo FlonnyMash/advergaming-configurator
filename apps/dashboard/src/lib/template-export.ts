@@ -18,12 +18,9 @@ import {
   isNestedTemplateMirrorPath,
   shouldSkipTemplatePath,
 } from "@/lib/template-import-shared";
+import { templateLibraryRoot } from "@/lib/template-library-root";
 
-const dashboardRoot = path.resolve(process.cwd());
-const libraryRoot = path.resolve(
-  dashboardRoot,
-  "../game-engine/src/templates",
-);
+const templatesRoot = templateLibraryRoot;
 
 /** Portable index: no monorepo legacy bridge — re-imports cleanly via standard importer. */
 export function buildPortableIndexTs(
@@ -300,11 +297,11 @@ export async function exportTemplateToDirectory(
     return { ok: false, error: "Invalid template ID.", status: 400 };
   }
 
-  const templateDir = path.join(libraryRoot, templateId);
+  const templateDir = path.join(templatesRoot, templateId);
   if (!existsSync(templateDir) || !statSync(templateDir).isDirectory()) {
     return {
       ok: false,
-      error: `Template "${templateId}" is not installed in library/.`,
+      error: `Template "${templateId}" was not found in templates/.`,
       status: 404,
     };
   }
@@ -375,11 +372,11 @@ export function buildTemplateZip(
     };
   }
 
-  const templateDir = path.join(libraryRoot, templateId);
+  const templateDir = path.join(templatesRoot, templateId);
   if (!existsSync(templateDir) || !statSync(templateDir).isDirectory()) {
     return {
       ok: false,
-      error: `Template "${templateId}" is not installed in library/.`,
+      error: `Template "${templateId}" was not found in templates/.`,
       status: 404,
     };
   }

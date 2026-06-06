@@ -14,10 +14,10 @@ export function getProjectsStoragePathLabel(): string {
   return `.local-workspace/${PROJECTS_FOLDER_NAME}/`;
 }
 
-/** Monorepo-only template library path; null in the packaged desktop app. */
+/** Monorepo or workspace template root label for Studio UI. */
 export function getStudioTemplatesPathLabel(): string | null {
   if (isWorkspaceDesktopClient()) {
-    return null;
+    return `${WORKSPACE_FOLDER_NAME}/templates/`;
   }
   return "apps/game-engine/src/templates/";
 }

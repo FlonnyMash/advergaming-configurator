@@ -4,33 +4,71 @@ import { CreateAndOpenTemplateModal } from "@/components/studio/CreateAndOpenTem
 import { CreateTemplateModal } from "@/components/studio/CreateTemplateModal";
 import { ImportTemplateModal } from "@/components/studio/ImportTemplateModal";
 import { TemplateListRow } from "@/components/studio/TemplateListRow";
-import { getAppEnv } from "@/lib/env";
+import type { TemplateOverviewEntry } from "@/lib/template-overview-types";
 import {
   getStudioTemplatesEmptyHint,
   getStudioTemplatesPackagesHint,
   getStudioTemplatesPathLabel,
 } from "@/lib/workspace-ui-copy";
 import { useWorkspaceSessionStore } from "@/lib/workspace-session-store";
+import { getAppEnv } from "@/lib/env";
 import { getStudioTemplateOptions } from "@mashedgames/studio-engine";
 import Link from "next/link";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+
+async function fetchTemplatesFromDisk(): Promise<TemplateOverviewEntry[] | null> {
+  try {
+    const response = await fetch("/api/templates");
+    const data = (await response.json()) as {
+      ok?: boolean;
+      templates?: TemplateOverviewEntry[];
+    };
+    if (!response.ok || !data.ok || !data.templates) {
+      return null;
+    }
+    return data.templates;
+  } catch {
+    return null;
+  }
+}
 
 export default function StudioTemplatesPage() {
+  const [liveTemplates, setLiveTemplates] = useState<
+    TemplateOverviewEntry[] | null
+  >(null);
   const [catalogRefreshKey, setCatalogRefreshKey] = useState(0);
 
-  const templateOptions = useMemo(
+  const fallbackTemplates = useMemo(
     () => getStudioTemplateOptions(getAppEnv()),
     [catalogRefreshKey],
   );
 
-  const handleTemplateInstalled = useCallback(() => {
+  useEffect(() => {
+    let cancelled = false;
+    void fetchTemplatesFromDisk().then((templates) => {
+      if (!cancelled) {
+        setLiveTemplates(templates);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [catalogRefreshKey]);
+
+  const templateOptions = liveTemplates ?? fallbackTemplates;
+
+  const refreshTemplates = useCallback(() => {
     setCatalogRefreshKey((key) => key + 1);
-    window.location.reload();
   }, []);
 
+  const handleTemplateInstalled = useCallback(() => {
+    refreshTemplates();
+    window.location.reload();
+  }, [refreshTemplates]);
+
   const handleTemplateUpdated = useCallback(() => {
-    setCatalogRefreshKey((key) => key + 1);
-  }, []);
+    refreshTemplates();
+  }, [refreshTemplates]);
 
   const handleTemplateCreated = useCallback(
     (templateId: string) => {
@@ -63,7 +101,7 @@ export default function StudioTemplatesPage() {
           Open a game template to edit mechanics and defaults
           {getStudioTemplatesPathLabel() ? (
             <>
-              , or add a new one to the library under{" "}
+              , or add a new one under{" "}
               <code className="text-xs">{getStudioTemplatesPathLabel()}</code>
             </>
           ) : (

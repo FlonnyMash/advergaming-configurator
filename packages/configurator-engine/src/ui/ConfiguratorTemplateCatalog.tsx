@@ -41,6 +41,12 @@ export function ConfiguratorTemplateCatalog() {
           inherits from{" "}
           <span className="font-mono">{projectManifest?.parentTemplateId}</span>
         </p>
+      ) : templateOptions.length === 0 ? (
+        <p className="rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs text-zinc-600">
+          No published templates are available. Open Studio and publish a template
+          (set status to <span className="font-medium">published</span> in{" "}
+          <code className="text-zinc-700">manifest.json</code>) to show it here.
+        </p>
       ) : (
         <select
           value={selectedTemplateId}
@@ -68,6 +74,9 @@ export function ConfiguratorTemplateCatalog() {
               {selectedTemplate.label}{" "}
               <span className="font-normal text-zinc-500">
                 v{selectedTemplate.version}
+              </span>
+              <span className="ml-2 inline-flex rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-800">
+                published
               </span>
             </p>
             {selectedTemplate.description ? (

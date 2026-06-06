@@ -1,3 +1,5 @@
+import { getWorkspacePath } from "@/lib/env";
+import { isWorkspaceDesktop } from "@/lib/runtime-env";
 import { existsSync } from "node:fs";
 import path from "node:path";
 
@@ -20,11 +22,16 @@ export const engineTemplatesRoot = path.resolve(
   "src/templates",
 );
 
+export const TEMPLATES_DIR_NAME = "templates" as const;
+
+/** Workspace-relative templates root: MASHEDGAMES_WORKSPACE_PATH/templates */
+export function getWorkspaceTemplatesRoot(): string {
+  return path.join(getWorkspacePath(), TEMPLATES_DIR_NAME);
+}
+
 /**
- * Unified template root on disk (Studio).
- * All templates live flat under this directory — no library/development split.
- * Override with TEMPLATE_LIBRARY_ROOT env var.
- * Missing in packaged desktop — use registry fallback.
+ * Unified template root on disk — single flat directory, no library/development split.
+ * Priority: TEMPLATE_LIBRARY_ROOT env → workspace/templates → monorepo engine templates.
  */
 export const templateLibraryRoot = (() => {
   const fromEnv = process.env.TEMPLATE_LIBRARY_ROOT?.trim();
@@ -32,6 +39,9 @@ export const templateLibraryRoot = (() => {
     return path.isAbsolute(fromEnv)
       ? fromEnv
       : path.resolve(monorepoRoot, fromEnv);
+  }
+  if (isWorkspaceDesktop()) {
+    return getWorkspaceTemplatesRoot();
   }
   return engineTemplatesRoot;
 })();

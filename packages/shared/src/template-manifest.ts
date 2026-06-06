@@ -61,14 +61,14 @@ export const TemplateManifestSchema = z
     version: z.string().min(1),
     author: z.string(),
     previewUrl: z.string(),
-    status: z
-      .union([
-        z.literal("draft"),
-        z.literal("published"),
-        z.literal("production").transform((): "published" => "published"),
-        z.literal("development").transform((): "draft" => "draft"),
-      ])
-      .default("draft"),
+    status: z.preprocess(
+      (value) => {
+        if (value === "production") return "published";
+        if (value === "development") return "draft";
+        return value;
+      },
+      z.enum(["draft", "published"]).default("draft"),
+    ),
     description: z.string().optional(),
     phaserScenes: z.array(z.string().min(1)).default([]),
     uiOverlayComponents: z.array(z.string().min(1)).default([]),
@@ -110,8 +110,6 @@ export interface TemplateManifest {
 function normalizeStatus(
   s: TemplateManifestInput["status"],
 ): TemplateManifestStatus {
-  if (s === "production") return "published";
-  if (s === "development") return "draft";
   return s ?? "draft";
 }
 

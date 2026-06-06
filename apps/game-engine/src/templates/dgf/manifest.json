@@ -3,13 +3,9 @@
   "version": "0.1.0",
   "author": "Mashed Games Studio",
   "previewUrl": "/previews/dgf.svg",
-  "status": "draft",
+  "status": "published",
   "label": "dgf",
   "description": "New game template scaffold. Edit mechanics in Studio or extend GameScene.ts.",
-  "phaserScenes": [
-    "Dgf"
-  ],
-  "uiOverlayComponents": [],
   "schema": {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "type": "object",
@@ -22,14 +18,14 @@
             "properties": {
               "primaryColor": {
                 "type": "string",
-                "default": "#6366f1",
                 "x-control": {
                   "type": "color",
                   "label": "Primary color",
                   "targetCategory": "branding",
                   "targetPath": "theme.primaryColor",
                   "surface": "both"
-                }
+                },
+                "default": "#6366f1"
               }
             }
           },
@@ -38,7 +34,6 @@
             "properties": {
               "startScreenTitle": {
                 "type": "string",
-                "default": "dgf",
                 "x-control": {
                   "type": "text",
                   "label": "Start screen title",
@@ -46,7 +41,8 @@
                   "targetPath": "domOverlay.startScreenTitle",
                   "surface": "configurator",
                   "placeholder": "dgf"
-                }
+                },
+                "default": "dgf"
               }
             }
           }
@@ -60,9 +56,6 @@
             "properties": {
               "playerSpeed": {
                 "type": "number",
-                "default": 200,
-                "minimum": 50,
-                "maximum": 800,
                 "x-control": {
                   "type": "slider",
                   "label": "Motion speed",
@@ -70,7 +63,10 @@
                   "targetPath": "mechanics.playerSpeed",
                   "surface": "studio",
                   "step": 10
-                }
+                },
+                "default": 200,
+                "minimum": 50,
+                "maximum": 800
               }
             }
           },
@@ -79,9 +75,6 @@
             "properties": {
               "gravity": {
                 "type": "number",
-                "default": 0,
-                "minimum": -1000,
-                "maximum": 1000,
                 "x-control": {
                   "type": "slider",
                   "label": "Gravity",
@@ -89,12 +82,19 @@
                   "targetPath": "physics.gravity.y",
                   "surface": "studio",
                   "step": 10
-                }
+                },
+                "default": 0,
+                "minimum": -1000,
+                "maximum": 1000
               }
             }
           }
         }
       }
     }
-  }
+  },
+  "phaserScenes": [
+    "Dgf"
+  ],
+  "uiOverlayComponents": []
 }

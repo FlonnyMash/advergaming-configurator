@@ -173,7 +173,7 @@ export async function createProject(input: {
   if (!isParentTemplateInLibrary(parentTemplateId)) {
     return {
       ok: false,
-      error: `Parent template "${parentTemplateId}" is not in the library.`,
+      error: `Parent template "${parentTemplateId}" is not available.`,
       status: 404,
     };
   }

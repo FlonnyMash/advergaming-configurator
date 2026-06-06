@@ -1,15 +1,19 @@
 import type { TemplateManifest } from "@mashedgames/shared";
 import { existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
+import { ensureWorkspaceExists } from "@/lib/project-paths";
 import { normalizeTemplateDirectory } from "@/lib/template-import-normalize";
 import { buildCursorInstructions } from "@/lib/template-generator";
 import { slugifyTemplateId, TEMPLATE_ID_PATTERN } from "@/lib/template-id";
+import {
+  gameEngineRoot,
+  monorepoRoot,
+  templateLibraryRoot,
+} from "@/lib/template-library-root";
+import { isWorkspaceDesktop } from "@/lib/runtime-env";
 import { runSyncManifestRegistry } from "@/lib/template-sync-registry";
 
-const dashboardRoot = path.resolve(process.cwd());
-const engineRoot = path.resolve(dashboardRoot, "../game-engine");
-const templatesRoot = path.join(engineRoot, "src/templates");
-const previewsRoot = path.join(engineRoot, "public/previews");
+const previewsRoot = path.join(gameEngineRoot, "public/previews");
 
 export type CreateGameTemplateInput = {
   name: string;
@@ -253,7 +257,9 @@ export function createGameTemplate(
     };
   }
 
-  if (!existsSync(engineRoot)) {
+  if (isWorkspaceDesktop()) {
+    ensureWorkspaceExists();
+  } else if (!existsSync(gameEngineRoot)) {
     return {
       ok: false,
       error:
@@ -262,7 +268,7 @@ export function createGameTemplate(
     };
   }
 
-  const targetDir = path.join(templatesRoot, templateId);
+  const targetDir = path.join(templateLibraryRoot, templateId);
   if (existsSync(targetDir)) {
     return {
       ok: false,
@@ -321,10 +327,12 @@ export function createGameTemplate(
     return { ok: false, error: syncResult.error, status: 500 };
   }
 
-  const repositoryPath = path
-    .relative(path.resolve(dashboardRoot, "../.."), targetDir)
-    .split(path.sep)
-    .join("/");
+  const repositoryPath = isWorkspaceDesktop()
+    ? path.join("templates", templateId).split(path.sep).join("/")
+    : path
+        .relative(monorepoRoot, targetDir)
+        .split(path.sep)
+        .join("/");
 
   return { ok: true, templateId, repositoryPath };
 }

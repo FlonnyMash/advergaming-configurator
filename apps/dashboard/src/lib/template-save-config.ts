@@ -8,9 +8,11 @@ import {
 } from "@mashedgames/shared";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
+import { ensureWorkspaceExists } from "@/lib/project-paths";
 import { TEMPLATE_ID_PATTERN } from "@/lib/template-import-normalize";
 import { resolveTemplateLocation } from "@/lib/template-studio-meta";
 import { templateLibraryRoot } from "@/lib/template-library-root";
+import { isWorkspaceDesktop } from "@/lib/runtime-env";
 
 export { templateLibraryRoot };
 
@@ -95,6 +97,10 @@ export function saveTemplateConfigToLibrary(
 ): SaveTemplateConfigResult {
   if (!TEMPLATE_ID_PATTERN.test(templateId)) {
     return { ok: false, error: "Invalid template ID.", status: 400 };
+  }
+
+  if (isWorkspaceDesktop()) {
+    ensureWorkspaceExists();
   }
 
   const location = resolveTemplateLocation(templateId);

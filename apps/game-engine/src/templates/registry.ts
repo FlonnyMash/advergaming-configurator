@@ -24,7 +24,7 @@ export interface TemplateDefinition {
 
 const sceneRegistry = buildSceneRegistry();
 
-/** Runtime registry: all templates from library/ + development/ scanned at startup. */
+/** Runtime registry: all templates from the unified templates/ directory. */
 export const TemplateRegistry: Record<string, TemplateDefinition> =
   Object.fromEntries(
     TEMPLATE_CATALOG.map((entry) => [

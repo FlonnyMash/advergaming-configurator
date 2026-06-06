@@ -57,7 +57,7 @@ function canUseRegistryTemplate(parentTemplateId: GameTemplateId): boolean {
   return true;
 }
 
-/** True when the template is on disk in library/ or in the production catalog registry. */
+/** True when the template is on disk in templates/ or in the production catalog registry. */
 export function isParentTemplateInLibrary(
   parentTemplateId: GameTemplateId,
 ): boolean {

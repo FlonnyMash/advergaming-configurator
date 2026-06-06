@@ -4,20 +4,31 @@ import {
   type TemplateManifestStatus,
 } from "@mashedgames/shared";
 import { openDirectoryInFileExplorer } from "@/lib/open-directory";
+import { ensureWorkspaceExists } from "@/lib/project-paths";
+import {
+  nextVersionForPublish,
+  writePublishedSystemJson,
+} from "@/lib/template-publish";
+import {
+  isMonorepoTemplateLibraryOnDisk,
+  monorepoRoot,
+  templateLibraryRoot,
+} from "@/lib/template-library-root";
+import { runSyncManifestRegistry } from "@/lib/template-sync-registry";
+import { isWorkspaceDesktop } from "@/lib/runtime-env";
 import {
   existsSync,
   mkdirSync,
+  readdirSync,
   readFileSync,
   statSync,
   writeFileSync,
 } from "node:fs";
 import path from "node:path";
 import { TEMPLATE_ID_PATTERN } from "@/lib/template-import-normalize";
+import type { TemplateOverviewEntry } from "@/lib/template-overview-types";
 
-const dashboardRoot = path.resolve(process.cwd());
-const repoRoot = path.resolve(dashboardRoot, "../..");
-const engineRoot = path.resolve(dashboardRoot, "../game-engine");
-const templatesRoot = path.join(engineRoot, "src/templates");
+const engineRoot = path.resolve(process.cwd(), "../game-engine");
 const previewsRoot = path.join(engineRoot, "public/previews");
 
 export type TemplateLocation = {
@@ -57,20 +68,27 @@ function isoStatTime(
   }
 }
 
+function repositoryPathForTemplate(templateDir: string): string {
+  if (isWorkspaceDesktop()) {
+    return path
+      .relative(templateLibraryRoot, templateDir)
+      .split(path.sep)
+      .join("/");
+  }
+  return path.relative(monorepoRoot, templateDir).split(path.sep).join("/");
+}
+
 export function resolveTemplateLocation(
   templateId: string,
 ): TemplateLocation | null {
   if (!TEMPLATE_ID_PATTERN.test(templateId)) return null;
 
-  const templateDir = path.join(templatesRoot, templateId);
+  const templateDir = path.join(templateLibraryRoot, templateId);
   if (existsSync(templateDir) && statSync(templateDir).isDirectory()) {
     return {
       templateId,
       directoryPath: templateDir,
-      repositoryPath: path
-        .relative(repoRoot, templateDir)
-        .split(path.sep)
-        .join("/"),
+      repositoryPath: repositoryPathForTemplate(templateDir),
     };
   }
 
@@ -119,6 +137,10 @@ export function writeTemplateManifest(
   templateId: string,
   manifest: TemplateManifest,
 ): { ok: true } | { ok: false; error: string; status: number } {
+  if (isWorkspaceDesktop()) {
+    ensureWorkspaceExists();
+  }
+
   const location = resolveTemplateLocation(templateId);
   if (!location) {
     return { ok: false, error: "Template not found.", status: 404 };
@@ -151,7 +173,7 @@ export function patchTemplateManifest(
     return details;
   }
 
-  const { manifest } = details.data;
+  const { manifest, directoryPath } = details.data;
   const next: TemplateManifest = { ...manifest };
 
   if (patch.label !== undefined) {
@@ -178,11 +200,27 @@ export function patchTemplateManifest(
     if (patch.status !== "draft" && patch.status !== "published") {
       return { ok: false, error: "Invalid status.", status: 400 };
     }
+
+    if (patch.status === "published" && manifest.status !== "published") {
+      next.version = nextVersionForPublish(manifest);
+    }
+
     next.status = patch.status;
   }
 
   const write = writeTemplateManifest(templateId, next);
   if (!write.ok) return write;
+
+  if (next.status === "published") {
+    writePublishedSystemJson(directoryPath, next);
+  }
+
+  if (isMonorepoTemplateLibraryOnDisk()) {
+    const syncResult = runSyncManifestRegistry();
+    if (!syncResult.ok) {
+      return { ok: false, error: syncResult.error, status: 500 };
+    }
+  }
 
   return { ok: true, manifest: next };
 }
@@ -227,4 +265,41 @@ export function openTemplateDirectory(
   directoryPath: string,
 ): { ok: true } | { ok: false; error: string } {
   return openDirectoryInFileExplorer(directoryPath);
+}
+
+export type { TemplateOverviewEntry } from "@/lib/template-overview-types";
+
+const SKIP_TEMPLATE_DIRS = new Set(["library", "development", "legacy"]);
+
+/** Live template list from disk — status reflects manifest.json, not the build-time registry. */
+export function listTemplateOverviewFromDisk(): TemplateOverviewEntry[] {
+  if (!existsSync(templateLibraryRoot)) {
+    return [];
+  }
+
+  const entries: TemplateOverviewEntry[] = [];
+
+  for (const dirent of readdirSync(templateLibraryRoot, { withFileTypes: true })) {
+    if (!dirent.isDirectory() || SKIP_TEMPLATE_DIRS.has(dirent.name)) {
+      continue;
+    }
+
+    const manifestPath = path.join(templateLibraryRoot, dirent.name, "manifest.json");
+    const manifest = readManifestFile(manifestPath);
+    if (!manifest) {
+      continue;
+    }
+
+    entries.push({
+      id: manifest.id,
+      label: manifest.label,
+      description: manifest.description,
+      previewUrl: manifest.previewUrl,
+      version: manifest.version,
+      author: manifest.author,
+      status: manifest.status,
+    });
+  }
+
+  return entries.sort((a, b) => a.label.localeCompare(b.label));
 }

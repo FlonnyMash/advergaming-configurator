@@ -1,9 +1,9 @@
 "use client";
 
 import { DeleteTemplateDialog } from "@/components/studio/DeleteTemplateDialog";
+import { TemplatePhaseControl } from "@/components/studio/TemplatePhaseControl";
 import type {
   TemplateManifest,
-  TemplateManifestStatus,
 } from "@mashedgames/shared";
 import { resolveTemplatePreviewUrl } from "@mashedgames/shared";
 import {
@@ -68,7 +68,6 @@ export function TemplateDetailsDialog({
   const [label, setLabel] = useState("");
   const [description, setDescription] = useState("");
   const [author, setAuthor] = useState("");
-  const [status, setStatus] = useState<TemplateManifestStatus>("draft");
   const [previewCacheBust, setPreviewCacheBust] = useState(0);
   const [saveSuccess, setSaveSuccess] = useState(false);
 
@@ -78,10 +77,9 @@ export function TemplateDetailsDialog({
     return (
       label.trim() !== manifest.label ||
       (description.trim() || undefined) !== (manifest.description ?? undefined) ||
-      author.trim() !== manifest.author ||
-      status !== manifest.status
+      author.trim() !== manifest.author
     );
-  }, [author, description, details, label, status]);
+  }, [author, description, details, label]);
 
   const loadDetails = useCallback(async () => {
     setLoading(true);
@@ -103,7 +101,6 @@ export function TemplateDetailsDialog({
       setLabel(data.manifest.label);
       setDescription(data.manifest.description ?? "");
       setAuthor(data.manifest.author);
-      setStatus(data.manifest.status);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Load failed.");
       setDetails(null);
@@ -149,7 +146,6 @@ export function TemplateDetailsDialog({
             label,
             description,
             author,
-            status,
           }),
         },
       );
@@ -176,7 +172,6 @@ export function TemplateDetailsDialog({
       setLabel(manifest.label);
       setDescription(manifest.description ?? "");
       setAuthor(manifest.author);
-      setStatus(manifest.status);
       setSaveSuccess(true);
       setError(null);
       onSaved?.(manifest);
@@ -374,20 +369,27 @@ export function TemplateDetailsDialog({
                       {details.manifest.version}
                     </p>
                   </label>
+                </div>
 
-                  <label className="block space-y-1.5">
-                    <span className={labelClass}>Status</span>
-                    <select
-                      value={status}
-                      onChange={(e) =>
-                        setStatus(e.target.value as TemplateManifestStatus)
-                      }
-                      className={inputClass}
-                    >
-                      <option value="draft">Draft</option>
-                      <option value="published">Published</option>
-                    </select>
-                  </label>
+                <div className="rounded-xl border border-zinc-100 bg-zinc-50/30 px-4 py-4">
+                  <TemplatePhaseControl
+                    templateId={details.templateId}
+                    status={details.manifest.status}
+                    embedded
+                    onStatusChanged={(manifest) => {
+                      setDetails((prev) =>
+                        prev
+                          ? {
+                              ...prev,
+                              manifest,
+                              updatedAt: new Date().toISOString(),
+                            }
+                          : prev,
+                      );
+                      setSaveSuccess(true);
+                      onSaved?.(manifest);
+                    }}
+                  />
                 </div>
 
                 <label className="block space-y-1.5">

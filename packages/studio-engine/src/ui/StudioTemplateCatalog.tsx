@@ -67,6 +67,15 @@ export function StudioTemplateCatalog({
               <span className="font-normal text-zinc-500">
                 v{selectedTemplate.version}
               </span>
+              <span
+                className={`ml-2 inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${
+                  selectedTemplate.status === "published"
+                    ? "bg-emerald-100 text-emerald-800"
+                    : "bg-amber-100 text-amber-800"
+                }`}
+              >
+                {selectedTemplate.status}
+              </span>
             </p>
             {selectedTemplate.description ? (
               <p className="line-clamp-2">{selectedTemplate.description}</p>

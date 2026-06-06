@@ -39,7 +39,7 @@ export function useSaveGameControls() {
 
       markGameControlsSaved();
       setStatus(
-        `Saved game controls to library/${selectedTemplateId} (config.json & manifest defaults).`,
+        `Saved game controls to templates/${selectedTemplateId} (config.json & manifest defaults).`,
       );
       return { ok: true };
     } catch {

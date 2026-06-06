@@ -72,10 +72,17 @@ export function TemplateListRow({
             />
             <span className="min-w-0 flex-1">
               <span className="font-medium text-zinc-900">{display.label}</span>
+              <span
+                className={`ml-2 inline-flex rounded-full px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide ${
+                  display.status === "published"
+                    ? "bg-emerald-100 text-emerald-800"
+                    : "bg-amber-100 text-amber-800"
+                }`}
+              >
+                {display.status}
+              </span>
               <span className="mt-0.5 block font-mono text-xs text-zinc-500">
-                {display.id}
-                {display.status === "draft" ? " · draft" : ""} · v
-                {display.version}
+                {display.id} · v{display.version}
               </span>
               {display.description ? (
                 <span className="mt-0.5 block truncate text-xs text-zinc-400">

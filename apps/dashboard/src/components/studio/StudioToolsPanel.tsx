@@ -4,6 +4,7 @@ import { OpenProjectLocationButtons } from "@/components/shell/OpenProjectLocati
 import { DevToolkitMenu } from "@/components/studio/DevToolkitMenu";
 import { ExitStudioTemplateButton } from "@/components/studio/ExitStudioTemplateButton";
 import { ExportTemplateButton } from "@/components/studio/ExportTemplateButton";
+import { TemplateStatusControl } from "@/components/studio/TemplateStatusControl";
 import { StudioConfigJsonTools, useStudioConfigStore } from "@mashedgames/studio-engine";
 
 export function StudioToolsPanel() {
@@ -23,6 +24,7 @@ export function StudioToolsPanel() {
         </div>
       </header>
       <div className="flex-1 space-y-8 overflow-y-auto px-6 py-6">
+        <TemplateStatusControl />
         <section className="space-y-2">
           <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500">
             Project folder

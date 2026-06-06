@@ -27,6 +27,8 @@ import {
   gameEngineRoot,
   templateLibraryRoot,
 } from "@/lib/template-library-root";
+import { ensureWorkspaceExists } from "@/lib/project-paths";
+import { isWorkspaceDesktop } from "@/lib/runtime-env";
 
 export type ProgressEmitter = (event: ImportProgressEvent) => void;
 
@@ -38,7 +40,7 @@ export type PeekTemplateImportResult =
   | { ok: true; templateId: string; exists: boolean }
   | { ok: false; error: string; status: number };
 
-const libraryRoot = templateLibraryRoot;
+const templatesRoot = templateLibraryRoot;
 const SYNC_COMMAND = "pnpm sync-manifest-registry";
 const SYNC_CWD = gameEngineRoot;
 
@@ -421,7 +423,7 @@ export function peekTemplateImport(
     return resolved;
   }
 
-  const targetDir = path.join(libraryRoot, resolved.templateId);
+  const targetDir = path.join(templatesRoot, resolved.templateId);
   return {
     ok: true,
     templateId: resolved.templateId,
@@ -433,7 +435,7 @@ function removeExistingTemplate(
   templateId: string,
   emit: ProgressEmitter,
 ): void {
-  const targetDir = path.join(libraryRoot, templateId);
+  const targetDir = path.join(templatesRoot, templateId);
   if (!existsSync(targetDir)) {
     return;
   }
@@ -457,7 +459,7 @@ function ensureTargetAvailable(
   overwrite: boolean,
   emit: ProgressEmitter,
 ): boolean {
-  const targetDir = path.join(libraryRoot, templateId);
+  const targetDir = path.join(templatesRoot, templateId);
   if (!existsSync(targetDir)) {
     return true;
   }
@@ -466,7 +468,7 @@ function ensureTargetAvailable(
     emit({
       type: "error",
       ok: false,
-      error: `Template "${templateId}" already exists in library/.`,
+      error: `Template "${templateId}" already exists in templates/.`,
       status: 409,
     });
     return false;
@@ -518,6 +520,10 @@ export async function runTemplateImport(
   options: TemplateImportOptions = {},
 ): Promise<void> {
   const overwrite = options.overwrite === true;
+
+  if (isWorkspaceDesktop()) {
+    ensureWorkspaceExists();
+  }
 
   emit({
     type: "progress",
@@ -587,7 +593,7 @@ export async function runTemplateImport(
       return;
     }
 
-    const targetDir = path.join(libraryRoot, templateId);
+    const targetDir = path.join(templatesRoot, templateId);
 
     const extractError = extractZipToDirectory(
       zip,
@@ -626,7 +632,7 @@ export async function runTemplateImport(
     return;
   }
 
-  const targetDir = path.join(libraryRoot, templateId);
+  const targetDir = path.join(templatesRoot, templateId);
 
   const extractError = extractZipToDirectory(
     zip,

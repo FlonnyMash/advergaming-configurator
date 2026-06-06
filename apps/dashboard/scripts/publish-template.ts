@@ -7,18 +7,9 @@
  * Example: pnpm publish-template my-game-template
  */
 import {
-  applyPath,
-  buildConfigFromSchema,
-  bumpSemverPatch,
-  gameSchemaFromManifest,
-  getConfigValue,
   isTemplateManifest,
   type TemplateManifest,
 } from "@mashedgames/shared";
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null;
-}
 import { spawnSync } from "node:child_process";
 import {
   existsSync,
@@ -28,6 +19,10 @@ import {
 } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import {
+  nextVersionForPublish,
+  writePublishedSystemJson,
+} from "../src/lib/template-publish";
 
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const dashboardRoot = path.resolve(scriptDir, "..");
@@ -69,12 +64,7 @@ function main(): void {
 
   const currentManifest = readManifest(templateDir);
 
-  const nextVersion =
-    currentManifest.status === "published"
-      ? bumpSemverPatch(currentManifest.version)
-      : currentManifest.version.startsWith("0.")
-        ? "1.0.0"
-        : bumpSemverPatch(currentManifest.version);
+  const nextVersion = nextVersionForPublish(currentManifest);
 
   const publishedManifest: TemplateManifest = {
     ...currentManifest,
@@ -83,25 +73,7 @@ function main(): void {
   };
 
   writeManifest(templateDir, publishedManifest);
-
-  const schema = gameSchemaFromManifest(publishedManifest);
-  const bakedConfig = buildConfigFromSchema(schema, templateId);
-  const systemPayload: Record<string, unknown> = {};
-  for (const control of schema.controls) {
-    if (control.targetCategory !== "system") {
-      continue;
-    }
-    applyPath(systemPayload, control.targetPath, getConfigValue(bakedConfig, control));
-  }
-  if (isRecord(systemPayload.physics)) {
-    systemPayload.physics = { ...systemPayload.physics, debugDraw: false };
-  }
-  const publishedSystemPath = path.join(templateDir, "published-system.json");
-  writeFileSync(
-    publishedSystemPath,
-    `${JSON.stringify(systemPayload, null, 2)}\n`,
-    "utf8",
-  );
+  writePublishedSystemJson(templateDir, publishedManifest);
 
   const syncResult = spawnSync(
     "node",
