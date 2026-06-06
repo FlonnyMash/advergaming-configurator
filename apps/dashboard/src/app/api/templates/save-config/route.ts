@@ -52,7 +52,6 @@ export async function POST(request: NextRequest) {
   return Response.json({
     ok: true,
     templateId: result.templateId,
-    source: result.source,
     wroteConfig: result.wroteConfig,
     wroteManifest: result.wroteManifest,
   });

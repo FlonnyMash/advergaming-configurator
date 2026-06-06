@@ -50,7 +50,7 @@ export function StudioTemplateCatalog({
         {templateOptions.map((template) => (
           <option key={template.id} value={template.id}>
             {template.label}
-            {template.source === "development" ? " (dev)" : ""}
+            {template.status === "draft" ? " (draft)" : ""}
           </option>
         ))}
       </select>
@@ -73,9 +73,6 @@ export function StudioTemplateCatalog({
             ) : null}
             <p>
               {selectedTemplate.author} · {selectedTemplate.status}
-              {selectedTemplate.source === "development"
-                ? " · development"
-                : " · library"}
             </p>
           </div>
         </div>

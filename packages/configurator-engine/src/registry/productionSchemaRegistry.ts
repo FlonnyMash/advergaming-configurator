@@ -21,7 +21,7 @@ const CONFIGURATOR_MODE: AppMode = "configurator";
 export function getProductionTemplateOptions(): TemplatePickerOption[] {
   assertPermission(CONFIGURATOR_MODE, "template:library");
   return getTemplatePickerOptions("prod").filter(
-    (t) => t.status === "production",
+    (t) => t.status === "published",
   );
 }
 
@@ -39,7 +39,7 @@ export function getFrozenSystemDefaults(
 
 export function getProductionCatalogEntry(templateId: GameTemplateId) {
   const entry = getCatalogEntry(templateId);
-  if (!entry || entry.manifest.status !== "production") return undefined;
+  if (!entry || entry.manifest.status !== "published") return undefined;
   return entry;
 }
 

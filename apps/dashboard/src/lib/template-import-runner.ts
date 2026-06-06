@@ -156,7 +156,7 @@ function extractZipToDirectory(
   emit({
     type: "progress",
     step: "extract",
-    message: `Extracting ${total} file(s) to apps/game-engine/src/templates/library/${templateId}/`,
+    message: `Extracting ${total} file(s) to apps/game-engine/src/templates/${templateId}/`,
     detail: `Skipping node_modules, .git, dist, build…`,
   });
 
@@ -442,7 +442,7 @@ function removeExistingTemplate(
     type: "progress",
     step: "overwrite",
     message: `Removing existing template "${templateId}"…`,
-    detail: `apps/game-engine/src/templates/library/${templateId}/`,
+    detail: `apps/game-engine/src/templates/${templateId}/`,
   });
   rmSync(targetDir, { recursive: true, force: true });
   emit({

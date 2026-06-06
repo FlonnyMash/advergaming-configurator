@@ -74,8 +74,8 @@ export function TemplateListRow({
               <span className="font-medium text-zinc-900">{display.label}</span>
               <span className="mt-0.5 block font-mono text-xs text-zinc-500">
                 {display.id}
-                {display.source === "development" ? " · dev" : ""} · v
-                {display.version} · {display.status}
+                {display.status === "draft" ? " · draft" : ""} · v
+                {display.version}
               </span>
               {display.description ? (
                 <span className="mt-0.5 block truncate text-xs text-zinc-400">

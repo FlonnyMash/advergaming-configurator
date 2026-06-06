@@ -1,6 +1,6 @@
 import manifest from "./manifest.json";
 import legacyConfig from "./public/config.json";
-import { createLegacyBridgeScene } from "../../legacy/LegacyTemplateBridgeScene.ts";
+import { createLegacyBridgeScene } from "../legacy/LegacyTemplateBridgeScene.ts";
 import { PlayScene } from "./src/game/scenes/PlayScene.ts";
 import {
   initCatchGameUi,

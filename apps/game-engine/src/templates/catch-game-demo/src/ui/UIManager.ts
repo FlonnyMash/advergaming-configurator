@@ -2,7 +2,7 @@ import type Phaser from 'phaser';
 import {
   gameChromeOverlayManager,
   type GameChromeOverlayHandle,
-} from '../../../../../bridge/game-chrome-bridge.ts';
+} from '../../../../bridge/game-chrome-bridge.ts';
 import { bindTouchControls } from './touchControls';
 
 export type UIState = 'START' | 'PLAYING' | 'GAMEOVER';

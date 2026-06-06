@@ -3,9 +3,10 @@
 import { getStudioTemplateOptions, useStudioConfigStore } from "@mashedgames/studio-engine";
 import type { GameTemplateId } from "@mashedgames/shared";
 import { Loader2 } from "lucide-react";
-import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { getAppEnv } from "@/lib/env";
+import { useConfigStore } from "@/store/useConfigStore";
 import { useWorkspaceSessionStore } from "@/lib/workspace-session-store";
 
 export function StudioTemplateGate({
@@ -17,6 +18,7 @@ export function StudioTemplateGate({
   detached?: boolean;
 }) {
   const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
   const templateParam = searchParams.get("template");
   const activeSessionTemplateId = useWorkspaceSessionStore(
@@ -28,11 +30,37 @@ export function StudioTemplateGate({
   const selectedTemplateId = useStudioConfigStore((s) => s.selectedTemplateId);
   const [ready, setReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const pendingUrlTemplateSyncRef = useRef<GameTemplateId | null>(null);
 
   const templateOptions = useMemo(
     () => getStudioTemplateOptions(getAppEnv()),
     [],
   );
+
+  useEffect(() => {
+    if (detached || pathname !== "/studio" || !ready) {
+      return;
+    }
+
+    const currentTemplate = searchParams.get("template");
+    if (
+      pendingUrlTemplateSyncRef.current &&
+      currentTemplate === pendingUrlTemplateSyncRef.current
+    ) {
+      pendingUrlTemplateSyncRef.current = null;
+    }
+    if (currentTemplate === selectedTemplateId) {
+      return;
+    }
+
+    const next = new URLSearchParams(searchParams.toString());
+    next.set("template", selectedTemplateId);
+    pendingUrlTemplateSyncRef.current = selectedTemplateId;
+    const query = next.toString();
+    router.replace(query ? `${pathname}?${query}` : pathname, {
+      scroll: false,
+    });
+  }, [detached, pathname, ready, router, searchParams, selectedTemplateId]);
 
   useEffect(() => {
     if (!effectiveTemplateId) {
@@ -58,6 +86,21 @@ export function StudioTemplateGate({
       return;
     }
 
+    const pendingUrlTemplate = pendingUrlTemplateSyncRef.current;
+    if (
+      pendingUrlTemplate &&
+      templateParam &&
+      templateParam !== pendingUrlTemplate &&
+      selectedTemplateId === pendingUrlTemplate
+    ) {
+      // URL is still catching up to a recent store-driven change. Avoid
+      // writing stale query state back into the stores and causing flips.
+      return;
+    }
+    if (pendingUrlTemplate && templateParam === pendingUrlTemplate) {
+      pendingUrlTemplateSyncRef.current = null;
+    }
+
     setError(null);
     useWorkspaceSessionStore
       .getState()
@@ -65,6 +108,11 @@ export function StudioTemplateGate({
 
     if (selectedTemplateId !== effectiveTemplateId) {
       useStudioConfigStore
+        .getState()
+        .setSelectedTemplateId(effectiveTemplateId as GameTemplateId);
+    }
+    if (useConfigStore.getState().selectedTemplateId !== effectiveTemplateId) {
+      useConfigStore
         .getState()
         .setSelectedTemplateId(effectiveTemplateId as GameTemplateId);
     }

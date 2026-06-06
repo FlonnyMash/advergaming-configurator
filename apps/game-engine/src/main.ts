@@ -88,7 +88,7 @@ function canLoadTemplate(id: GameTemplateId): boolean {
   if (!isRegisteredTemplate(id)) return false;
   if (getEngineMode() === "studio") return true;
   const entry = getCatalogEntry(id);
-  return entry?.manifest.status === "production";
+  return entry?.manifest.status === "published";
 }
 
 function getMainScene(): MainScene | null {
@@ -243,6 +243,8 @@ function applyConfigNow(config: GameConfig): void {
 
   applyLegacyArcadeDebug(config);
   updatePhaserMechanics(config, game);
+  game.registry.set("config", config);
+  mainScene?.notifyConfigUpdate(config);
 }
 
 function applyConfig(config: GameConfig): void {

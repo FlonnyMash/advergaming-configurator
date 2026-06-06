@@ -20,7 +20,12 @@ export const engineTemplatesRoot = path.resolve(
   "src/templates",
 );
 
-/** Template library on disk (Studio). Missing in packaged desktop — use registry fallback. */
+/**
+ * Unified template root on disk (Studio).
+ * All templates live flat under this directory — no library/development split.
+ * Override with TEMPLATE_LIBRARY_ROOT env var.
+ * Missing in packaged desktop — use registry fallback.
+ */
 export const templateLibraryRoot = (() => {
   const fromEnv = process.env.TEMPLATE_LIBRARY_ROOT?.trim();
   if (fromEnv) {
@@ -28,10 +33,10 @@ export const templateLibraryRoot = (() => {
       ? fromEnv
       : path.resolve(monorepoRoot, fromEnv);
   }
-  return path.join(engineTemplatesRoot, "library");
+  return engineTemplatesRoot;
 })();
 
-/** True when the monorepo template library folder is present (local dev / Studio). */
+/** True when the monorepo template folder is present (local dev / Studio). */
 export function isMonorepoTemplateLibraryOnDisk(): boolean {
   return existsSync(templateLibraryRoot);
 }

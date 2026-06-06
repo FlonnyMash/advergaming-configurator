@@ -84,7 +84,6 @@ export type SaveTemplateConfigResult =
   | {
       ok: true;
       templateId: string;
-      source: "library" | "development";
       wroteConfig: boolean;
       wroteManifest: boolean;
     }
@@ -102,7 +101,7 @@ export function saveTemplateConfigToLibrary(
   if (!location) {
     return {
       ok: false,
-      error: `Template "${templateId}" was not found in library/ or development/.`,
+      error: `Template "${templateId}" was not found.`,
       status: 404,
     };
   }
@@ -132,7 +131,6 @@ export function saveTemplateConfigToLibrary(
   return {
     ok: true,
     templateId,
-    source: location.source,
     wroteConfig: true,
     wroteManifest,
   };

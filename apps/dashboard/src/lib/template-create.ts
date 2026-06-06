@@ -8,7 +8,7 @@ import { runSyncManifestRegistry } from "@/lib/template-sync-registry";
 
 const dashboardRoot = path.resolve(process.cwd());
 const engineRoot = path.resolve(dashboardRoot, "../game-engine");
-const developmentRoot = path.join(engineRoot, "src/templates/development");
+const templatesRoot = path.join(engineRoot, "src/templates");
 const previewsRoot = path.join(engineRoot, "public/previews");
 
 export type CreateGameTemplateInput = {
@@ -46,7 +46,7 @@ function buildManifest(name: string, templateId: string, sceneKey: string): Temp
     version: "0.1.0",
     author: "Mashed Games Studio",
     previewUrl: `/previews/${templateId}.svg`,
-    status: "development",
+    status: "draft",
     label: name,
     description: "New game template scaffold. Edit mechanics in Studio or extend GameScene.ts.",
     phaserScenes: [sceneKey],
@@ -158,7 +158,7 @@ function buildGameSceneTs(sceneKey: string, sceneClassName: string, label: strin
   type GameConfig,
 } from "@mashedgames/shared";
 import Phaser from "phaser";
-import type { TemplateScene } from "../../types.ts";
+import type { TemplateScene } from "../types.ts";
 
 export const SCENE_KEY = "${sceneKey}";
 
@@ -262,7 +262,7 @@ export function createGameTemplate(
     };
   }
 
-  const targetDir = path.join(developmentRoot, templateId);
+  const targetDir = path.join(templatesRoot, templateId);
   if (existsSync(targetDir)) {
     return {
       ok: false,

@@ -2,7 +2,7 @@
   "game": {
     "width": 360,
     "height": 640,
-    "backgroundColor": "#00b9da",
+    "backgroundColor": "#000080",
     "parentElementId": "app"
   },
   "assets": {
@@ -22,33 +22,33 @@
         "frameRate": 12
       }
     },
-    "goodItems": [
-      {
+    "goodItems": {
+      "0": {
         "image": "/assets/bad-1.png",
         "frameWidth": 64,
         "frameHeight": 64,
         "displayWidth": 48,
         "hitbox": {
           "width": 0.85,
-          "height": 0.85
+          "height": 0.7
         }
       }
-    ],
-    "badItems": [
-      {
+    },
+    "badItems": {
+      "0": {
         "image": "/assets/bad-1.png",
         "frameWidth": 64,
         "frameHeight": 64,
         "displayWidth": 48,
         "hitbox": {
-          "width": 0.5,
+          "width": 0.6,
           "height": 0.5,
           "offsetX": 0.2,
-          "offsetY": 0.5
+          "offsetY": 0.4
         },
         "centerOffset": {
-          "x": 0.01,
-          "y": -0.06
+          "x": 0,
+          "y": 0.12
         },
         "rotationAnchor": {
           "x": 1,
@@ -58,7 +58,7 @@
         "rotateWhileFalling": false,
         "fallRotationSpeed": 480
       }
-    ]
+    }
   },
   "physics": {
     "debug": true,

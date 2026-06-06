@@ -18,58 +18,30 @@ import {
   getDesktopBundledTemplateIds,
   parseTemplateManifest,
 } from "@mashedgames/shared";
-import {
-  DEVELOPMENT_MANIFESTS,
-  LIBRARY_MANIFESTS,
-} from "./manifest-registry.generated";
+import { ALL_MANIFESTS } from "./manifest-registry.generated";
 import { PUBLISHED_SYSTEM_BY_ID } from "./published-system-registry.generated";
 
 export type AppEnvironment = "dev" | "prod";
 
 function entriesFromManifests(
   manifests: TemplateManifest[],
-  source: TemplateCatalogEntry["source"],
 ): TemplateCatalogEntry[] {
   const entries: TemplateCatalogEntry[] = [];
 
   for (const raw of manifests) {
     const manifest = parseTemplateManifest(raw);
     if (!manifest) {
-      console.warn(`[schema-index] Invalid manifest for source ${source}`);
+      console.warn(`[schema-index] Invalid manifest skipped`);
       continue;
     }
-    entries.push({ manifest, source });
+    entries.push({ manifest });
   }
 
   return entries.sort((a, b) => a.manifest.label.localeCompare(b.manifest.label));
 }
 
-const libraryCatalog = entriesFromManifests(LIBRARY_MANIFESTS, "library");
-const developmentCatalog = entriesFromManifests(
-  DEVELOPMENT_MANIFESTS,
-  "development",
-);
-
-function mergeCatalogEntries(
-  development: TemplateCatalogEntry[],
-  library: TemplateCatalogEntry[],
-): TemplateCatalogEntry[] {
-  const byId = new Map<string, TemplateCatalogEntry>();
-  for (const entry of development) {
-    byId.set(entry.manifest.id, entry);
-  }
-  for (const entry of library) {
-    byId.set(entry.manifest.id, entry);
-  }
-  return [...byId.values()].sort((a, b) =>
-    a.manifest.label.localeCompare(b.manifest.label),
-  );
-}
-
-export const TEMPLATE_CATALOG: TemplateCatalogEntry[] = mergeCatalogEntries(
-  developmentCatalog,
-  libraryCatalog,
-);
+/** All templates from the unified templates/ directory. */
+export const TEMPLATE_CATALOG: TemplateCatalogEntry[] = entriesFromManifests(ALL_MANIFESTS);
 
 export const TEMPLATE_CATALOG_IDS: GameTemplateId[] = TEMPLATE_CATALOG.map(
   (entry) => entry.manifest.id,
@@ -87,7 +59,7 @@ export function getCatalogEntries(
   if (env === "dev") {
     return TEMPLATE_CATALOG;
   }
-  return libraryCatalog;
+  return TEMPLATE_CATALOG.filter((e) => e.manifest.status === "published");
 }
 
 export function getCatalogEntry(
@@ -118,12 +90,29 @@ export const GAME_SCHEMAS: Record<string, ControlFieldSchema[]> =
     ]),
   );
 
+function resolveFallbackTemplateId(): GameTemplateId | null {
+  if (GAME_SCHEMA_REGISTRY[DEFAULT_GAME_TEMPLATE_ID]) {
+    return DEFAULT_GAME_TEMPLATE_ID;
+  }
+  const firstId = Object.keys(GAME_SCHEMA_REGISTRY)[0];
+  return (firstId as GameTemplateId | undefined) ?? null;
+}
+
 export function getGameSchema(templateId: GameTemplateId): GameSchema {
   const schema = GAME_SCHEMA_REGISTRY[templateId];
-  if (!schema) {
-    throw new Error(`Unknown template id: ${templateId}`);
+  if (schema) {
+    return schema;
   }
-  return schema;
+
+  const fallbackId = resolveFallbackTemplateId();
+  if (!fallbackId) {
+    throw new Error("[schema-index] No templates available in GAME_SCHEMA_REGISTRY");
+  }
+
+  console.warn(
+    `[schema-index] Unknown template id "${templateId}". Falling back to "${fallbackId}".`,
+  );
+  return GAME_SCHEMA_REGISTRY[fallbackId]!;
 }
 
 export interface TemplatePickerOption {
@@ -134,7 +123,6 @@ export interface TemplatePickerOption {
   version: string;
   author: string;
   status: TemplateCatalogEntry["manifest"]["status"];
-  source: TemplateCatalogEntry["source"];
 }
 
 export function getPublishedSystemDefaults(
@@ -150,7 +138,7 @@ export function getPublishedSystemDefaults(
   }
 
   const schema = getGameSchema(templateId);
-  const config = buildConfigFromSchema(schema, templateId);
+  const config = buildConfigFromSchema(schema, schema.id);
   const frozen: SystemSettings = structuredClone(
     config as Record<string, unknown>,
   );
@@ -171,7 +159,7 @@ export function getCatalogEntriesForMode(
   if (appMode === "studio") {
     return entries;
   }
-  return entries.filter((e) => e.manifest.status === "production");
+  return entries.filter((e) => e.manifest.status === "published");
 }
 
 function filterDesktopBundledTemplates(
@@ -182,9 +170,7 @@ function filterDesktopBundledTemplates(
     return options;
   }
   const allowed = new Set(bundled);
-  return options.filter(
-    (option) => option.source === "development" || allowed.has(option.id),
-  );
+  return options.filter((option) => allowed.has(option.id));
 }
 
 export function getTemplatePickerOptions(
@@ -198,7 +184,6 @@ export function getTemplatePickerOptions(
     version: entry.manifest.version,
     author: entry.manifest.author,
     status: entry.manifest.status,
-    source: entry.source,
   }));
   return filterDesktopBundledTemplates(options);
 }

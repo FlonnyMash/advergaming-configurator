@@ -22,27 +22,37 @@ function resolveViteCacheDir(): string | undefined {
   }
   return undefined;
 }
-const templateLibraryRoot = path.join(
-  gameEngineRoot,
-  "src/templates/library",
-);
+
+/** Unified flat template root — no library/development split. */
+const templatesRoot = path.join(gameEngineRoot, "src/templates");
+
+const SKIP_TEMPLATE_DIRS = new Set(["library", "development", "legacy"]);
+
+function listTemplateIds(): string[] {
+  if (!fs.existsSync(templatesRoot)) return [];
+  return fs
+    .readdirSync(templatesRoot, { withFileTypes: true })
+    .filter(
+      (entry) =>
+        entry.isDirectory() &&
+        !SKIP_TEMPLATE_DIRS.has(entry.name) &&
+        fs.existsSync(path.join(templatesRoot, entry.name, "manifest.json")),
+    )
+    .map((entry) => entry.name);
+}
 
 function copyTemplatePublicAssetsPlugin(): Plugin {
   return {
     name: "copy-template-public-assets",
     closeBundle() {
-      const libraryEntries = fs.readdirSync(templateLibraryRoot, {
-        withFileTypes: true,
-      });
-      for (const entry of libraryEntries) {
-        if (!entry.isDirectory()) continue;
-        const publicDir = path.join(templateLibraryRoot, entry.name, "public");
+      for (const templateId of listTemplateIds()) {
+        const publicDir = path.join(templatesRoot, templateId, "public");
         if (!fs.existsSync(publicDir)) continue;
         const targetDir = path.join(
           gameEngineRoot,
           "dist",
           "template-assets",
-          entry.name,
+          templateId,
         );
         fs.mkdirSync(targetDir, { recursive: true });
         fs.cpSync(publicDir, targetDir, { recursive: true });
@@ -80,12 +90,16 @@ function templatePublicAssetsPlugin(): Plugin {
         }
 
         const filePath = path.join(
-          templateLibraryRoot,
+          templatesRoot,
           templateId,
           "public",
           assetPath,
         );
-        if (!filePath.startsWith(templateLibraryRoot) || !fs.existsSync(filePath)) {
+        const resolvedRoot = path.resolve(templatesRoot);
+        if (
+          !path.resolve(filePath).startsWith(resolvedRoot + path.sep) ||
+          !fs.existsSync(filePath)
+        ) {
           res.statusCode = 404;
           res.end("Not found");
           return;

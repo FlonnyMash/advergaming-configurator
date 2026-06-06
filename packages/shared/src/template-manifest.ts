@@ -9,7 +9,7 @@ import type {
   GameSchema,
 } from "./types";
 
-export type TemplateManifestStatus = "development" | "production";
+export type TemplateManifestStatus = "draft" | "published";
 
 /**
  * Dashboard control metadata embedded in JSON Schema leaves via `x-control`.
@@ -61,7 +61,14 @@ export const TemplateManifestSchema = z
     version: z.string().min(1),
     author: z.string(),
     previewUrl: z.string(),
-    status: z.enum(["development", "production"]),
+    status: z
+      .union([
+        z.literal("draft"),
+        z.literal("published"),
+        z.literal("production").transform((): "published" => "published"),
+        z.literal("development").transform((): "draft" => "draft"),
+      ])
+      .default("draft"),
     description: z.string().optional(),
     phaserScenes: z.array(z.string().min(1)).default([]),
     uiOverlayComponents: z.array(z.string().min(1)).default([]),
@@ -100,6 +107,14 @@ export interface TemplateManifest {
   uiOverlayComponents: string[];
 }
 
+function normalizeStatus(
+  s: TemplateManifestInput["status"],
+): TemplateManifestStatus {
+  if (s === "production") return "published";
+  if (s === "development") return "draft";
+  return s ?? "draft";
+}
+
 /** Normalize manifest JSON (aliases, defaults) to canonical TemplateManifest. */
 export function normalizeTemplateManifest(raw: TemplateManifestInput): TemplateManifest {
   const label = raw.label ?? raw.name ?? raw.id;
@@ -109,7 +124,7 @@ export function normalizeTemplateManifest(raw: TemplateManifestInput): TemplateM
     version: raw.version,
     author: raw.author,
     previewUrl: raw.previewUrl,
-    status: raw.status,
+    status: normalizeStatus(raw.status),
     label,
     description: raw.description,
     schema,
@@ -134,7 +149,6 @@ export function resolvePhaserSceneKeys(
 
 export interface TemplateCatalogEntry {
   manifest: TemplateManifest;
-  source: "library" | "development";
 }
 
 export function isTemplateManifest(value: unknown): value is TemplateManifest {

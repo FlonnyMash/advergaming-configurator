@@ -172,7 +172,7 @@ export function normalizeScaffoldManifest(
     version,
     author: "Imported",
     previewUrl: `/previews/${templateId}.svg`,
-    status: "development",
+    status: "draft",
     label,
     description:
       typeof raw.description === "string" ? raw.description : undefined,

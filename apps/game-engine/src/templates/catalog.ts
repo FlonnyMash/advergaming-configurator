@@ -19,41 +19,26 @@ interface TemplateModule {
   phaserSceneMap?: Record<string, Types.Scenes.SceneType>;
 }
 
-const libraryModules = import.meta.glob<TemplateModule>("./library/*/index.ts", {
+const templateModules = import.meta.glob<TemplateModule>("./*/index.ts", {
   eager: true,
 });
 
-const developmentModules = import.meta.glob<TemplateModule>(
-  "./development/*/index.ts",
-  {
-    eager: true,
-  },
-);
-
-function parseTemplatePath(path: string): {
-  source: TemplateCatalogEntry["source"];
-  folder: string;
-} | null {
-  const libraryMatch = /^\.\/library\/([^/]+)\/index\.ts$/.exec(path);
-  if (libraryMatch) {
-    return { source: "library", folder: libraryMatch[1]! };
-  }
-  const developmentMatch = /^\.\/development\/([^/]+)\/index\.ts$/.exec(path);
-  if (developmentMatch) {
-    return { source: "development", folder: developmentMatch[1]! };
-  }
-  return null;
+function parseTemplatePath(
+  path: string,
+): { folder: string } | null {
+  const match = /^\.\/([^/]+)\/index\.ts$/.exec(path);
+  if (!match) return null;
+  return { folder: match[1]! };
 }
 
 function loadCatalogFromGlob(
   modules: Record<string, TemplateModule>,
-  source: TemplateCatalogEntry["source"],
 ): TemplateCatalogEntry[] {
   const entries: TemplateCatalogEntry[] = [];
 
   for (const [path, mod] of Object.entries(modules)) {
     const parsed = parseTemplatePath(path);
-    if (!parsed || parsed.source !== source) continue;
+    if (!parsed) continue;
 
     const manifest = parseTemplateManifest(mod.manifest);
     if (!manifest) {
@@ -66,41 +51,15 @@ function loadCatalogFromGlob(
       );
     }
 
-    entries.push({ manifest, source });
+    entries.push({ manifest });
   }
 
   return entries.sort((a, b) => a.manifest.label.localeCompare(b.manifest.label));
 }
 
-const libraryCatalog = loadCatalogFromGlob(
-  libraryModules as Record<string, TemplateModule>,
-  "library",
-);
-const developmentCatalog = loadCatalogFromGlob(
-  developmentModules as Record<string, TemplateModule>,
-  "development",
-);
-
-function mergeCatalogEntries(
-  development: TemplateCatalogEntry[],
-  library: TemplateCatalogEntry[],
-): TemplateCatalogEntry[] {
-  const byId = new Map<string, TemplateCatalogEntry>();
-  for (const entry of development) {
-    byId.set(entry.manifest.id, entry);
-  }
-  for (const entry of library) {
-    byId.set(entry.manifest.id, entry);
-  }
-  return [...byId.values()].sort((a, b) =>
-    a.manifest.label.localeCompare(b.manifest.label),
-  );
-}
-
-/** All templates discovered at build time from library/ and development/. */
-export const TEMPLATE_CATALOG: TemplateCatalogEntry[] = mergeCatalogEntries(
-  developmentCatalog,
-  libraryCatalog,
+/** All templates discovered at build time from the unified templates/ directory. */
+export const TEMPLATE_CATALOG: TemplateCatalogEntry[] = loadCatalogFromGlob(
+  templateModules as Record<string, TemplateModule>,
 );
 
 export const TEMPLATE_CATALOG_IDS: GameTemplateId[] = TEMPLATE_CATALOG.map(
@@ -113,7 +72,7 @@ export function getCatalogEntries(
   if (env === "dev") {
     return TEMPLATE_CATALOG;
   }
-  return libraryCatalog;
+  return TEMPLATE_CATALOG.filter((e) => e.manifest.status === "published");
 }
 
 export function getCatalogEntry(
@@ -130,19 +89,16 @@ export function getGameSchemaFromCatalog(templateId: GameTemplateId): GameSchema
   return gameSchemaFromManifest(entry.manifest);
 }
 
-/** Scene classes keyed by template id (library + development). */
+/** Scene classes keyed by template id. */
 export function buildSceneRegistry(): Record<
   GameTemplateId,
   Types.Scenes.SceneType
 > {
   const registry: Record<string, Types.Scenes.SceneType> = {};
 
-  const allModules = {
-    ...libraryModules,
-    ...developmentModules,
-  } as Record<string, TemplateModule>;
-
-  for (const [path, mod] of Object.entries(allModules)) {
+  for (const [path, mod] of Object.entries(
+    templateModules as Record<string, TemplateModule>,
+  )) {
     const parsed = parseTemplatePath(path);
     const manifest = parseTemplateManifest(mod.manifest);
     if (!parsed || !manifest) continue;
@@ -154,12 +110,9 @@ export function buildSceneRegistry(): Record<
 
 /** Register all Phaser scene classes from template modules into PhaserSceneRegistry. */
 export function buildPhaserSceneRegistry(): void {
-  const allModules = {
-    ...libraryModules,
-    ...developmentModules,
-  } as Record<string, TemplateModule>;
-
-  for (const [path, mod] of Object.entries(allModules)) {
+  for (const [path, mod] of Object.entries(
+    templateModules as Record<string, TemplateModule>,
+  )) {
     const parsed = parseTemplatePath(path);
     const manifest = parseTemplateManifest(mod.manifest);
     if (!parsed || !manifest) continue;

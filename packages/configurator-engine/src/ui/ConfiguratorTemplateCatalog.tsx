@@ -74,7 +74,7 @@ export function ConfiguratorTemplateCatalog() {
               <p className="line-clamp-2">{selectedTemplate.description}</p>
             ) : null}
             <p>
-              {selectedTemplate.author} · production
+              {selectedTemplate.author} · published
             </p>
           </div>
         </div>

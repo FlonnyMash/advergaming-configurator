@@ -25,7 +25,6 @@ export async function GET(_request: NextRequest, context: RouteContext) {
   return Response.json({
     ok: true,
     templateId: data.templateId,
-    source: data.source,
     directoryPath: data.directoryPath,
     repositoryPath: data.repositoryPath,
     manifest: data.manifest,

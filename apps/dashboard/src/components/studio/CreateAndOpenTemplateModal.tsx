@@ -104,7 +104,7 @@ export function CreateAndOpenTemplateModal({
                 <p className="mt-1 text-sm text-zinc-500">
                   Scaffolds a Phaser game under{" "}
                   <code className="rounded bg-zinc-100 px-1 text-xs">
-                    templates/development/
+                    templates/
                   </code>{" "}
                   and opens it in Studio.
                 </p>

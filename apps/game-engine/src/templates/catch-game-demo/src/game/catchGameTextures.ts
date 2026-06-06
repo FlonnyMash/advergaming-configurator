@@ -1,7 +1,7 @@
 import { isDataUrlAsset } from "@mashedgames/shared";
 import Phaser from "phaser";
-import { getRuntimeAssets } from "../../../../../bridge/runtime-assets.ts";
-import { reloadTexture } from "../../../../../utils/AssetLoader.ts";
+import { getRuntimeAssets } from "../../../../bridge/runtime-assets.ts";
+import { reloadTexture } from "../../../../utils/AssetLoader.ts";
 
 const PLAYER_TEXTURE_KEY = "player";
 const GROUND_TEXTURE_KEY = "ground";

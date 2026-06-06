@@ -1,5 +1,4 @@
 import {
-  isTemplateManifest,
   parseTemplateManifest,
   type TemplateManifest,
   type TemplateManifestStatus,
@@ -18,14 +17,11 @@ import { TEMPLATE_ID_PATTERN } from "@/lib/template-import-normalize";
 const dashboardRoot = path.resolve(process.cwd());
 const repoRoot = path.resolve(dashboardRoot, "../..");
 const engineRoot = path.resolve(dashboardRoot, "../game-engine");
-const engineTemplatesRoot = path.join(engineRoot, "src/templates");
-const libraryRoot = path.join(engineTemplatesRoot, "library");
-const developmentRoot = path.join(engineTemplatesRoot, "development");
+const templatesRoot = path.join(engineRoot, "src/templates");
 const previewsRoot = path.join(engineRoot, "public/previews");
 
 export type TemplateLocation = {
   templateId: string;
-  source: "library" | "development";
   directoryPath: string;
   repositoryPath: string;
 };
@@ -66,27 +62,13 @@ export function resolveTemplateLocation(
 ): TemplateLocation | null {
   if (!TEMPLATE_ID_PATTERN.test(templateId)) return null;
 
-  const libraryDir = path.join(libraryRoot, templateId);
-  if (existsSync(libraryDir) && statSync(libraryDir).isDirectory()) {
+  const templateDir = path.join(templatesRoot, templateId);
+  if (existsSync(templateDir) && statSync(templateDir).isDirectory()) {
     return {
       templateId,
-      source: "library",
-      directoryPath: libraryDir,
+      directoryPath: templateDir,
       repositoryPath: path
-        .relative(repoRoot, libraryDir)
-        .split(path.sep)
-        .join("/"),
-    };
-  }
-
-  const developmentDir = path.join(developmentRoot, templateId);
-  if (existsSync(developmentDir) && statSync(developmentDir).isDirectory()) {
-    return {
-      templateId,
-      source: "development",
-      directoryPath: developmentDir,
-      repositoryPath: path
-        .relative(repoRoot, developmentDir)
+        .relative(repoRoot, templateDir)
         .split(path.sep)
         .join("/"),
     };
@@ -193,7 +175,7 @@ export function patchTemplateManifest(
   }
 
   if (patch.status !== undefined) {
-    if (patch.status !== "development" && patch.status !== "production") {
+    if (patch.status !== "draft" && patch.status !== "published") {
       return { ok: false, error: "Invalid status.", status: 400 };
     }
     next.status = patch.status;

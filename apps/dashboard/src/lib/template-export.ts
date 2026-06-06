@@ -22,7 +22,7 @@ import {
 const dashboardRoot = path.resolve(process.cwd());
 const libraryRoot = path.resolve(
   dashboardRoot,
-  "../game-engine/src/templates/library",
+  "../game-engine/src/templates",
 );
 
 /** Portable index: no monorepo legacy bridge — re-imports cleanly via standard importer. */

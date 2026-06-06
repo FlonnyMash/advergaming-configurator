@@ -23,7 +23,6 @@ const labelClass = "text-[11px] font-medium uppercase tracking-wider text-zinc-4
 
 type TemplateDetailsPayload = {
   templateId: string;
-  source: "library" | "development";
   repositoryPath: string;
   directoryPath: string;
   manifest: TemplateManifest;
@@ -42,9 +41,6 @@ function formatDateTime(iso: string): string {
   }
 }
 
-function sourceLabel(source: TemplateDetailsPayload["source"]): string {
-  return source === "library" ? "Library" : "Development";
-}
 
 export function TemplateDetailsDialog({
   templateId,
@@ -72,7 +68,7 @@ export function TemplateDetailsDialog({
   const [label, setLabel] = useState("");
   const [description, setDescription] = useState("");
   const [author, setAuthor] = useState("");
-  const [status, setStatus] = useState<TemplateManifestStatus>("development");
+  const [status, setStatus] = useState<TemplateManifestStatus>("draft");
   const [previewCacheBust, setPreviewCacheBust] = useState(0);
   const [saveSuccess, setSaveSuccess] = useState(false);
 
@@ -380,7 +376,7 @@ export function TemplateDetailsDialog({
                   </label>
 
                   <label className="block space-y-1.5">
-                    <span className={labelClass}>Phase</span>
+                    <span className={labelClass}>Status</span>
                     <select
                       value={status}
                       onChange={(e) =>
@@ -388,8 +384,8 @@ export function TemplateDetailsDialog({
                       }
                       className={inputClass}
                     >
-                      <option value="development">Development</option>
-                      <option value="production">Production</option>
+                      <option value="draft">Draft</option>
+                      <option value="published">Published</option>
                     </select>
                   </label>
                 </div>
@@ -425,7 +421,7 @@ export function TemplateDetailsDialog({
                     </button>
                   </div>
                   <p className="text-[11px] text-zinc-400">
-                    Package · {sourceLabel(details.source)}
+                    Package · templates/{details.templateId}
                   </p>
                 </div>
 

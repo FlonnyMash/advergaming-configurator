@@ -4,11 +4,11 @@ import {
   type GameConfig as BridgeGameConfig,
 } from '@mashedgames/shared';
 import Phaser from 'phaser';
-import { applyArcadeSpriteLayout } from '../../../../../../game/arcadeSpriteLayout.ts';
-import type { TemplateScene } from '../../../../../types.ts';
+import { applyArcadeSpriteLayout } from '../../../../../game/arcadeSpriteLayout.ts';
+import type { TemplateScene } from '../../../../types.ts';
 import { PLAYER_TOUCH_EVENT, type PlayerTouchPayload } from '../../ui/touchControls';
-import { resolveTextureUrl } from '../../../../../../bridge/asset-loader.ts';
-import { getRuntimeAssets } from '../../../../../../bridge/runtime-assets.ts';
+import { resolveTextureUrl } from '../../../../../bridge/asset-loader.ts';
+import { getRuntimeAssets } from '../../../../../bridge/runtime-assets.ts';
 import { applyCatchGameTextures } from '../catchGameTextures';
 
 type ItemType = 'good' | 'bad';
@@ -794,7 +794,24 @@ export class PlayScene extends Phaser.Scene implements TemplateScene {
       throw new Error('Game config is not available in registry under key "config".');
     }
 
-    const config = rawConfig as Partial<CatchGameTemplateConfig>;
+    const config = structuredClone(rawConfig) as Partial<CatchGameTemplateConfig>;
+    if (
+      config.assets &&
+      config.assets.goodItems &&
+      !Array.isArray(config.assets.goodItems) &&
+      typeof config.assets.goodItems === 'object'
+    ) {
+      config.assets.goodItems = Object.values(config.assets.goodItems) as GoodItemConfig[];
+    }
+    if (
+      config.assets &&
+      config.assets.badItems &&
+      !Array.isArray(config.assets.badItems) &&
+      typeof config.assets.badItems === 'object'
+    ) {
+      config.assets.badItems = Object.values(config.assets.badItems) as BadItemConfig[];
+    }
+
     if (
       typeof config.assets?.ground?.image !== 'string' ||
       typeof config.assets.ground.height !== 'number' ||

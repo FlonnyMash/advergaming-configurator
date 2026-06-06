@@ -24,6 +24,7 @@ export type MainSceneLoadCompleteHandler = () => void;
 
 export class MainScene extends Phaser.Scene {
   private loading = false;
+  private pendingLoad: { templateId: GameTemplateId; config: GameConfig } | null = null;
   private onLoadComplete: MainSceneLoadCompleteHandler | null = null;
   private previousTemplateId: GameTemplateId | null = null;
 
@@ -43,7 +44,11 @@ export class MainScene extends Phaser.Scene {
     templateId: GameTemplateId,
     config: GameConfig,
   ): Promise<void> {
-    if (this.loading) return;
+    if (this.loading) {
+      // Last-wins: discard any previous pending and queue this one.
+      this.pendingLoad = { templateId, config };
+      return;
+    }
 
     const entry = getCatalogEntry(templateId);
     if (!entry) {
@@ -96,7 +101,28 @@ export class MainScene extends Phaser.Scene {
     updatePhaserMechanics(config, this.game);
 
     this.loading = false;
+
+    // If a newer template was requested while we were loading, skip
+    // onLoadComplete for this intermediate result and run the pending load
+    // instead. ENGINE_READY will be sent once the final template settles.
+    if (this.pendingLoad) {
+      const next = this.pendingLoad;
+      this.pendingLoad = null;
+      void this.loadTemplate(next.templateId, next.config);
+      return;
+    }
+
     this.onLoadComplete?.();
+  }
+
+  notifyConfigUpdate(config: GameConfig): void {
+    for (const scene of this.scene.manager.scenes) {
+      if (scene.scene.key === MAIN_SCENE_KEY) continue;
+      const typed = scene as TemplateScene;
+      if (typeof typed.updateConfig === "function") {
+        typed.updateConfig(config);
+      }
+    }
   }
 
   private unmountChildScenes(): void {

@@ -189,10 +189,10 @@ export async function createProject(input: {
     };
   }
 
-  if (manifest.status !== "production") {
+  if (manifest.status !== "published") {
     return {
       ok: false,
-      error: `Template "${parentTemplateId}" is not published for production.`,
+      error: `Template "${parentTemplateId}" has not been published yet.`,
       status: 400,
     };
   }

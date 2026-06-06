@@ -3,6 +3,7 @@
 import { getStudioGameSchema } from "../registry/studioSchemaRegistry";
 import { useStudioConfigStore } from "../store/useStudioConfigStore";
 import { SchemaControlPanel } from "./SchemaControlPanel";
+import { StudioTemplateCatalog } from "./StudioTemplateCatalog";
 import { Loader2, Redo2, Save, Undo2 } from "lucide-react";
 import { useCallback, useEffect } from "react";
 
@@ -106,6 +107,10 @@ export function StudioSidebar({
       </header>
 
       <div className="flex-1 overflow-y-auto px-6 py-6">
+        <section className="mb-4 shrink-0 rounded-xl border border-zinc-200 bg-white p-4 shadow-sm">
+          <StudioTemplateCatalog />
+        </section>
+
         <section className="mb-4 shrink-0 space-y-3 rounded-xl border border-zinc-200 bg-white p-4 shadow-sm">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h2 className="text-sm font-semibold text-zinc-900">Controls</h2>

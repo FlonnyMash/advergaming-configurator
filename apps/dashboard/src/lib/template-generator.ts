@@ -146,7 +146,7 @@ export function buildCursorInstructions(
   templateId: string,
   sceneKey: string,
 ): string {
-  const devPath = `apps/game-engine/src/templates/development/${templateId}`;
+  const devPath = `apps/game-engine/src/templates/${templateId}`;
 
   return `# Cursor instructions — ${name}
 
@@ -201,7 +201,7 @@ Restart the game engine dev server and open **Studio** (\`/studio\`) — the tem
 
 This scaffold uses an **Option A** manifest (\`meta\`, typed \`branding\` / \`system\` controls) for clarity.
 
-The **production catalog** expects a \`TemplateManifest\` JSON Schema manifest (see \`apps/game-engine/src/templates/library/catch-game-demo/manifest.json\`):
+The **published catalog** expects a \`TemplateManifest\` JSON Schema manifest (see \`apps/game-engine/src/templates/catch-game-demo/manifest.json\`):
 
 - Top-level: \`id\`, \`version\`, \`author\`, \`previewUrl\`, \`status\`, \`label\`, \`description\`
 - \`schema\` with \`properties.branding\` / \`properties.system\` and \`x-control\` on each leaf
@@ -255,7 +255,7 @@ Listen for \`window\` event \`GAME_START\` (or \`TemplateScene.start()\`) to beg
 
 ## 6. \`index.ts\` registry contract
 
-The engine glob-imports \`./development/*/index.ts\` and expects **named** exports:
+The engine glob-imports \`./*/index.ts\` and expects **named** exports:
 
 \`\`\`ts
 import manifest from "./manifest.json";
@@ -273,14 +273,14 @@ Do not use \`export default\` — \`catalog.ts\` reads \`mod.manifest\` and \`mo
 
 1. [ ] Copied to \`${devPath}/\`
 2. [ ] Ran \`sync-manifest-registry\`
-3. [ ] Migrated \`manifest.json\` to production JSON Schema + \`x-control\`
+3. [ ] Migrated \`manifest.json\` to published JSON Schema + \`x-control\`
 4. [ ] \`GameScene\` implements \`TemplateScene\` with \`updateConfig\`
 5. [ ] Branding changes apply without iframe reload (test in Studio preview)
 6. [ ] DOM overlays configured in manifest / \`domOverlay\` paths if needed
 7. [ ] No texture memory leaks on repeated asset upload (use shared reload helper)
 8. [ ] Added \`previewUrl\` asset under game-engine \`public/previews/\` if needed
 
-Publish to library when ready:
+Publish to catalog when ready:
 
 \`\`\`bash
 cd apps/dashboard && pnpm publish-template ${templateId}
@@ -301,7 +301,7 @@ pnpm --filter dashboard dev                 # dashboard only
 ## 9. When editing with Cursor
 
 - Provide **full file paths** and complete TypeScript — no \`// ... rest\` placeholders.
-- Match existing templates: \`catch-game-demo\` under \`apps/game-engine/src/templates/library/\`.
+- Match existing templates: \`catch-game-demo\` under \`apps/game-engine/src/templates/\`.
 - If adding manifest controls, update both \`manifest.json\` **and** handle the mapped paths in \`updateConfig\`.
 - Point out performance issues (uncleared textures, listeners not removed in \`shutdown()\`).
 

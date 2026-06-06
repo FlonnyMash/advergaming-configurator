@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "author": "Imported",
   "previewUrl": "/previews/catch-game-demo.png",
-  "status": "production",
+  "status": "published",
   "label": "Catch Game Demo",
   "description": "Imported legacy Vite/Phaser project (controls mapped from public/config.json).",
   "schema": {
@@ -53,7 +53,7 @@
                   "targetPath": "catchGame.game.backgroundColor",
                   "surface": "both"
                 },
-                "default": "#004040"
+                "default": "#000080"
               },
               "parentElementId": {
                 "type": "string",

@@ -233,7 +233,7 @@ export function AssetLayoutEditor({
       setSaveMessage(
         projectMode
           ? "Saved layout to project client.json"
-          : `Saved to apps/game-engine/src/templates/library/${selectedTemplateId}/public/config.json`,
+          : `Saved to apps/game-engine/src/templates/${selectedTemplateId}/public/config.json`,
       );
     } catch {
       setSaveError(

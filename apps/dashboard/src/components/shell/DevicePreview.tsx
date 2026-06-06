@@ -43,7 +43,6 @@ export function DevicePreview({
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const phoneScreenRef = useRef<HTMLDivElement>(null);
   const previewContainerRef = useRef<HTMLDivElement>(null);
-  const bootTemplateIdRef = useRef(initialTemplateId);
   const [phoneFrameSize, setPhoneFrameSize] = useState({
     width: PHONE_FRAME_WIDTH,
     height: PHONE_FRAME_HEIGHT,
@@ -53,9 +52,15 @@ export function DevicePreview({
     [appMode],
   );
 
+  // Derive the active template from the store so that template switches
+  // navigate the iframe to the correct ?game= URL (URL routing).
+  // Same-template config changes (color, text) still use the fast
+  // CONFIG_UPDATED postMessage path and do not cause a reload.
+  const activeTemplateId = useConfigStore((s) => s.selectedTemplateId);
+
   const iframeSrc = useMemo(() => {
-    return resolveGameEnginePreviewUrl(bootTemplateIdRef.current, appMode);
-  }, [appMode]);
+    return resolveGameEnginePreviewUrl(activeTemplateId, appMode);
+  }, [activeTemplateId, appMode]);
 
   useEffect(() => {
     if (suspended) {
@@ -87,8 +92,12 @@ export function DevicePreview({
     };
   }, [iframeSrc, messenger, suspended]);
 
+  // Keep the store in sync when the parent passes a new initialTemplateId
+  // (e.g. on first mount or hydration from a saved project).
   useEffect(() => {
-    useConfigStore.getState().setSelectedTemplateId(initialTemplateId);
+    if (initialTemplateId !== useConfigStore.getState().selectedTemplateId) {
+      useConfigStore.getState().setSelectedTemplateId(initialTemplateId);
+    }
   }, [initialTemplateId]);
 
   useBridgeSync({

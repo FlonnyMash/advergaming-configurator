@@ -33,17 +33,17 @@ function hasManifestOnDisk(parentTemplateId: GameTemplateId): boolean {
   return existsSync(manifestPath(parentTemplateId));
 }
 
-function getRegistryProductionEntry(parentTemplateId: GameTemplateId) {
+function getRegistryPublishedEntry(parentTemplateId: GameTemplateId) {
   const entry = getCatalogEntry(parentTemplateId);
-  if (entry?.source !== "library" || entry.manifest.status !== "production") {
+  if (entry?.manifest.status !== "published") {
     return null;
   }
   return entry;
 }
 
-/** Baked catalog when library/ is not on disk (desktop) or disk path is unavailable. */
+/** Baked catalog when templates/ is not on disk (desktop) or disk path is unavailable. */
 function canUseRegistryTemplate(parentTemplateId: GameTemplateId): boolean {
-  if (!getRegistryProductionEntry(parentTemplateId)) {
+  if (!getRegistryPublishedEntry(parentTemplateId)) {
     return false;
   }
 
@@ -81,7 +81,7 @@ export function readParentManifest(
     return manifest;
   }
 
-  const entry = getRegistryProductionEntry(parentTemplateId);
+  const entry = getRegistryPublishedEntry(parentTemplateId);
   if (entry && canUseRegistryTemplate(parentTemplateId)) {
     return entry.manifest;
   }
