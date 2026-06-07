@@ -1,47 +1,32 @@
-import { flattenLegacyConfig, type GameConfig } from "@mashedgames/shared";
+import { GameConfigSchema, type GameConfig } from "@mashedgames/shared";
 import { loadProject } from "@/lib/project-io";
 
-function rewriteAssetPathsForFlatExport(value: unknown): unknown {
-  if (typeof value === "string") {
-    if (value.startsWith("/assets/")) {
-      return value.slice(1);
-    }
-    return value;
-  }
-
-  if (Array.isArray(value)) {
-    return value.map((entry) => rewriteAssetPathsForFlatExport(entry));
-  }
-
-  if (value && typeof value === "object") {
-    const out: Record<string, unknown> = {};
-    for (const [key, child] of Object.entries(value)) {
-      out[key] = rewriteAssetPathsForFlatExport(child);
-    }
-    return out;
-  }
-
-  return value;
+export function buildProjectExportConfigJsonFromConfig(config: GameConfig): string {
+  return JSON.stringify(GameConfigSchema.parse(config), null, 2);
 }
 
-export type BuildProjectExportConfigResult =
+export async function buildProjectExportConfigJson(projectId: string): Promise<
   | { ok: true; configJson: string }
-  | { ok: false; error: string; status: number };
-
-export async function buildProjectExportConfigJson(
-  projectId: string,
-): Promise<BuildProjectExportConfigResult> {
+  | { ok: false; error: string; status: number }
+> {
   const loaded = await loadProject(projectId);
   if (!loaded.ok) {
-    return { ok: false, error: loaded.error, status: loaded.status };
+    return loaded;
   }
-
-  const config = rewriteAssetPathsForFlatExport(
-    loaded.data.config,
-  ) as GameConfig;
 
   return {
     ok: true,
-    configJson: `${JSON.stringify(config, null, 2)}\n`,
+    configJson: buildProjectExportConfigJsonFromConfig(loaded.data.config),
   };
+}
+
+export function normalizeExportConfig(
+  raw: unknown,
+  fallbackTemplateId: string,
+): GameConfig | null {
+  const normalized = GameConfigSchema.safeParse({
+    ...(typeof raw === "object" && raw !== null ? raw : {}),
+    activeTemplateId: fallbackTemplateId,
+  });
+  return normalized.success ? normalized.data : null;
 }

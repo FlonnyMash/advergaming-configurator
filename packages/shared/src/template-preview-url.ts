@@ -1,5 +1,5 @@
-/** Default template shipped with the Electron desktop installer. */
-export const DESKTOP_BUNDLED_TEMPLATE_ID = "catch-game-demo";
+/** Default template id for desktop runtime. */
+export const DESKTOP_BUNDLED_TEMPLATE_ID = "default";
 
 function readEnv(key: string): string | undefined {
   if (typeof process !== "undefined" && process.env) {
@@ -26,7 +26,6 @@ function isDesktopRuntime(): boolean {
   if (readEnv("NEXT_PUBLIC_WORKSPACE_DESKTOP") === "1") {
     return true;
   }
-
   return hasElectronPreload();
 }
 
@@ -47,8 +46,7 @@ export function getDesktopBundledTemplateIds(): string[] | null {
 }
 
 /**
- * Base URL for static game-engine assets (previews, template-assets).
- * Desktop and production web embed the built engine under `/engine` on the dashboard origin.
+ * Base URL for static game-engine assets embedded under `/engine`.
  */
 export function resolveGameEngineBaseUrl(): string {
   const devUrl = (
@@ -88,7 +86,7 @@ export function resolveControlAssetPreviewSrc(
 
   const trimmed = assetUrl.trim();
   if (trimmed.startsWith("data:")) {
-    return trimmed;
+    return null;
   }
   if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
     return trimmed;

@@ -19,13 +19,12 @@ import {
 
 export type EngineBridgeHandlers = {
   onConfigUpdate: (config: GameConfig) => void;
-  onLoadTemplate: (templateId: GameTemplateId) => void;
   getCurrentConfig: () => GameConfig;
   getCurrentTemplateId: () => GameTemplateId;
   getGame: () => Phaser.Game | null;
 };
 
-let currentTemplateId: GameTemplateId = "catch-game-demo";
+let currentTemplateId: GameTemplateId = "default";
 
 export class EngineMessenger {
   private configListeners = new Set<(config: GameConfig) => void>();
@@ -88,30 +87,13 @@ export class EngineMessenger {
   }
 
   private handleMessage(event: MessageEvent): void {
-    if (import.meta.env.DEV) {
-      console.log("[Engine Bridge] Received message:", event.data);
-    }
-
     if (event.source !== window.parent) return;
     if (!isAllowedDashboardOrigin(event.origin)) {
-      if (import.meta.env.DEV) {
-        console.warn(
-          "[Engine Bridge] Rejected origin:",
-          event.origin,
-          "(allowed dashboard origins only)",
-        );
-      }
       return;
     }
 
     const parsedMessage = BridgeMessageSchema.safeParse(event.data);
     if (!parsedMessage.success) {
-      if (import.meta.env.DEV) {
-        console.error(
-          "[Engine Bridge] Zod Validation Failed:",
-          parsedMessage.error,
-        );
-      }
       return;
     }
     const message = parsedMessage.data;
@@ -120,19 +102,10 @@ export class EngineMessenger {
     if (!handlers) return;
 
     switch (message.type) {
-      case BRIDGE_MESSAGE_TYPE.CONFIG_UPDATED: {
+      case BRIDGE_MESSAGE_TYPE.UPDATE_CONFIG: {
         const parsed = GameConfigSchema.safeParse(message.payload);
         if (!parsed.success) {
-          if (import.meta.env.DEV) {
-            console.error(
-              "[Engine Bridge] CONFIG_UPDATED payload rejected:",
-              parsed.error,
-            );
-          }
           return;
-        }
-        if (import.meta.env.DEV) {
-          console.log("[Engine Bridge] Applying CONFIG_UPDATED");
         }
         this.notifyConfigUpdate(parsed.data);
         const game = handlers.getGame();
@@ -143,7 +116,6 @@ export class EngineMessenger {
       }
       case BRIDGE_MESSAGE_TYPE.LOAD_TEMPLATE: {
         currentTemplateId = message.payload;
-        handlers.onLoadTemplate(message.payload);
         this.sendEngineReady();
         break;
       }
@@ -181,28 +153,4 @@ export function setupBridge(handlers: EngineBridgeHandlers): void {
 
 export function setBridgeTemplateId(id: GameTemplateId): void {
   currentTemplateId = id;
-}
-
-import { HitboxUpdatePayloadSchema, type HitboxUpdatePayload } from "@mashedgames/shared";
-
-export function postHitboxUpdated(payload: HitboxUpdatePayload): void {
-  if (window.parent === window) {
-    return;
-  }
-
-  const parsed = HitboxUpdatePayloadSchema.safeParse(payload);
-  if (!parsed.success) {
-    if (import.meta.env.DEV) {
-      console.warn("[HitboxEditor] Invalid HITBOX_UPDATED payload", payload);
-    }
-    return;
-  }
-
-  window.parent.postMessage(
-    {
-      type: BRIDGE_MESSAGE_TYPE.HITBOX_UPDATED,
-      payload: parsed.data,
-    },
-    getParentTargetOrigin(),
-  );
 }

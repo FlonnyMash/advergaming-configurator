@@ -1,22 +1,14 @@
 "use client";
 
-import { getCatalogEntry } from "@mashedgames/game-engine/templates/schemas";
+import { readTemplateStudioMeta } from "@/lib/template-studio-meta";
 import { useStudioConfigStore } from "@mashedgames/studio-engine";
-import { useMemo } from "react";
 import { TemplatePhaseControl } from "@/components/studio/TemplatePhaseControl";
 
 export function TemplateStatusControl() {
-  const selectedTemplateId = useStudioConfigStore((s) => s.selectedTemplateId);
-
-  const catalogStatus = useMemo(
-    () => getCatalogEntry(selectedTemplateId)?.manifest.status ?? "draft",
-    [selectedTemplateId],
-  );
+  const selectedTemplateId = useStudioConfigStore((state) => state.selectedTemplateId);
+  const status = readTemplateStudioMeta(selectedTemplateId).status;
 
   return (
-    <TemplatePhaseControl
-      templateId={selectedTemplateId}
-      status={catalogStatus}
-    />
+    <TemplatePhaseControl templateId={selectedTemplateId} status={status} />
   );
 }

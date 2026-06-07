@@ -5,16 +5,14 @@ import {
   ExportProjectError,
   exportProjectToZip,
 } from "@/lib/export-project-client";
-import { ExportGameButton as ExportGameButtonView } from "@mashedgames/configurator-engine";
 import { useConfiguratorStore } from "@mashedgames/configurator-engine";
 import { useCallback, useState } from "react";
 
 export function ExportGameButton() {
-  const projectId = useConfiguratorStore((s) => s.projectId);
+  const projectId = useConfiguratorStore((state) => state.projectId);
   const [exporting, setExporting] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const desktopOnly = typeof window !== "undefined" && !window.electron;
 
   const exportGame = useCallback(async () => {
     if (!projectId) {
@@ -33,7 +31,6 @@ export function ExportGameButton() {
 
     try {
       await saveProjectClientNow(projectId);
-
       const result = await exportProjectToZip(projectId);
       if (!result.ok) {
         if ("canceled" in result && result.canceled) {
@@ -41,7 +38,6 @@ export function ExportGameButton() {
         }
         throw new ExportProjectError("Export failed.");
       }
-
       setMessage(`Game exported to ${result.savePath}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Export failed.");
@@ -55,12 +51,17 @@ export function ExportGameButton() {
   }
 
   return (
-    <ExportGameButtonView
-      exporting={exporting}
-      desktopOnly={desktopOnly}
-      message={message}
-      error={error}
-      onExport={() => void exportGame()}
-    />
+    <div className="space-y-2">
+      <button
+        type="button"
+        onClick={() => void exportGame()}
+        disabled={exporting}
+        className="w-full rounded-lg border border-zinc-200 px-4 py-2 text-sm font-medium text-zinc-800 hover:bg-zinc-50 disabled:opacity-60"
+      >
+        {exporting ? "Exporting…" : "Export game"}
+      </button>
+      {message ? <p className="text-xs text-emerald-700">{message}</p> : null}
+      {error ? <p className="text-xs text-red-600">{error}</p> : null}
+    </div>
   );
 }

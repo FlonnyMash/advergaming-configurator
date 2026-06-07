@@ -1,8 +1,5 @@
 export { ConfiguratorSidebar } from "./ui/ConfiguratorSidebar";
-export { ConfiguratorToolsPanel } from "./ui/ConfiguratorToolsPanel";
-export { ConfiguratorTemplateCatalog } from "./ui/ConfiguratorTemplateCatalog";
-export { ConfiguratorDiagnostics } from "./ui/ConfiguratorDiagnostics";
-export { ExportGameButton } from "./ui/ExportGameButton";
+export { FlatConfigPanel } from "./ui/FlatConfigPanel";
 export {
   useConfiguratorStore,
   selectConfiguratorConfig,
@@ -11,8 +8,3 @@ export {
   type AssetSaveResult,
   type AssetSaveHandler,
 } from "./store/useConfiguratorStore";
-export {
-  getConfiguratorGameSchema,
-  getProductionTemplateOptions,
-  getFrozenSystemDefaults,
-} from "./registry/productionSchemaRegistry";

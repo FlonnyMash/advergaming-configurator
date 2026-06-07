@@ -7,7 +7,7 @@
  * Status (draft | published) in manifest.json determines visibility —
  * no folder-based library/development split.
  */
-import { existsSync, readdirSync, statSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, statSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -85,6 +85,10 @@ export const PUBLISHED_SYSTEM_BY_ID: Partial<Record<GameTemplateId, SystemSettin
 ${published.entries.join("\n")}
 };
 `;
+
+  if (!existsSync(templatesRoot)) {
+    mkdirSync(templatesRoot, { recursive: true });
+  }
 
   writeFileSync(outputPath, manifestContent, "utf8");
   writeFileSync(publishedOutputPath, publishedContent, "utf8");

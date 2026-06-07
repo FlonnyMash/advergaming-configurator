@@ -1,7 +1,6 @@
 "use client";
 
 import { pushRuntimeAssetsToPreview } from "@/lib/preview-bridge-store";
-import { useGameChromeOverlayStore } from "@/lib/game-chrome-overlay-store";
 import { flushConfigToIframe, useConfigStore } from "@/store/useConfigStore";
 import { useTemplateBridgeStore } from "@/store/useTemplateBridgeStore";
 import type { AppMode, GameTemplateId } from "@mashedgames/shared";
@@ -13,7 +12,12 @@ type DashboardMessenger = {
     contentWindow: Window | null,
     templateId: GameTemplateId,
   ) => void;
-  sendConfigUpdated: (config: ReturnType<typeof useConfigStore.getState>["config"]) => void;
+  sendUpdateConfig: (
+    config: ReturnType<typeof useConfigStore.getState>["config"],
+  ) => void;
+  sendConfigUpdated: (
+    config: ReturnType<typeof useConfigStore.getState>["config"],
+  ) => void;
   sendLoadTemplate: (templateId: GameTemplateId) => void;
   sendRuntimeAssets?: (assets: Record<string, string>) => void;
   setTarget: (contentWindow: Window | null) => void;
@@ -74,7 +78,6 @@ export function useBridgeSync({
       if (templateChanged) {
         lastTemplateId = state.selectedTemplateId;
         previewTemplateIdRef.current = state.selectedTemplateId;
-        useGameChromeOverlayStore.getState().clearRegistry();
         useTemplateBridgeStore
           .getState()
           .beginTemplateChange(state.selectedTemplateId);
@@ -120,7 +123,6 @@ export function useBridgeSync({
       useConfigStore.getState().setIframeTarget(contentWindow ?? null);
       messenger.setTarget(contentWindow ?? null);
       messenger.initSync(contentWindow ?? null, previewTemplateIdRef.current);
-      useGameChromeOverlayStore.getState().clearRegistry();
       flushConfigToIframe();
       pushRuntimeAssetsToPreview();
       window.setTimeout(() => {

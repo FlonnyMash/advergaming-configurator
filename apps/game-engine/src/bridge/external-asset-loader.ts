@@ -6,18 +6,14 @@ import {
 import { engineMessenger } from "./messenger.ts";
 import Phaser from "phaser";
 import type { Game as PhaserGame } from "phaser";
-import {
-  getOSAssetUrl,
-  getStudioAssetUrl,
-  withCacheBust,
-} from "./asset-loader.ts";
+import { getStudioAssetUrl, withCacheBust } from "./asset-loader.ts";
 import { getParentTargetOrigin } from "./dashboard-origin.ts";
+import { MAIN_SCENE_KEY } from "../game/scenes/MainScene.ts";
 
 function findLoadableScene(game: PhaserGame): Phaser.Scene | null {
-  const preferred =
-    game.scene.getScene("CatchGameScene") ?? game.scene.getScene("PlayScene");
+  const preferred = game.scene.getScene(MAIN_SCENE_KEY);
   if (preferred?.load) return preferred;
-  return game.scene.scenes.find((s) => Boolean(s.load)) ?? null;
+  return game.scene.scenes.find((scene) => Boolean(scene.load)) ?? null;
 }
 
 function resolveExternalAssetUrl(
@@ -32,7 +28,9 @@ function resolveExternalAssetUrl(
       return withCacheBust(getStudioAssetUrl(relativePath, projectId));
     }
   }
-  return withCacheBust(getOSAssetUrl(absolutePath));
+  return withCacheBust(
+    `mashedgames-studio://${encodeURIComponent(normalized)}`,
+  );
 }
 
 export function loadExternalAsset(
@@ -66,7 +64,6 @@ export function loadExternalAsset(
     engineMessenger.sendAssetLoadError({
       key,
       message: `Failed to load external asset: ${url}`,
-      source: absolutePath,
     });
   };
 

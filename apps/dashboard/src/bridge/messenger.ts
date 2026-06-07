@@ -2,16 +2,14 @@ import {
   AssetReadyPayloadSchema,
   AssetLoadErrorMessageSchema,
   BRIDGE_MESSAGE_TYPE,
-  ConfigUpdatedMessageSchema,
   EngineReadyMessageSchema,
   GameConfigSchema,
   LoadExternalAssetPayloadSchema,
   SetRuntimeAssetsPayloadSchema,
-  cloneForBridgePostMessage,
+  UpdateConfigMessageSchema,
   isAssetLoadErrorMessage,
   isEngineReadyMessage,
   isGameEventMessage,
-  isHitboxUpdatedMessage,
   isLoadTemplateMessage,
   resolveGameEngineBaseUrl,
   type AppMode,
@@ -20,7 +18,6 @@ import {
   type GameConfig,
   type GameEventMessage,
   type GameTemplateId,
-  type HitboxUpdatePayload,
   LoadTemplateMessageSchema,
 } from "@mashedgames/shared";
 
@@ -50,7 +47,6 @@ function warnIfInvalid(
 const DEV_GAME_ENGINE_URL =
   process.env.NEXT_PUBLIC_GAME_ENGINE_URL ?? "http://localhost:5173";
 
-/** Origin of inbound postMessage events from the game-engine iframe. */
 export function getGameEngineOrigin(): string {
   if (typeof window === "undefined") {
     return new URL(DEV_GAME_ENGINE_URL).origin;
@@ -64,10 +60,6 @@ export function getGameEngineOrigin(): string {
   return window.location.origin;
 }
 
-/**
- * targetOrigin for dashboard → iframe postMessage.
- * Dev uses '*' so cross-origin Vite preview (localhost:5173) always receives.
- */
 export function getBridgePostMessageTargetOrigin(): string {
   if (isDev) {
     return "*";
@@ -110,7 +102,7 @@ function postMessageToIframe(
   label: string,
 ): void {
   const targetOrigin = getBridgePostMessageTargetOrigin();
-  if (isDev && label === "CONFIG_UPDATED") {
+  if (isDev && label === "UPDATE_CONFIG") {
     console.log(
       `[Dashboard Bridge] Sending ${label}:`,
       (message as { payload?: unknown }).payload ?? message,
@@ -121,7 +113,6 @@ function postMessageToIframe(
   targetWindow.postMessage(message, targetOrigin);
 }
 
-/** @deprecated Prefer getGameEngineOrigin() for runtime embedded engine origin checks. */
 export const gameEngineOrigin = getGameEngineOrigin();
 
 export function getDashboardAppMode(): AppMode {
@@ -136,8 +127,6 @@ class DashboardMessenger {
   private pendingConfig: GameConfig | null = null;
   private pendingLoadTemplate: GameTemplateId | null = null;
   private gameEventHandler: ((message: GameEventMessage) => void) | null =
-    null;
-  private hitboxUpdatedHandler: ((payload: HitboxUpdatePayload) => void) | null =
     null;
   private assetReadyHandler: ((payload: AssetReadyPayload) => void) | null =
     null;
@@ -229,19 +218,8 @@ class DashboardMessenger {
       return;
     }
 
-    if (isHitboxUpdatedMessage(event.data)) {
-      this.hitboxUpdatedHandler?.(event.data.payload);
-      return;
-    }
-
     if (isAssetLoadErrorMessage(event.data)) {
       warnIfInvalid(AssetLoadErrorMessageSchema, event.data, "ASSET_LOAD_ERROR");
-      if (isDev) {
-        console.warn(
-          "[DashboardMessenger] Asset load error:",
-          event.data.payload,
-        );
-      }
       this.assetLoadErrorHandler?.(event.data.payload);
       return;
     }
@@ -259,7 +237,6 @@ class DashboardMessenger {
       if (parsed.success) {
         this.assetReadyHandler?.(parsed.data);
       }
-      return;
     }
   }
 
@@ -279,15 +256,6 @@ class DashboardMessenger {
     return () => {
       if (this.gameEventHandler === handler) {
         this.gameEventHandler = null;
-      }
-    };
-  }
-
-  onHitboxUpdated(handler: (payload: HitboxUpdatePayload) => void): () => void {
-    this.hitboxUpdatedHandler = handler;
-    return () => {
-      if (this.hitboxUpdatedHandler === handler) {
-        this.hitboxUpdatedHandler = null;
       }
     };
   }
@@ -336,26 +304,30 @@ class DashboardMessenger {
     this.targetWindow.postMessage(message, getBridgePostMessageTargetOrigin());
   }
 
-  sendConfigUpdated(config: GameConfig): void {
-    const safeConfig = cloneForBridgePostMessage(config);
-    const parsed = GameConfigSchema.safeParse(safeConfig);
+  sendUpdateConfig(config: GameConfig): void {
+    const parsed = GameConfigSchema.safeParse(config);
     if (!parsed.success) {
-      devWarn("sendConfigUpdated rejected", parsed.error.flatten());
+      devWarn("sendUpdateConfig rejected", parsed.error.flatten());
       return;
     }
 
     if (this.engineReady && this.targetWindow) {
-      this.postConfigUpdated(parsed.data);
+      this.postUpdateConfig(parsed.data);
       return;
     }
     this.pendingConfig = parsed.data;
   }
 
-  sendGameEvent(eventName: string, data: unknown): void {
+  /** @deprecated Use sendUpdateConfig */
+  sendConfigUpdated(config: GameConfig): void {
+    this.sendUpdateConfig(config);
+  }
+
+  sendGameEvent(event: string, data?: unknown): void {
     if (!this.engineReady || !this.targetWindow) return;
     const message: GameEventMessage = {
       type: BRIDGE_MESSAGE_TYPE.GAME_EVENT,
-      eventName,
+      event,
       data,
     };
     this.targetWindow.postMessage(message, getBridgePostMessageTargetOrigin());
@@ -379,20 +351,20 @@ class DashboardMessenger {
     }
 
     if (this.pendingConfig !== null) {
-      this.postConfigUpdated(this.pendingConfig);
+      this.postUpdateConfig(this.pendingConfig);
       this.pendingConfig = null;
     }
   }
 
-  private postConfigUpdated(config: GameConfig): void {
+  private postUpdateConfig(config: GameConfig): void {
     if (!this.targetWindow || this.targetWindow === window) return;
 
     const message = {
-      type: BRIDGE_MESSAGE_TYPE.CONFIG_UPDATED,
+      type: BRIDGE_MESSAGE_TYPE.UPDATE_CONFIG,
       payload: config,
     };
-    warnIfInvalid(ConfigUpdatedMessageSchema, message, "CONFIG_UPDATED");
-    postMessageToIframe(this.targetWindow, message, "CONFIG_UPDATED");
+    warnIfInvalid(UpdateConfigMessageSchema, message, "UPDATE_CONFIG");
+    postMessageToIframe(this.targetWindow, message, "UPDATE_CONFIG");
   }
 
   private postLoadTemplate(templateId: GameTemplateId): void {

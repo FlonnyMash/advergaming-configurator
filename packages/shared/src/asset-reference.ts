@@ -1,83 +1,84 @@
 import { z } from "zod";
 
-const STUDIO_PROTOCOL = "mashedgames-studio";
+export const STUDIO_PROTOCOL = "mashedgames-studio" as const;
 
-/** Runtime discriminated type; persisted config stores plain strings. */
-export type AssetReference =
-  | { kind: "inline"; dataUrl: string }
-  | { kind: "path"; relativePath: string };
+export const ProjectRelativePathSchema = z
+  .string()
+  .regex(/^assets\/[^\s]+$/, "Must be a project-relative assets/ path");
+
+export const StudioAssetUrlSchema = z
+  .string()
+  .regex(
+    /^mashedgames-studio:\/\/\/[^\s?]+(\?project=[^&\s]+)?$/,
+    "Must be a mashedgames-studio:// asset URL",
+  );
+
+export const NullableAssetStringSchema = z
+  .string()
+  .refine((value) => !value.startsWith("data:"), "Base64 data URLs are prohibited")
+  .refine(
+    (value) =>
+      value === "" ||
+      ProjectRelativePathSchema.safeParse(value).success ||
+      StudioAssetUrlSchema.safeParse(value).success ||
+      value.startsWith("http://") ||
+      value.startsWith("https://"),
+    "Asset must be a relative path, studio protocol URL, or http(s) URL",
+  );
+
+export type AssetReference = z.infer<typeof NullableAssetStringSchema>;
 
 export function isDataUrlAsset(value: string): boolean {
   return value.startsWith("data:");
+}
+
+export function isProjectRelativeAssetPath(value: string): boolean {
+  return ProjectRelativePathSchema.safeParse(value).success;
 }
 
 export function isStudioAssetUrl(value: string): boolean {
   return value.startsWith(`${STUDIO_PROTOCOL}://`);
 }
 
-/** Relative paths under a project folder (e.g. assets/logo.png). */
-export function isProjectRelativeAssetPath(value: string): boolean {
-  if (!value || isDataUrlAsset(value) || isStudioAssetUrl(value)) {
+export function isValidPersistedAssetString(value: string): boolean {
+  if (!value || isDataUrlAsset(value)) {
     return false;
   }
-  const rel = value.replace(/^\//, "");
-  return rel.startsWith("assets/") && !rel.includes("..");
+  return NullableAssetStringSchema.safeParse(value).success;
 }
 
-export function isValidPersistedAssetString(value: string | null): boolean {
-  if (value === null) return true;
-  return (
-    isDataUrlAsset(value) ||
-    isProjectRelativeAssetPath(value) ||
-    isStudioAssetUrl(value)
-  );
+export function resolveStudioAssetUrl(
+  relativePath: string,
+  projectId: string,
+): string {
+  const normalized = relativePath.replace(/^\//, "").replace(/\\/g, "/");
+  return `${STUDIO_PROTOCOL}:///${normalized}?project=${encodeURIComponent(projectId)}`;
 }
 
-export function coerceAssetReference(value: string): AssetReference {
-  if (isDataUrlAsset(value)) {
-    return { kind: "inline", dataUrl: value };
+export function coerceAssetReference(
+  value: unknown,
+  projectId?: string,
+): string | null {
+  if (typeof value !== "string" || value.trim() === "") {
+    return null;
   }
-  const relativePath = value.replace(/^\//, "");
-  return { kind: "path", relativePath };
+  const trimmed = value.trim();
+  if (isDataUrlAsset(trimmed)) {
+    return null;
+  }
+  if (isStudioAssetUrl(trimmed)) {
+    return trimmed;
+  }
+  if (isProjectRelativeAssetPath(trimmed) && projectId) {
+    return resolveStudioAssetUrl(trimmed, projectId);
+  }
+  if (NullableAssetStringSchema.safeParse(trimmed).success) {
+    return trimmed;
+  }
+  return null;
 }
 
 export function parseAssetReference(value: unknown): AssetReference | null {
-  if (typeof value !== "string" || value.length === 0) {
-    return null;
-  }
-  if (!isValidPersistedAssetString(value)) {
-    return null;
-  }
-  if (isStudioAssetUrl(value)) {
-    return null;
-  }
-  return coerceAssetReference(value);
+  const result = NullableAssetStringSchema.safeParse(value);
+  return result.success ? result.data : null;
 }
-
-function coerceStringToAssetReference(value: string): AssetReference {
-  return coerceAssetReference(value);
-}
-
-const InlineAssetReferenceSchema = z.object({
-  kind: z.literal("inline"),
-  dataUrl: z.string().startsWith("data:"),
-});
-
-const PathAssetReferenceSchema = z.object({
-  kind: z.literal("path"),
-  relativePath: z.string(),
-});
-
-export const AssetReferenceSchema = z.union([
-  InlineAssetReferenceSchema,
-  PathAssetReferenceSchema,
-  z.string().transform(coerceStringToAssetReference),
-]);
-
-/** Nullable persisted asset field (data URL, assets/ path, or null). */
-export const NullableAssetStringSchema = z
-  .string()
-  .nullable()
-  .refine(isValidPersistedAssetString, {
-    message: "Must be null, a data URL, or a project-relative assets/ path",
-  });

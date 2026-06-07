@@ -3,19 +3,14 @@
 import {
   createDashboardMessenger,
   gameEngineOrigin,
+  getBridgePostMessageTargetOrigin,
   getGameEngineOrigin,
   resolveGameEnginePreviewUrl,
 } from "@/bridge/messenger";
-import { useHitboxInboundBridge } from "@/hooks/useHitboxInboundBridge";
-import { useGameChromeOverlayStore } from "@/lib/game-chrome-overlay-store";
 import { usePreviewBridgeStore } from "@/lib/preview-bridge-store";
 import { useBridgeSync } from "@/store/useBridgeSync";
 import { useConfigStore } from "@/store/useConfigStore";
 import type { AppMode, GameTemplateId } from "@mashedgames/shared";
-import {
-  GAME_CHROME_BRIDGE_EVENTS,
-  parseGameChromeOverlaysRegistryPayload,
-} from "@mashedgames/shared";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
 const PHONE_FRAME_WIDTH = 390;
@@ -24,11 +19,8 @@ const PHONE_FRAME_HEIGHT = 844;
 export interface DevicePreviewProps {
   appMode: AppMode;
   initialTemplateId: GameTemplateId;
-  /** Keep iframe mounted but pause dashboard ↔ game bridge (e.g. hidden workspace). */
   suspended?: boolean;
-  /** @deprecated Alias for `suspended` used by CenterWorkspace. */
   previewSuspended?: boolean;
-  /** React overlays mounted above the game iframe (studio template manifest). */
   overlaySlot?: ReactNode;
 }
 
@@ -52,11 +44,7 @@ export function DevicePreview({
     [appMode],
   );
 
-  // Derive the active template from the store so that template switches
-  // navigate the iframe to the correct ?game= URL (URL routing).
-  // Same-template config changes (color, text) still use the fast
-  // CONFIG_UPDATED postMessage path and do not cause a reload.
-  const activeTemplateId = useConfigStore((s) => s.selectedTemplateId);
+  const activeTemplateId = useConfigStore((state) => state.selectedTemplateId);
 
   const iframeSrc = useMemo(() => {
     return resolveGameEnginePreviewUrl(activeTemplateId, appMode);
@@ -92,8 +80,6 @@ export function DevicePreview({
     };
   }, [iframeSrc, messenger, suspended]);
 
-  // Keep the store in sync when the parent passes a new initialTemplateId
-  // (e.g. on first mount or hydration from a saved project).
   useEffect(() => {
     if (initialTemplateId !== useConfigStore.getState().selectedTemplateId) {
       useConfigStore.getState().setSelectedTemplateId(initialTemplateId);
@@ -108,39 +94,20 @@ export function DevicePreview({
     previewTemplateId: initialTemplateId,
   });
 
-  useHitboxInboundBridge({
-    messenger,
-    enabled: !suspended,
-    appMode,
-  });
-
   useEffect(() => {
     if (suspended) {
       return;
     }
 
-    useGameChromeOverlayStore.getState().setMessenger(messenger);
     usePreviewBridgeStore.getState().setMessenger(messenger);
 
     const onIframeMessage = (event: MessageEvent) => {
       messenger.handleWindowMessage(event);
     };
 
-    const offGameEvent = messenger.onGameEvent((message) => {
-      if (
-        message.eventName !== GAME_CHROME_BRIDGE_EVENTS.OVERLAYS_REGISTRY
-      ) {
-        return;
-      }
-      const payload = parseGameChromeOverlaysRegistryPayload(message.data);
-      if (!payload) return;
-      useGameChromeOverlayStore.getState().setRegistry(payload.overlays);
-    });
-
     window.addEventListener("message", onIframeMessage);
 
     return () => {
-      offGameEvent();
       window.removeEventListener("message", onIframeMessage);
       messenger.setTarget(null);
       usePreviewBridgeStore.getState().setMessenger(null);
@@ -160,7 +127,7 @@ export function DevicePreview({
       try {
         iframe.contentWindow?.dispatchEvent(new Event("resize"));
       } catch {
-        // Cross-origin guard (should not happen for local dev origins).
+        /* cross-origin guard */
       }
     };
 
@@ -242,4 +209,9 @@ export function DevicePreview({
   );
 }
 
-export { getBridgePostMessageTargetOrigin, getGameEngineOrigin, gameEngineOrigin, resolveGameEnginePreviewUrl };
+export {
+  getBridgePostMessageTargetOrigin,
+  getGameEngineOrigin,
+  gameEngineOrigin,
+  resolveGameEnginePreviewUrl,
+};

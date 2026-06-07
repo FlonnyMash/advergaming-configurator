@@ -51,8 +51,6 @@ export async function POST(request: NextRequest, context: RouteContext) {
     const exported = await exportTemplateToDirectory(
       manifest.parentTemplateId,
       tempDir,
-      config,
-      { projectAssetsDir },
     );
 
     if (!exported.ok) {

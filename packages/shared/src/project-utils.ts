@@ -1,9 +1,7 @@
-import { patchConfig } from "./config-utils";
-import type { GameConfig } from "./game-config-bridge";
-import type { GameSchema, GameTemplateId } from "./game-schema";
+import type { GameConfig } from "./flat-game-config";
+import { DEFAULT_SCHEMA_VERSION } from "./flat-game-config";
 import type { ClientProjectPayload, GameProjectManifest } from "./game-project";
-import { DEFAULT_SCHEMA_VERSION } from "./types";
-import { buildConfigWithFrozenSystem, exportClientPayload } from "./config-utils";
+import { exportClientPayload } from "./flat-game-config";
 
 export function slugifyProjectId(displayName: string): string {
   const slug = displayName
@@ -55,25 +53,18 @@ export function buildInitialClientPayload(
 }
 
 export function buildProjectConfigFromClient(
-  schema: GameSchema,
-  systemDefaults: Record<string, unknown>,
   client: ClientProjectPayload,
-  parentTemplateId: GameTemplateId,
+  parentTemplateId: string,
 ): GameConfig {
-  const base = buildConfigWithFrozenSystem(
-    schema,
-    systemDefaults,
-    parentTemplateId,
-  );
-  return patchConfig(base, {
+  return {
     ...client,
     activeTemplateId: parentTemplateId,
-    schemaVersion: client.schemaVersion ?? base.schemaVersion,
-  });
+    schemaVersion: client.schemaVersion ?? DEFAULT_SCHEMA_VERSION,
+  };
 }
 
 export function defaultProjectManifestFields(
-  parentTemplateId: GameTemplateId,
+  parentTemplateId: string,
   parentVersion: string,
   parentSchemaVersion: string = DEFAULT_SCHEMA_VERSION,
 ): Pick<

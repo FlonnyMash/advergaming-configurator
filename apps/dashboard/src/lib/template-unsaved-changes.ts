@@ -1,135 +1,42 @@
-import {
-  assetBindingKey,
-  useAssetLayoutSavedStore,
-} from "@/lib/asset-layout-saved-store";
-import {
-  assetPaneLabel,
-  useWorkspaceCenterStore,
-} from "@/lib/workspace-center-store";
-import {
-  layoutsEqual,
-  readAssetLayoutFromStudioConfig,
-} from "@/lib/patch-asset-layout";
-import {
-  cloneGameConfig,
-  getStudioGameSchema,
-  hasUnsavedGameControls,
-  listGameControlChanges,
-  useStudioConfigStore,
-} from "@mashedgames/studio-engine";
 import { useConfiguratorStore } from "@mashedgames/configurator-engine";
-import type { DevToolkitAssetLayout } from "@mashedgames/shared";
+import { useStudioConfigStore } from "@mashedgames/studio-engine";
 
 export type UnsavedChangeItem = {
-  kind: "game-control" | "asset-layout";
+  id: string;
   label: string;
   detail?: string;
+  kind?: string;
 };
 
+export function hasUnsavedConfiguratorClient(): boolean {
+  return useConfiguratorStore.getState().hasUnsavedClient();
+}
+
+export function hasUnsavedStudioConfig(): boolean {
+  return false;
+}
+
 export function collectUnsavedTemplateChanges(): UnsavedChangeItem[] {
-  const { config, savedConfig, selectedTemplateId } = useStudioConfigStore.getState();
-  const schema = getStudioGameSchema(selectedTemplateId);
-  const items: UnsavedChangeItem[] = [];
+  return [];
+}
 
-  if (hasUnsavedGameControls(schema, savedConfig, config)) {
-    for (const change of listGameControlChanges(schema, savedConfig, config)) {
-      items.push({
-        kind: "game-control",
-        label: change.label,
-        detail: change.targetPath,
-      });
-    }
-  }
+export function discardConfiguratorUnsavedChanges(): void {
+  useConfiguratorStore.getState().resetBranding();
+}
 
-  const savedLayouts = useAssetLayoutSavedStore.getState().savedLayouts;
-  const panes = useWorkspaceCenterStore.getState().panes;
-
-  for (const pane of panes) {
-    if (pane.kind !== "asset" || !pane.asset.configBinding) {
-      continue;
-    }
-
-    const binding = pane.asset.configBinding;
-    const key = assetBindingKey(binding);
-    const savedLayout: DevToolkitAssetLayout =
-      savedLayouts[key] ??
-      readAssetLayoutFromStudioConfig(savedConfig, binding) ??
-      pane.asset.layout ??
-      {};
-    const currentLayout: DevToolkitAssetLayout =
-      readAssetLayoutFromStudioConfig(config, binding) ?? pane.asset.layout ?? {};
-
-    if (!layoutsEqual(savedLayout, currentLayout)) {
-      items.push({
-        kind: "asset-layout",
-        label: assetPaneLabel(pane.asset),
-        detail: binding.itemKind,
-      });
-    }
-  }
-
-  return items;
+export function discardStudioUnsavedChanges(): void {
+  useStudioConfigStore.getState().resetConfig();
 }
 
 export function markAllTemplateChangesSaved(): void {
-  const config = useStudioConfigStore.getState().config;
-  useStudioConfigStore.getState().markGameControlsSaved();
-
-  const savedLayouts = useAssetLayoutSavedStore.getState().savedLayouts;
-  const panes = useWorkspaceCenterStore.getState().panes;
-  const nextLayouts = { ...savedLayouts };
-
-  for (const pane of panes) {
-    if (pane.kind !== "asset" || !pane.asset.configBinding) {
-      continue;
-    }
-    const binding = pane.asset.configBinding;
-    const key = assetBindingKey(binding);
-    const layout: DevToolkitAssetLayout =
-      readAssetLayoutFromStudioConfig(config, binding) ?? pane.asset.layout ?? {};
-    nextLayouts[key] = structuredClone(layout);
-  }
-
-  useAssetLayoutSavedStore.setState({ savedLayouts: nextLayouts });
+  useConfiguratorStore.getState().markClientSaved();
+  markStudioConfigSaved();
 }
 
-/** Drop in-memory studio edits (does not write to disk). */
-export function discardStudioUnsavedChanges(): void {
-  const state = useStudioConfigStore.getState();
-  const savedConfig = state.savedConfig;
-
-  useStudioConfigStore.setState({
-    config: cloneGameConfig(savedConfig),
-    controlHistoryPast: [],
-    controlHistoryFuture: [],
-  });
-
-  const panes = useWorkspaceCenterStore.getState().panes;
-  const nextLayouts = { ...useAssetLayoutSavedStore.getState().savedLayouts };
-
-  for (const pane of panes) {
-    if (pane.kind !== "asset" || !pane.asset.configBinding) {
-      continue;
-    }
-    const binding = pane.asset.configBinding;
-    const key = assetBindingKey(binding);
-    nextLayouts[key] = structuredClone(
-      readAssetLayoutFromStudioConfig(savedConfig, binding) ?? {},
-    );
-  }
-
-  useAssetLayoutSavedStore.setState({ savedLayouts: nextLayouts });
+export function markStudioConfigSaved(): void {
+  /* no-op until template persistence returns */
 }
 
-/** Drop in-memory configurator client edits (does not write to disk). */
-export function discardConfiguratorUnsavedChanges(): void {
-  const state = useConfiguratorStore.getState();
-  const savedClient = state.savedClient;
-  if (!savedClient) {
-    return;
-  }
-
-  useConfiguratorStore.setState({
-    config: structuredClone(savedClient),
-  });
+export function resetStudioUnsavedTracking(): void {
+  discardStudioUnsavedChanges();
 }

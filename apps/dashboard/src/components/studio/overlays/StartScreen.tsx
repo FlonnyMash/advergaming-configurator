@@ -1,19 +1,16 @@
 "use client";
 
-import { getDomOverlayForUi } from "@mashedgames/shared";
+import type { GameConfig } from "@mashedgames/shared";
 import type { TemplateOverlayProps } from "./types";
 
 export function StartScreen({ config, messenger, disabled }: TemplateOverlayProps) {
-  const domOverlay = getDomOverlayForUi(config);
-  const title = domOverlay.startScreenTitle || "Play Now";
-  const cta = domOverlay.ctaButtonText || "Start";
+  const title = config.startScreenTitle || "Play Now";
+  const cta = config.ctaLabel || "Start";
 
   const handleStart = () => {
     if (disabled) return;
-    if (typeof window !== "undefined") {
-      window.dispatchEvent(new Event("GAME_START"));
-    }
-    messenger?.sendGameEvent("GAME_START", {});
+    window.dispatchEvent(new Event("GAME_START"));
+    messenger?.sendGameEvent("GAME_START");
   };
 
   return (

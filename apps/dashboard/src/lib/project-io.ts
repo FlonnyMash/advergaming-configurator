@@ -1,24 +1,21 @@
 import {
-  applyPath,
   buildInitialClientPayload,
   buildProjectConfigFromClient,
   ClientProjectPayloadSchema,
-  gameSchemaFromManifestForMode,
+  DEFAULT_GAME_CONFIG,
   GameProjectManifestSchema,
   ParentLockSnapshotSchema,
   PROJECT_ID_PATTERN,
   slugifyProjectId,
   type ClientProjectPayload,
   type GameConfig,
-  flattenLegacyConfig,
-  type GameProjectManifest,
   type GameTemplateId,
   type ParentLockSnapshot,
 } from "@mashedgames/shared";
-import { textureKeyForTargetPath } from "@/lib/catch-game-texture-keys";
 import {
   migrateClientBrandingAssets,
   persistBufferToProjectAssets,
+  setFlatConfigField,
 } from "@/lib/project-assets";
 import { isWorkspaceDesktop } from "@/lib/runtime-env";
 import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
@@ -36,7 +33,6 @@ import {
   isParentTemplateInLibrary,
   readParentManifest,
 } from "@/lib/project-parent-config";
-import { getPublishedSystemDefaults } from "@mashedgames/game-engine/templates/schemas";
 
 export type ProjectIoResult<T> =
   | { ok: true; data: T }
@@ -55,7 +51,7 @@ function buildParentLockSnapshot(
     lockedAt: new Date().toISOString(),
     parentTemplateId,
     parentVersion: manifestVersion,
-    parentSchemaVersion: config.schemaVersion ?? "1.0.0",
+    parentSchemaVersion: config.schemaVersion,
     config: structuredClone(config),
   };
 }
@@ -86,7 +82,7 @@ export async function listProjectIds(): Promise<string[]> {
 
 export async function getProjectDetails(projectId: string): Promise<
   ProjectIoResult<{
-    manifest: GameProjectManifest;
+    manifest: import("@mashedgames/shared").GameProjectManifest;
     repositoryPath: string;
     directoryPath: string;
     updatedAt: string;
@@ -124,7 +120,7 @@ export async function getProjectDetails(projectId: string): Promise<
 export async function patchProjectDisplayName(
   projectId: string,
   displayName: string,
-): Promise<ProjectIoResult<{ manifest: GameProjectManifest }>> {
+): Promise<ProjectIoResult<{ manifest: import("@mashedgames/shared").GameProjectManifest }>> {
   const trimmed = displayName.trim();
   if (!trimmed) {
     return { ok: false, error: "Display name is required.", status: 400 };
@@ -144,7 +140,7 @@ export async function patchProjectDisplayName(
       return { ok: false, error: "Invalid project.json.", status: 500 };
     }
 
-    const manifest: GameProjectManifest = {
+    const manifest = {
       ...manifestParsed.data,
       displayName: trimmed,
     };
@@ -164,7 +160,7 @@ export async function createProject(input: {
   projectId?: string;
 }): Promise<
   ProjectIoResult<{
-    manifest: GameProjectManifest;
+    manifest: import("@mashedgames/shared").GameProjectManifest;
     client: ClientProjectPayload;
   }>
 > {
@@ -178,7 +174,7 @@ export async function createProject(input: {
     };
   }
 
-  let manifest: ReturnType<typeof readParentManifest>;
+  let manifest;
   try {
     manifest = readParentManifest(parentTemplateId);
   } catch (error) {
@@ -221,12 +217,12 @@ export async function createProject(input: {
   }
 
   const now = new Date().toISOString();
-  const projectManifest: GameProjectManifest = {
+  const projectManifest = {
     projectId,
     displayName: input.displayName.trim(),
     parentTemplateId,
     parentVersion: manifest.version,
-    parentSchemaVersion: parentConfig.schemaVersion ?? "1.0.0",
+    parentSchemaVersion: parentConfig.schemaVersion,
     lastParentAckAt: now,
     createdAt: now,
   };
@@ -251,7 +247,7 @@ export async function createProject(input: {
 
 export async function loadProject(projectId: string): Promise<
   ProjectIoResult<{
-    manifest: GameProjectManifest;
+    manifest: import("@mashedgames/shared").GameProjectManifest;
     client: ClientProjectPayload;
     config: GameConfig;
     parentLock: ParentLockSnapshot | null;
@@ -278,24 +274,12 @@ export async function loadProject(projectId: string): Promise<
       await readFile(path.join(projectDir, PROJECT_FILES.client), "utf8"),
     );
     const clientParsed = ClientProjectPayloadSchema.safeParse(clientRaw);
-    const client =
-      clientParsed.success
-        ? clientParsed.data
-        : flattenLegacyConfig(clientRaw, manifest.parentTemplateId);
-    if (!client) {
+    if (!clientParsed.success) {
       return { ok: false, error: "Invalid client.json.", status: 500 };
     }
+    const client = clientParsed.data;
 
-    const parentManifest = readParentManifest(manifest.parentTemplateId);
-    const schema = gameSchemaFromManifestForMode(parentManifest, "configurator");
-    const { config: liveParent } = buildLiveParentConfig(manifest.parentTemplateId);
-    const systemDefaults = getPublishedSystemDefaults(manifest.parentTemplateId);
-    const config = buildProjectConfigFromClient(
-      schema,
-      systemDefaults,
-      client,
-      manifest.parentTemplateId,
-    );
+    const config = buildProjectConfigFromClient(client, manifest.parentTemplateId);
 
     const lockPath = path.join(projectDir, PROJECT_FILES.parentLock);
     let parentLock: ParentLockSnapshot | null = null;
@@ -334,7 +318,7 @@ export async function importProjectAsset(
     absolutePath: string;
     textureKey: string | null;
     client: ClientProjectPayload;
-    manifest: GameProjectManifest;
+    manifest: import("@mashedgames/shared").GameProjectManifest;
   }>
 > {
   try {
@@ -374,17 +358,15 @@ export async function importProjectAsset(
       input.fileName,
     );
 
-    const nextClient = structuredClone(clientParsed.data) as Record<string, unknown>;
-    applyPath(nextClient, targetPath, relativePath);
+    const fieldKey = targetPath as keyof GameConfig;
+    const client = setFlatConfigField(clientParsed.data, fieldKey, relativePath);
 
     const runtimeAssets = {
       ...(manifestParsed.data.runtimeAssets ?? {}),
       [relativePath]: absolutePath,
     };
 
-    const client = nextClient as ClientProjectPayload;
-
-    const manifest: GameProjectManifest = {
+    const manifest = {
       ...manifestParsed.data,
       runtimeAssets,
     };
@@ -397,7 +379,7 @@ export async function importProjectAsset(
       data: {
         relativePath,
         absolutePath,
-        textureKey: textureKeyForTargetPath(targetPath, client),
+        textureKey: targetPath === "logoUrl" ? "logo" : null,
         client,
         manifest,
       },
@@ -426,7 +408,7 @@ export async function saveProjectClient(
     }
 
     let clientToSave = parsed.data;
-    let manifestUpdate: GameProjectManifest | null = null;
+    let manifestUpdate: import("@mashedgames/shared").GameProjectManifest | null = null;
 
     if (isWorkspaceDesktop()) {
       const manifestRaw = JSON.parse(
@@ -469,7 +451,7 @@ export async function saveProjectClient(
 
 export async function ackParentLock(projectId: string): Promise<
   ProjectIoResult<{
-    manifest: GameProjectManifest;
+    manifest: import("@mashedgames/shared").GameProjectManifest;
     parentLock: ParentLockSnapshot;
   }>
 > {
@@ -485,10 +467,10 @@ export async function ackParentLock(projectId: string): Promise<
       manifest.parentTemplateId,
     );
     const now = new Date().toISOString();
-    const updatedManifest: GameProjectManifest = {
+    const updatedManifest = {
       ...manifest,
       parentVersion: parentManifest.version,
-      parentSchemaVersion: liveParent.schemaVersion ?? "1.0.0",
+      parentSchemaVersion: liveParent.schemaVersion,
       lastParentAckAt: now,
     };
 
@@ -509,3 +491,5 @@ export async function ackParentLock(projectId: string): Promise<
     return { ok: false, error: message, status: 500 };
   }
 }
+
+export { DEFAULT_GAME_CONFIG };

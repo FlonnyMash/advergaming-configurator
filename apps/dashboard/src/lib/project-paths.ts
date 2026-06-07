@@ -1,5 +1,9 @@
+import {
+  ensureWorkspaceExists as ensureSharedWorkspaceExists,
+  getProjectsRoot as getSharedProjectsRoot,
+  PROJECTS_DIR_NAME,
+} from "@mashedgames/shared";
 import { PROJECT_ID_PATTERN } from "@mashedgames/shared";
-import { mkdirSync } from "node:fs";
 import path from "node:path";
 import { getWorkspacePath } from "@/lib/env";
 import {
@@ -10,28 +14,17 @@ import { isWorkspaceDesktop } from "@/lib/runtime-env";
 
 export { templateLibraryRoot, getWorkspaceTemplatesRoot };
 
-export const PROJECTS_DIR_NAME = "Projects" as const;
+export { PROJECTS_DIR_NAME };
 
 export function getProjectsRoot(): string {
-  return path.join(getWorkspacePath(), PROJECTS_DIR_NAME);
+  return getSharedProjectsRoot(getWorkspacePath());
 }
 
 export function ensureWorkspaceExists(): void {
-  const workspacePath = getWorkspacePath();
-  const projectsPath = getProjectsRoot();
-  const templatesPath = getWorkspaceTemplatesRoot();
-
-  try {
-    mkdirSync(projectsPath, { recursive: true });
-    if (isWorkspaceDesktop()) {
-      mkdirSync(templatesPath, { recursive: true });
-    }
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    throw new Error(
-      `Failed to initialize workspace "${workspacePath}" (projects: "${projectsPath}", templates: "${templatesPath}"): ${message}`,
-    );
-  }
+  ensureSharedWorkspaceExists({
+    workspacePath: getWorkspacePath(),
+    ensureLibrary: isWorkspaceDesktop(),
+  });
 }
 
 export function resolveProjectDir(projectId: string): string {

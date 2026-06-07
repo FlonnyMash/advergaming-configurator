@@ -1,6 +1,5 @@
 "use client";
 
-import { textureKeyForTargetPath } from "@/lib/catch-game-texture-keys";
 import {
   AssetWorkspaceSaveError,
   saveAssetToWorkspace,
@@ -13,6 +12,13 @@ export type ImportAssetClientResult = {
   textureKey: string | null;
   manifest?: GameProjectManifest;
 };
+
+function textureKeyForTargetPath(targetPath: string): string | null {
+  if (targetPath === "logoUrl") {
+    return "logo";
+  }
+  return null;
+}
 
 type ImportAssetApiResponse = {
   ok?: boolean;

@@ -4,7 +4,7 @@ import {
   ProjectListRow,
   type ProjectSummary,
 } from "@/components/configurator/ProjectListRow";
-import { getProductionTemplateOptions } from "@mashedgames/configurator-engine";
+import { getProductionTemplateOptions } from "@/lib/template-options";
 import type { GameProjectManifest, GameTemplateId } from "@mashedgames/shared";
 import { Loader2, Plus } from "lucide-react";
 import Link from "next/link";

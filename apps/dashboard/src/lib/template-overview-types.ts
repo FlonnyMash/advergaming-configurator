@@ -1,11 +1,9 @@
-import type { TemplateManifestStatus } from "@mashedgames/shared";
+export type TemplateManifestStatus = "published" | "draft";
 
-export type TemplateOverviewEntry = {
+export type TemplateOverview = {
   id: string;
-  label: string;
-  description?: string;
-  previewUrl: string;
-  version: string;
-  author: string;
+  displayName: string;
   status: TemplateManifestStatus;
 };
+
+export type TemplateOverviewEntry = TemplateOverview;

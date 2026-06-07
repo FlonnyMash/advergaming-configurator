@@ -1,6 +1,11 @@
 const { contextBridge, ipcRenderer } = require("electron");
 
-const ALLOWED_CHANNELS = new Set(["save-project-asset", "export-project"]);
+const ALLOWED_CHANNELS = new Set([
+  "save-project-asset",
+  "export-project",
+  "save-flat-config",
+  "load-flat-config",
+]);
 
 contextBridge.exposeInMainWorld("electron", {
   ipcRenderer: {

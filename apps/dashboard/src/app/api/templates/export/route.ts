@@ -1,8 +1,8 @@
 import { buildTemplateZip } from "@/lib/template-export";
 import {
+  GameConfigSchema,
   normalizeGameConfig,
   type GameConfig,
-  type GameTemplateId,
 } from "@mashedgames/shared";
 import type { NextRequest } from "next/server";
 
@@ -48,19 +48,19 @@ export async function POST(request: NextRequest) {
   try {
     const body = (await request.json()) as { config?: unknown };
     if (body.config) {
-      const normalized = normalizeGameConfig(
-        body.config,
-        templateId as GameTemplateId,
-      );
+      const normalized = normalizeGameConfig(body.config);
       if (normalized) {
-        studioConfig = normalized;
+        studioConfig = GameConfigSchema.parse({
+          ...normalized,
+          activeTemplateId: templateId,
+        });
       }
     }
   } catch {
     return Response.json({ ok: false, error: "Invalid JSON body." }, { status: 400 });
   }
 
-  const result = buildTemplateZip(templateId, studioConfig);
+  const result = buildTemplateZip(templateId);
   if (!result.ok) {
     return Response.json(
       { ok: false, error: result.error },
@@ -74,7 +74,6 @@ export async function POST(request: NextRequest) {
       "Content-Type": "application/zip",
       "Content-Disposition": `attachment; filename="${templateId}.zip"`,
       "Cache-Control": "no-store",
-      "X-Export-File-Count": String(result.fileCount),
     },
   });
 }

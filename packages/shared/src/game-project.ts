@@ -1,14 +1,13 @@
 import { z } from "zod";
-import { GameConfigSchema } from "./game-config-bridge";
-import { GameTemplateIdSchema } from "./game-schema";
+import { GameConfigSchema } from "./flat-game-config";
 
-/** Kebab-case slug for project folder names (same rules as template ids). */
+/** Kebab-case slug for project folder names. */
 export const PROJECT_ID_PATTERN = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/;
 
 export const GameProjectManifestSchema = z.object({
   projectId: z.string().regex(PROJECT_ID_PATTERN),
   displayName: z.string().min(1),
-  parentTemplateId: GameTemplateIdSchema,
+  parentTemplateId: z.string().min(1),
   parentVersion: z.string(),
   parentSchemaVersion: z.string(),
   parentContentHash: z.string().optional(),
@@ -27,7 +26,7 @@ export type ClientProjectPayload = z.infer<typeof ClientProjectPayloadSchema>;
 
 export const ParentLockSnapshotSchema = z.object({
   lockedAt: z.string(),
-  parentTemplateId: GameTemplateIdSchema,
+  parentTemplateId: z.string().min(1),
   parentVersion: z.string(),
   parentSchemaVersion: z.string(),
   config: GameConfigSchema,
@@ -55,7 +54,7 @@ export type ParentDriftItem = z.infer<typeof ParentDriftItemSchema>;
 
 export const ParentDriftReportSchema = z.object({
   projectId: z.string(),
-  parentTemplateId: GameTemplateIdSchema,
+  parentTemplateId: z.string().min(1),
   lockedVersion: z.string(),
   liveVersion: z.string(),
   items: z.array(ParentDriftItemSchema),

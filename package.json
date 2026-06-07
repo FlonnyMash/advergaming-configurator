@@ -9,6 +9,7 @@
     "build:engine": "pnpm --filter game-engine build && node scripts/copy-engine-to-dashboard.mjs",
     "build:dashboard": "pnpm --filter dashboard build",
     "build:desktop": "pnpm build:engine && pnpm --filter dashboard build:desktop && pnpm --filter desktop build",
+    "dev:desktop": "pnpm --filter desktop dev",
     "sync:brand": "pnpm --filter desktop sync-branding"
   },
   "keywords": [],

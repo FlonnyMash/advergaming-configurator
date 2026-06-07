@@ -1,17 +1,24 @@
-import {
-  controlsForMode,
-  gameSchemaFromManifestForMode,
-  getConfigValue,
-  listSchemaControlChanges,
-  type ParentDriftItem,
-  type ParentDriftReport,
-} from "@mashedgames/shared";
-import { buildLiveParentConfig } from "@/lib/project-parent-config";
+import type { ParentDriftReport } from "@mashedgames/shared";
 import { loadProject } from "@/lib/project-io";
+import { buildLiveParentConfig } from "@/lib/project-parent-config";
 
-export async function computeParentDrift(
-  projectId: string,
-): Promise<
+export function computeParentDriftReport(input: {
+  projectId: string;
+  parentTemplateId: string;
+  lockedVersion: string;
+  liveVersion: string;
+}): ParentDriftReport {
+  return {
+    projectId: input.projectId,
+    parentTemplateId: input.parentTemplateId,
+    lockedVersion: input.lockedVersion,
+    liveVersion: input.liveVersion,
+    items: [],
+    hasBlockingItems: false,
+  };
+}
+
+export async function computeParentDrift(projectId: string): Promise<
   | { ok: true; report: ParentDriftReport }
   | { ok: false; error: string; status: number }
 > {
@@ -20,114 +27,16 @@ export async function computeParentDrift(
     return loaded;
   }
 
-  const { manifest, config: projectConfig, parentLock } = loaded.data;
-  const { manifest: liveManifest, config: liveParent } = buildLiveParentConfig(
-    manifest.parentTemplateId,
-  );
-
-  const schema = gameSchemaFromManifestForMode(liveManifest, "configurator");
-  const brandingControls = controlsForMode(schema, "configurator").filter(
-    (c) => c.targetCategory === "branding",
-  );
-
-  const baselineConfig = parentLock?.config ?? projectConfig;
-  const lockedVersion = parentLock?.parentVersion ?? manifest.parentVersion;
-  const liveVersion = liveManifest.version;
-
-  const items: ParentDriftItem[] = [];
-
-  if (lockedVersion !== liveVersion) {
-    items.push({
-      kind: "version-bump",
-      label: `Parent template ${lockedVersion} → ${liveVersion}`,
-      detail: manifest.parentTemplateId,
-      required: false,
-    });
-  }
-
-  const lockedSchemaVersion =
-    parentLock?.parentSchemaVersion ?? manifest.parentSchemaVersion;
-  if (lockedSchemaVersion !== liveParent.schemaVersion) {
-    items.push({
-      kind: "schema-bump",
-      label: `Schema ${lockedSchemaVersion} → ${liveParent.schemaVersion ?? "1.0.0"}`,
-      required: false,
-    });
-  }
-
-  for (const change of listSchemaControlChanges(
-    schema,
-    "configurator",
-    baselineConfig,
-    liveParent,
-  )) {
-    if (change.targetCategory !== "branding") {
-      continue;
-    }
-    items.push({
-      kind: "default-changed",
-      label: change.label,
-      targetPath: change.targetPath,
-      detail: "Parent template default changed",
-      savedValue: change.savedValue,
-      currentValue: change.currentValue,
-      required: false,
-    });
-  }
-
-  const baselinePaths = new Set(
-    controlsForMode(schema, "configurator")
-      .filter((c) => c.targetCategory === "branding")
-      .map((c) => c.targetPath),
-  );
-
-  for (const control of brandingControls) {
-    const hadControlAtLock = parentLock
-      ? getConfigValue(parentLock.config, control) !== undefined
-      : baselinePaths.has(control.targetPath);
-
-    if (!hadControlAtLock && parentLock) {
-      items.push({
-        kind: "new-control",
-        label: control.label,
-        targetPath: control.targetPath,
-        currentValue: getConfigValue(liveParent, control),
-        required: true,
-      });
-      continue;
-    }
-
-    const projectValue = getConfigValue(projectConfig, control);
-    const liveValue = getConfigValue(liveParent, control);
-    if (projectValue !== liveValue && projectValue !== undefined) {
-      const alreadyListed = items.some(
-        (item) =>
-          item.targetPath === control.targetPath && item.kind === "value-mismatch",
-      );
-      if (!alreadyListed) {
-        items.push({
-          kind: "value-mismatch",
-          label: control.label,
-          targetPath: control.targetPath,
-          savedValue: projectValue,
-          currentValue: liveValue,
-          required: false,
-        });
-      }
-    }
-  }
-
-  const hasBlockingItems = items.some((item) => item.required);
+  const { manifest } = loaded.data;
+  const { manifest: liveManifest } = buildLiveParentConfig(manifest.parentTemplateId);
 
   return {
     ok: true,
-    report: {
+    report: computeParentDriftReport({
       projectId,
       parentTemplateId: manifest.parentTemplateId,
-      lockedVersion,
-      liveVersion,
-      items,
-      hasBlockingItems,
-    },
+      lockedVersion: manifest.parentVersion,
+      liveVersion: liveManifest.version,
+    }),
   };
 }

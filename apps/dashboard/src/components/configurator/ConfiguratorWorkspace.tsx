@@ -1,9 +1,12 @@
 "use client";
 
 import { ConfiguratorToolsShell } from "@/components/configurator/ConfiguratorToolsShell";
-import { DevToolkitBridgeHost } from "@/components/studio/DevToolkitBridgeHost";
 import { CenterWorkspace } from "@/components/shell/CenterWorkspace";
-import { GameChromeOverlayPanel } from "@/components/shell/GameChromeOverlayPanel";
+import {
+  FlatConfigIpcError,
+  loadFlatConfigViaElectron,
+  saveFlatConfigViaElectron,
+} from "@/lib/flat-config-ipc";
 import { saveProjectAssetWithFallback } from "@/lib/import-project-asset-client";
 import {
   pushRuntimeAssetsToPreview,
@@ -15,7 +18,7 @@ import {
   ConfiguratorSidebar,
   useConfiguratorStore,
 } from "@mashedgames/configurator-engine";
-import { useEffect } from "react";
+import { useCallback, useEffect } from "react";
 
 export function ConfiguratorWorkspace({
   suspended = false,
@@ -28,10 +31,42 @@ export function ConfiguratorWorkspace({
     (state) => state.selectedTemplateId,
   );
 
-  const projectId = useConfiguratorStore((s) => s.projectId);
-  const setAssetSaveHandler = useConfiguratorStore((s) => s.setAssetSaveHandler);
+  const projectId = useConfiguratorStore((state) => state.projectId);
+  const setAssetSaveHandler = useConfiguratorStore(
+    (state) => state.setAssetSaveHandler,
+  );
 
-  const imageUploadMode = isWorkspaceDesktopClient() ? "workspace-file" : "base64";
+  const isDesktop = typeof window !== "undefined" && Boolean(window.electron);
+
+  const handleSave = useCallback(async () => {
+    const id = useConfiguratorStore.getState().projectId;
+    if (!id) return;
+    const config = useConfiguratorStore.getState().config;
+    try {
+      await saveFlatConfigViaElectron(id, config);
+    } catch (error) {
+      const message =
+        error instanceof FlatConfigIpcError || error instanceof Error
+          ? error.message
+          : "Save failed.";
+      window.alert(message);
+    }
+  }, []);
+
+  const handleLoad = useCallback(async () => {
+    const id = useConfiguratorStore.getState().projectId;
+    if (!id) return;
+    try {
+      const config = await loadFlatConfigViaElectron(id);
+      useConfiguratorStore.getState().setConfig(config);
+    } catch (error) {
+      const message =
+        error instanceof FlatConfigIpcError || error instanceof Error
+          ? error.message
+          : "Load failed.";
+      window.alert(message);
+    }
+  }, []);
 
   useEffect(() => {
     const syncFromConfigurator = (
@@ -45,13 +80,17 @@ export function ConfiguratorWorkspace({
   }, []);
 
   useEffect(() => {
-    if (!projectId || imageUploadMode !== "workspace-file") {
+    if (!projectId || !isWorkspaceDesktopClient()) {
       setAssetSaveHandler(null);
       return;
     }
 
     setAssetSaveHandler(async (input) => {
-      const data = await saveProjectAssetWithFallback(input);
+      const data = await saveProjectAssetWithFallback({
+        projectId: input.projectId,
+        file: input.file,
+        targetPath: input.fieldKey,
+      });
 
       const runtimeAssets =
         data.manifest?.runtimeAssets ??
@@ -72,17 +111,13 @@ export function ConfiguratorWorkspace({
     });
 
     return () => setAssetSaveHandler(null);
-  }, [imageUploadMode, projectId, setAssetSaveHandler]);
+  }, [projectId, setAssetSaveHandler]);
 
   return (
     <div className="flex min-h-0 flex-1 overflow-hidden">
-      <DevToolkitBridgeHost
-        resetKey={selectedTemplateId}
-        enabled={!suspended}
-      />
       <ConfiguratorSidebar
-        previewSlot={<GameChromeOverlayPanel />}
-        imageUploadMode={imageUploadMode}
+        onSave={isDesktop && projectId ? handleSave : undefined}
+        onLoad={isDesktop && projectId ? handleLoad : undefined}
       />
       <CenterWorkspace
         appMode="configurator"

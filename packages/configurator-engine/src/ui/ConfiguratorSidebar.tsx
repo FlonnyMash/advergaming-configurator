@@ -1,42 +1,34 @@
 "use client";
 
-import type { ControlFieldSchema, ControlValue } from "@mashedgames/shared";
-import { getConfiguratorGameSchema } from "../registry/productionSchemaRegistry";
+import type { FlatFieldDefinition } from "@mashedgames/shared";
 import { useConfiguratorStore } from "../store/useConfiguratorStore";
-import {
-  SchemaControlPanel,
-  type ImageUploadMode,
-} from "./SchemaControlPanel";
+import { FlatConfigPanel } from "./FlatConfigPanel";
 
 export function ConfiguratorSidebar({
   previewSlot,
-  imageUploadMode = "base64",
   onImageFile,
+  onSave,
+  onLoad,
 }: {
   previewSlot?: React.ReactNode;
-  imageUploadMode?: ImageUploadMode;
   onImageFile?: (
     file: File,
-    control: ControlFieldSchema,
+    field: FlatFieldDefinition,
   ) => void | Promise<void>;
+  onSave?: () => Promise<void>;
+  onLoad?: () => Promise<void>;
 }) {
-  const selectedTemplateId = useConfiguratorStore((s) => s.selectedTemplateId);
-  const config = useConfiguratorStore((s) => s.config);
-  const patchBrandingPath = useConfiguratorStore((s) => s.patchBrandingPath);
-  const resetBranding = useConfiguratorStore((s) => s.resetBranding);
-  const uploadBrandingAsset = useConfiguratorStore((s) => s.uploadBrandingAsset);
-
-  const gameSchema = getConfiguratorGameSchema(selectedTemplateId);
-
-  const handleControlChange = (control: ControlFieldSchema, value: ControlValue) => {
-    patchBrandingPath(control.targetPath, value);
-  };
+  const config = useConfiguratorStore((state) => state.config);
+  const patchConfig = useConfiguratorStore((state) => state.patchConfig);
+  const resetBranding = useConfiguratorStore((state) => state.resetBranding);
+  const uploadBrandingAsset = useConfiguratorStore(
+    (state) => state.uploadBrandingAsset,
+  );
 
   const handleImageFile =
     onImageFile ??
-    (imageUploadMode === "workspace-file"
-      ? (file: File, control: ControlFieldSchema) => uploadBrandingAsset(file, control)
-      : undefined);
+    ((file: File, field: FlatFieldDefinition) =>
+      uploadBrandingAsset(file, field.key));
 
   return (
     <aside className="flex h-full w-[360px] shrink-0 flex-col border-r border-zinc-200 bg-white">
@@ -57,13 +49,13 @@ export function ConfiguratorSidebar({
       </header>
 
       <div className="flex-1 overflow-y-auto px-6 py-6">
-        <SchemaControlPanel
-          schema={gameSchema}
+        <FlatConfigPanel
           config={config}
-          onControlChange={handleControlChange}
-          imageUploadMode={imageUploadMode}
+          mode="configurator"
+          onFieldChange={patchConfig}
           onImageFile={handleImageFile}
-          categoryFilter="branding"
+          onSave={onSave}
+          onLoad={onLoad}
         />
         {previewSlot}
       </div>

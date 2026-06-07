@@ -54,6 +54,7 @@ export function ExitConfiguratorProjectButton() {
 
   const unsavedItems: UnsavedChangeItem[] = [
     {
+      id: "configurator-client",
       kind: "game-control",
       label: "Client branding & project settings",
     },

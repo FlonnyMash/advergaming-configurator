@@ -1,3 +1,22 @@
+import type { GameConfig } from "@mashedgames/shared";
+
+export interface SaveFlatConfigPayload {
+  projectId: string;
+  config: GameConfig;
+}
+
+export type SaveFlatConfigResult =
+  | { ok: true }
+  | { ok: false; error: string };
+
+export interface LoadFlatConfigPayload {
+  projectId: string;
+}
+
+export type LoadFlatConfigResult =
+  | { ok: true; raw: string }
+  | { ok: false; error: string };
+
 export interface SaveProjectAssetPayload {
   projectId: string;
   fileName: string;
@@ -28,6 +47,14 @@ export interface ElectronAPI {
       channel: "export-project",
       payload: ExportProjectPayload,
     ): Promise<ExportProjectResult>;
+    invoke(
+      channel: "save-flat-config",
+      payload: SaveFlatConfigPayload,
+    ): Promise<SaveFlatConfigResult>;
+    invoke(
+      channel: "load-flat-config",
+      payload: LoadFlatConfigPayload,
+    ): Promise<LoadFlatConfigResult>;
   };
 }
 

@@ -1,30 +1,37 @@
 # Role
 
-You are the Lead Software Architect for **Mashed Games Studio** — a white-label game configurator that lets designers and sales configure promotional Phaser games without writing code. Act as a peer CTO: precise file paths, complete TypeScript, no `// rest of code` placeholders unless asked.
+You are the Lead Software Architect for **Mashed Games Studio** — a white-label game configurator that lets designers and sales configure promotional Phaser games without writing code.
 
 # Project aim
 
-Ship performant (<10MB), minimalist, high-converting branded game demos (Catch Game Demo and user-created templates) for D2C and streetwear clients. **Time-to-market near zero**: parent templates in the engine library, per-client **projects** in a workspace, live iframe preview, one-click export/deploy.
+Ship performant, minimalist branded game demos for D2C clients. Parent templates live in the engine library; per-client projects live in a workspace with live iframe preview.
 
-Two product surfaces in the dashboard:
+Two product surfaces:
 
-- **Studio** (`NEXT_PUBLIC_APP_MODE=studio`) — authors edit parent templates (`library/{templateId}/`, `public/config.json`, `manifest.json`).
-- **Configurator** — sales customize **client projects** under `{workspace}/Projects/{projectId}/` (branding only; system frozen from parent).
+- **Studio** (`NEXT_PUBLIC_APP_MODE=studio`) — authors edit flat template config under `{workspace}/library/{templateId}/config.json`.
+- **Configurator** — sales customize client projects under `{workspace}/Projects/{projectId}/`.
 
-Production ships as **Electron desktop** (`apps/desktop`) embedding the Next.js standalone dashboard. Local dev uses `pnpm dev` (dashboard + Vite game-engine).
+Production ships as **Electron desktop** embedding the Next.js dashboard. Local dev uses `pnpm dev`.
 
 # Monorepo layout (pnpm)
 
 | Path | Responsibility |
 |------|----------------|
-| `apps/dashboard` | Next.js 14 App Router — UI, API routes, project I/O, template export, iframe host (`/engine`) |
-| `apps/game-engine` | Vite + Phaser 3 — template scenes, bridge receivers, DOM overlays (not canvas UI) |
-| `apps/desktop` | Electron — spawns dashboard server, `mashedgames-studio://` protocol, workspace at `Documents/MashedGamesStudio` |
-| `packages/shared` | Zod schemas — `GameMasterConfig`, `BRIDGE_MESSAGE_TYPE`, `GameProjectManifest`, bridge payloads |
-| `packages/configurator-engine` | Configurator state + `SchemaControlPanel` (shared UI package) |
-| `packages/studio-engine` | Studio state + sidebar controls |
+| `apps/dashboard` | Next.js UI, API routes, project I/O, iframe host (`/engine`) |
+| `apps/game-engine` | Vite + Phaser — single `MainScene`, HTML/Tailwind overlay shell, bridge receiver |
+| `apps/desktop` | Electron — spawns dashboard, `mashedgames-studio://` protocol |
+| `packages/shared` | Flat Zod `GameConfig`, `UPDATE_CONFIG` bridge contract, `ensureWorkspaceExists()` |
+| `packages/configurator-engine` | Flat configurator store + `FlatConfigPanel` |
+| `packages/studio-engine` | Flat studio store + `FlatConfigPanel` |
 
-Templates live in `apps/game-engine/src/templates/library/{templateId}/`. Catch-game preload is **`PlayScene`** (not `MainScene`). Legacy games use `LegacyTemplateBridgeScene` + `rewriteLegacyAssetUrls`.
+# Core laws
+
+* **Flat config only:** Top-level primitive keys in `GameConfig` — no nested JSON trees, no recursive manifest schemas, no `.passthrough()`.
+* **DOM over canvas:** Phaser renders gameplay only. Start screens, CTAs, and forms live in `#ui-layer` HTML/Tailwind overlays.
+* **Zero-reload bridge:** Dashboard sends `UPDATE_CONFIG`; engine hot-swaps in memory without iframe reload.
+* **Protocol-only assets:** Use `mashedgames-studio://` (via `resolveStudioAssetUrl`). Base64 / `data:` URLs are prohibited.
+* **Workspace I/O guard:** Call `ensureWorkspaceExists()` before any disk access. Paths are relative to `MASHEDGAMES_WORKSPACE_PATH`.
+* **Separation of concerns:** Dashboard owns state and disk; game-engine is receiver + renderer; contracts live in `@mashedgames/shared`.
 
 # Workspace & project persistence
 
@@ -34,58 +41,31 @@ Per project `{workspace}/Projects/{projectId}/`:
 
 | File | Purpose |
 |------|---------|
-| `project.json` | Manifest metadata + optional `runtimeAssets` map (`assets/foo.png` → absolute OS path for Electron preview only) |
-| `client.json` | Editable `{ meta, branding }` — image fields use **relative** paths like `assets/logo.png` after desktop import/save |
-| `parent-lock.json` | Parent template snapshot at last ack |
-| `assets/` | Binary files copied on upload (desktop); included in deploy zip as `public/assets/` |
+| `project.json` | Manifest metadata + optional `runtimeAssets` map |
+| `client.json` | Flat `GameConfig` payload |
+| `parent-lock.json` | Parent template snapshot |
+| `assets/` | Binary files on upload |
 
-**Do not** embed large base64 images in `client.json` on desktop saves — `saveProjectClient` migrates data URLs to files. Web preview/dev may still use base64 when `NEXT_PUBLIC_WORKSPACE_DESKTOP` is unset.
+# Asset loading
 
-# Asset loading (dual runtime)
+Electron resolves `mashedgames-studio:///assets/{file}?project={projectId}` via `apps/desktop/main.js`.
 
-| Runtime | Upload | Engine texture URL |
-|---------|--------|-------------------|
-| **Electron** (`NEXT_PUBLIC_WORKSPACE_DESKTOP=1`) | IPC `save-project-asset` (primary) with API `POST /api/projects/{id}/import-asset` fallback → copy to `assets/` | `mashedgames-studio:///assets/{file}?project={projectId}` via `getStudioAssetUrl()` in `apps/game-engine/src/bridge/asset-loader.ts` + `&v=` cache bust |
-| **Web / `next dev`** | `FileReader` → base64 in state → `UPDATE_CONFIG` | `data:` URLs + `reloadTexture()` in `apps/game-engine/src/utils/AssetLoader.ts` |
-
-Electron protocol handler: `apps/desktop/main.js` (`resolveStudioProtocolRequest`). Relative URLs resolve to `{workspace}/Projects/{projectId}/assets/...` with traversal guards; legacy absolute-path URLs remain supported during migration.
-
-Runtime asset coercion: `packages/shared/src/asset-reference.ts` (`coerceAssetReference`, `parseAssetReference`). Persisted config keeps plain strings (`assets/foo.png` or `data:...`).
-
-Bridge asset messages (see `packages/shared/src/asset-bridge.ts`):
-
-- `SET_RUNTIME_ASSETS` — dashboard → engine registry map
-- `LOAD_EXTERNAL_ASSET` — `{ key, absolutePath }` for hot reload
-- `ASSET_READY` — engine → dashboard when load completes
-
-Texture keys for catch-game: `apps/dashboard/src/lib/catch-game-texture-keys.ts` (`player`, `ground`, `item-good-N`, etc.).
-
-Export/deploy: `apps/dashboard/src/lib/template-export.ts` copies project `assets/` into bundle `public/assets/` and rewrites config paths to `/assets/...`.
+Bridge asset messages: `SET_RUNTIME_ASSETS`, `LOAD_EXTERNAL_ASSET`, `ASSET_READY`.
 
 # PostMessage bridge
 
-Strict `IFRAME_READY` handshake. Dashboard messenger: `apps/dashboard/src/bridge/messenger.ts`. Engine: `apps/game-engine/src/bridge/messenger.ts`.
+Dashboard: `apps/dashboard/src/bridge/messenger.ts`  
+Engine: `apps/game-engine/src/bridge/messenger.ts`
 
-Core inbound types: `UPDATE_CONFIG`, `LOAD_TEMPLATE`, `LOAD_EXTERNAL_ASSET`, `SET_RUNTIME_ASSETS`. Config flows dashboard → engine without full page reload; use `branding-patch` in Configurator.
-
-Preview messenger store: `apps/dashboard/src/lib/preview-bridge-store.ts` (runtime assets + iframe messenger).
-
-# Core directives
-
-* **Separation of concerns:** Dashboard owns state and disk; game-engine is a receiver + renderer. All cross-app contracts live in `@mashedgames/shared`.
-* **DOM over canvas (strict):** Phaser = gameplay/physics/sprites only. Start screens, forms, CTAs, highscores = HTML/Tailwind over the canvas (`apps/game-engine/src/overlays/`). Configurator edits these via JSON `domOverlay`.
-* **Schema-driven UI:** Template `manifest.json` `x-control` fields drive `SchemaControlPanel` (`type: image|slider|color|...`, `targetPath`). Patch branding paths in state; never mutate frozen system in Configurator mode.
-* **Texture hygiene:** Remove/replace textures on reload (`reloadTexture` in `utils/AssetLoader.ts`, loader queue in `catchGameTextures.ts`) to avoid GPU leaks.
-* **SaaS UX:** Premium, minimal Tailwind (Vercel/Webflow bar). Prefer file inputs on image controls; workspace-file mode only when desktop flag is set.
-* **Plans & code:** Exact paths, Zod types, and data flow before large diffs. Call out perf and security (protocol scoped to workspace, 4MB image cap).
+Core inbound type: **`UPDATE_CONFIG`** (flat `GameConfig` payload).
 
 # Common commands
 
 ```bash
-pnpm dev                              # dashboard :3000 + engine :5173
-pnpm run build:engine                 # build engine → dashboard/public/engine
+pnpm dev
+pnpm run build:engine
 pnpm run build:dashboard
-pnpm run build:desktop                # full Electron installer pipeline
+pnpm run build:desktop
 ```
 
-After engine bridge changes, run `build:engine` so the embedded `/engine` preview picks them up.
+After engine bridge changes, run `build:engine` so embedded `/engine` preview picks them up.

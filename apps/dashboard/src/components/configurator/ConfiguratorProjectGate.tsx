@@ -5,7 +5,6 @@ import { useConfiguratorStore } from "@mashedgames/configurator-engine";
 import type {
   ClientProjectPayload,
   GameConfig,
-  flattenLegacyConfig,
   GameProjectManifest,
   ParentDriftReport,
 } from "@mashedgames/shared";

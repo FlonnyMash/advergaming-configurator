@@ -11,8 +11,7 @@ import {
   getStudioTemplatesPathLabel,
 } from "@/lib/workspace-ui-copy";
 import { useWorkspaceSessionStore } from "@/lib/workspace-session-store";
-import { getAppEnv } from "@/lib/env";
-import { getStudioTemplateOptions } from "@mashedgames/studio-engine";
+import { getStudioTemplateOptions } from "@/lib/template-options";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
@@ -39,7 +38,12 @@ export default function StudioTemplatesPage() {
   const [catalogRefreshKey, setCatalogRefreshKey] = useState(0);
 
   const fallbackTemplates = useMemo(
-    () => getStudioTemplateOptions(getAppEnv()),
+    () =>
+      getStudioTemplateOptions().map((template) => ({
+        id: template.id,
+        displayName: template.label,
+        status: "published" as const,
+      })),
     [catalogRefreshKey],
   );
 

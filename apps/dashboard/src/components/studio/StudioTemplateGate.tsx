@@ -1,13 +1,13 @@
 "use client";
 
-import { getStudioTemplateOptions, useStudioConfigStore } from "@mashedgames/studio-engine";
+import { getStudioTemplateOptions } from "@/lib/template-options";
+import { useWorkspaceSessionStore } from "@/lib/workspace-session-store";
+import { useConfigStore } from "@/store/useConfigStore";
+import { useStudioConfigStore } from "@mashedgames/studio-engine";
 import type { GameTemplateId } from "@mashedgames/shared";
 import { Loader2 } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { getAppEnv } from "@/lib/env";
-import { useConfigStore } from "@/store/useConfigStore";
-import { useWorkspaceSessionStore } from "@/lib/workspace-session-store";
 
 export function StudioTemplateGate({
   children,
@@ -33,7 +33,7 @@ export function StudioTemplateGate({
   const pendingUrlTemplateSyncRef = useRef<GameTemplateId | null>(null);
 
   const templateOptions = useMemo(
-    () => getStudioTemplateOptions(getAppEnv()),
+    () => getStudioTemplateOptions(),
     [],
   );
 

@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "predev": "node scripts/sync-brand-from-logo.mjs && pnpm --filter @mashedgames/game-engine sync-manifest-registry",
+    "predev": "node scripts/sync-brand-from-logo.mjs",
     "dev": "node scripts/dev.mjs",
     "prebuild": "node scripts/ensure-standalone-writable.mjs",
     "build": "next build && node scripts/sync-standalone-assets.mjs",

@@ -1,10 +1,8 @@
 import { saveProjectClientNow } from "@/hooks/useSaveGameProject";
-import { saveTemplateConfigNow } from "@/hooks/useSaveGameControls";
 import {
   collectUnsavedTemplateChanges,
   discardConfiguratorUnsavedChanges,
   discardStudioUnsavedChanges,
-  markAllTemplateChangesSaved,
   type UnsavedChangeItem,
 } from "@/lib/template-unsaved-changes";
 import { useWorkspaceSessionStore } from "@/lib/workspace-session-store";
@@ -29,7 +27,7 @@ export function collectHomeNavigationUnsaved(): UnsavedChangeItem[] {
     useConfiguratorStore.getState().hasUnsavedClient()
   ) {
     items.push({
-      kind: "game-control",
+      id: "configurator-client",
       label: "Configurator · client branding & project settings",
     });
   }
@@ -41,16 +39,7 @@ export async function saveAllForHomeNavigation(): Promise<{
   ok: boolean;
   error?: string;
 }> {
-  const { activeStudioTemplateId, activeConfiguratorProjectId } =
-    useWorkspaceSessionStore.getState();
-
-  if (activeStudioTemplateId && collectUnsavedTemplateChanges().length > 0) {
-    const saveResult = await saveTemplateConfigNow();
-    if (!saveResult.ok) {
-      return { ok: false, error: saveResult.error ?? "Could not save studio template." };
-    }
-    markAllTemplateChangesSaved();
-  }
+  const { activeConfiguratorProjectId } = useWorkspaceSessionStore.getState();
 
   if (
     activeConfiguratorProjectId &&
@@ -69,12 +58,11 @@ export async function saveAllForHomeNavigation(): Promise<{
   return { ok: true };
 }
 
-/** Revert unsaved in-memory edits for active workspaces (does not write to disk). */
 export function discardAllForHomeNavigation(): void {
   const { activeStudioTemplateId, activeConfiguratorProjectId } =
     useWorkspaceSessionStore.getState();
 
-  if (activeStudioTemplateId && collectUnsavedTemplateChanges().length > 0) {
+  if (activeStudioTemplateId) {
     discardStudioUnsavedChanges();
   }
 

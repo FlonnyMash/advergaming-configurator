@@ -3,8 +3,8 @@
 import { getBridgePostMessageTargetOrigin } from "@/bridge/messenger";
 import {
   BRIDGE_MESSAGE_TYPE,
+  DEFAULT_GAME_CONFIG,
   GameConfigSchema,
-  cloneForBridgePostMessage,
   type GameConfig,
   type GameTemplateId,
 } from "@mashedgames/shared";
@@ -24,38 +24,18 @@ export interface ConfigStore {
   engineReady: boolean;
   setConfig: (next: GameConfig) => void;
   patchConfig: (patch: Partial<GameConfig>) => void;
-  patchConfigPath: (path: string, value: unknown) => void;
+  patchConfigKey: <K extends keyof GameConfig>(
+    key: K,
+    value: GameConfig[K],
+  ) => void;
   setSelectedTemplateId: (id: GameTemplateId) => void;
   setIframeTarget: (win: Window | null) => void;
   setEngineReady: (ready: boolean) => void;
 }
 
 export const useConfigStore = create<ConfigStore>((set, get) => ({
-  config: GameConfigSchema.parse({
-    activeTemplateId: "catch-game-demo",
-    themeColor: "#6366f1",
-    schemaVersion: "1.0.0",
-    catchableItems: [
-      {
-        id: "default-good",
-        assetUrl: "",
-        scoreValue: 10,
-        dropSpeed: 200,
-        spawnWeight: 1,
-      },
-    ],
-    hazardItems: [
-      {
-        id: "default-hazard",
-        assetUrl: "",
-        scoreValue: -5,
-        dropSpeed: 280,
-        spawnWeight: 1,
-      },
-    ],
-    playerEntity: { assetUrl: "", speed: 320 },
-  }),
-  selectedTemplateId: "catch-game-demo",
+  config: GameConfigSchema.parse(DEFAULT_GAME_CONFIG),
+  selectedTemplateId: DEFAULT_GAME_CONFIG.activeTemplateId,
   iframeTarget: null,
   engineReady: false,
 
@@ -69,8 +49,7 @@ export const useConfigStore = create<ConfigStore>((set, get) => ({
   },
 
   patchConfig: (patch) => {
-    const current = get().config;
-    const merged = { ...current, ...patch };
+    const merged = { ...get().config, ...patch };
     const parsed = GameConfigSchema.safeParse(merged);
     if (!parsed.success) {
       devWarn("Rejected patchConfig payload", parsed.error.flatten());
@@ -79,25 +58,11 @@ export const useConfigStore = create<ConfigStore>((set, get) => ({
     set({ config: parsed.data });
   },
 
-  patchConfigPath: (path, value) => {
-    const next = cloneForBridgePostMessage(get().config);
-    const parts = path.split(".");
-    let cursor: Record<string, unknown> = next as Record<string, unknown>;
-    for (let i = 0; i < parts.length - 1; i++) {
-      const key = parts[i]!;
-      if (
-        !(key in cursor) ||
-        typeof cursor[key] !== "object" ||
-        cursor[key] === null
-      ) {
-        cursor[key] = {};
-      }
-      cursor = cursor[key] as Record<string, unknown>;
-    }
-    cursor[parts[parts.length - 1]!] = value;
-    const parsed = GameConfigSchema.safeParse(next);
+  patchConfigKey: (key, value) => {
+    const merged = { ...get().config, [key]: value };
+    const parsed = GameConfigSchema.safeParse(merged);
     if (!parsed.success) {
-      devWarn("Rejected patchConfigPath", parsed.error.flatten());
+      devWarn("Rejected patchConfigKey", parsed.error.flatten());
       return;
     }
     set({ config: parsed.data });
@@ -120,35 +85,30 @@ export const useConfigStore = create<ConfigStore>((set, get) => ({
 function postConfigToIframe(config: GameConfig): void {
   const { iframeTarget, engineReady } = useConfigStore.getState();
   if (!iframeTarget || iframeTarget === window) {
-    // Config often updates before the preview iframe loads; useBridgeSync flushes on bind.
     if (isDev && engineReady) {
-      devWarn("Skipped CONFIG_UPDATED — iframe contentWindow not bound", null);
+      devWarn("Skipped UPDATE_CONFIG — iframe contentWindow not bound", null);
     }
     return;
   }
 
   const parsed = GameConfigSchema.safeParse(config);
   if (!parsed.success) {
-    devWarn("Skipped CONFIG_UPDATED — invalid config", parsed.error.flatten());
+    devWarn("Skipped UPDATE_CONFIG — invalid config", parsed.error.flatten());
     return;
   }
 
   const message = {
-    type: BRIDGE_MESSAGE_TYPE.CONFIG_UPDATED,
-    payload: cloneForBridgePostMessage(parsed.data),
+    type: BRIDGE_MESSAGE_TYPE.UPDATE_CONFIG,
+    payload: parsed.data,
   };
   const targetOrigin = getBridgePostMessageTargetOrigin();
 
   if (isDev) {
     console.log(
-      "[Dashboard Bridge] Sending CONFIG_UPDATED:",
+      "[Dashboard Bridge] Sending UPDATE_CONFIG:",
       message.payload,
       "→ iframe",
       targetOrigin,
-    );
-    console.log(
-      "[Dashboard Bridge] catchableItems:",
-      (message.payload as GameConfig).catchableItems,
     );
   }
 

@@ -27,6 +27,7 @@ const {
   exportProjectToZip,
   resolveBundledEngineDir,
 } = require("./export-ipc-utils");
+const { saveFlatConfig, loadFlatConfig } = require("./flat-config-ipc-utils");
 
 const STUDIO_PROTOCOL = STUDIO_ASSET_PROTOCOL;
 const STUDIO_PROTOCOL_PREFIX = `${STUDIO_PROTOCOL}://`;
@@ -254,6 +255,18 @@ function isPathInsideWorkspace(filePath, workspacePath) {
 function registerSaveProjectAssetIpc(workspacePath) {
   ipcMain.handle("save-project-asset", async (_event, payload) =>
     saveProjectAsset(workspacePath, payload),
+  );
+}
+
+function registerSaveFlatConfigIpc(workspacePath) {
+  ipcMain.handle("save-flat-config", (_event, payload) =>
+    saveFlatConfig(workspacePath, payload),
+  );
+}
+
+function registerLoadFlatConfigIpc(workspacePath) {
+  ipcMain.handle("load-flat-config", (_event, payload) =>
+    loadFlatConfig(workspacePath, payload),
   );
 }
 
@@ -672,6 +685,8 @@ app.whenReady().then(async () => {
     ensureWorkspaceStructure(workspacePath);
     registerSaveProjectAssetIpc(workspacePath);
     registerExportProjectIpc(workspacePath, () => dashboardPort);
+    registerSaveFlatConfigIpc(workspacePath);
+    registerLoadFlatConfigIpc(workspacePath);
     registerStudioProtocol(workspacePath);
     autoMigrateLegacyProjects(getProjectsPath(workspacePath));
     dashboardPort = await spawnDashboardServer(workspacePath);

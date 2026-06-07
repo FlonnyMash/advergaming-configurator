@@ -36,14 +36,10 @@
   display: block;
 }
 
-/* Transparent overlays rendered on top of the Phaser canvas in templates. */
-.game-chrome-overlay {
-  background: rgb(15 23 42 / 0.45);
-  backdrop-filter: blur(6px);
-  border-color: rgb(51 65 85 / 0.35);
+:root {
+  --theme-color: #6366f1;
 }
 
-.game-chrome-overlay.game-chrome-overlay--user-hidden {
-  display: none !important;
-  pointer-events: none !important;
+#ui-layer {
+  --theme-color: var(--theme-color, #6366f1);
 }

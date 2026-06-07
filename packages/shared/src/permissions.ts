@@ -1,30 +1,16 @@
-import type { AppMode, ControlFieldSchema } from "./types";
+import type { AppMode } from "./flat-game-config";
+import type { FlatFieldDefinition, FlatFieldSurface } from "./flat-field-registry";
+import { fieldsForMode } from "./flat-field-registry";
 
 export type RegistryResource =
   | "schema:system"
   | "schema:branding"
-  | "template:development"
   | "template:library"
-  | "service:hitbox-debug"
-  | "service:animation-builder"
-  | "service:publish-template"
   | "service:diagnostics";
 
 const ACL: Record<AppMode, readonly RegistryResource[]> = {
-  studio: [
-    "schema:system",
-    "schema:branding",
-    "template:development",
-    "template:library",
-    "service:hitbox-debug",
-    "service:animation-builder",
-    "service:publish-template",
-  ],
-  configurator: [
-    "schema:branding",
-    "template:library",
-    "service:diagnostics",
-  ],
+  studio: ["schema:system", "schema:branding", "template:library"],
+  configurator: ["schema:branding", "template:library", "service:diagnostics"],
 };
 
 export class PermissionDeniedError extends Error {
@@ -47,27 +33,21 @@ export function assertPermission(
   }
 }
 
-export function surfaceForMode(mode: AppMode): ControlFieldSchema["surface"][] {
+export function surfaceForMode(mode: AppMode): FlatFieldSurface[] {
   if (mode === "studio") {
     return ["studio", "both"];
   }
   return ["configurator", "both"];
 }
 
-export function filterSchemaControls(
-  controls: ControlFieldSchema[],
+export function filterFieldsByMode(
+  fields: FlatFieldDefinition[],
   mode: AppMode,
-): ControlFieldSchema[] {
-  const allowedSurfaces = new Set(surfaceForMode(mode));
-  return controls.filter((control) => allowedSurfaces.has(control.surface));
+): FlatFieldDefinition[] {
+  const allowed = new Set(surfaceForMode(mode));
+  return fields.filter((field) => allowed.has(field.surface));
 }
 
-export function filterSchemaByMode(
-  schema: import("./types").GameSchema,
-  mode: AppMode,
-): import("./types").GameSchema {
-  return {
-    ...schema,
-    controls: filterSchemaControls(schema.controls, mode),
-  };
+export function getFieldsForMode(mode: AppMode): FlatFieldDefinition[] {
+  return fieldsForMode(mode);
 }

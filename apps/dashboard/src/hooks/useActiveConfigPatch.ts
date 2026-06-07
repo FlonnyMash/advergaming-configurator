@@ -5,10 +5,13 @@ import { useConfiguratorStore } from "@mashedgames/configurator-engine";
 import { useStudioConfigStore } from "@mashedgames/studio-engine";
 import { usePathname } from "next/navigation";
 import { useMemo } from "react";
+import type { GameConfig } from "@mashedgames/shared";
 
 export type ConfigPatchSurface = {
-  patchBrandingPath: (path: string, value: unknown) => void;
-  patchSystemPath: (path: string, value: unknown) => void;
+  patchConfigKey: <K extends keyof GameConfig>(
+    key: K,
+    value: GameConfig[K],
+  ) => void;
   selectedTemplateId: string;
   saveTarget: "studio-template" | "project" | "none";
   saveLayout: () => Promise<boolean>;
@@ -16,24 +19,22 @@ export type ConfigPatchSurface = {
 
 export function useActiveConfigPatch(): ConfigPatchSurface {
   const pathname = usePathname();
-  const projectMode = useConfiguratorStore((s) => s.projectMode);
-  const projectId = useConfiguratorStore((s) => s.projectId);
+  const projectMode = useConfiguratorStore((state) => state.projectMode);
+  const projectId = useConfiguratorStore((state) => state.projectId);
   const { saveProject } = useSaveGameProject();
 
-  const studioPatchBranding = useStudioConfigStore((s) => s.patchBrandingPath);
-  const studioPatchSystem = useStudioConfigStore((s) => s.patchSystemPath);
-  const studioTemplateId = useStudioConfigStore((s) => s.selectedTemplateId);
+  const studioPatchConfig = useStudioConfigStore((state) => state.patchConfig);
+  const studioTemplateId = useStudioConfigStore((state) => state.selectedTemplateId);
 
-  const configPatchBranding = useConfiguratorStore((s) => s.patchBrandingPath);
-  const configTemplateId = useConfiguratorStore((s) => s.selectedTemplateId);
+  const configPatchConfig = useConfiguratorStore((state) => state.patchConfig);
+  const configTemplateId = useConfiguratorStore((state) => state.selectedTemplateId);
 
   return useMemo(() => {
     const isConfigurator = pathname.startsWith("/configurator");
 
     if (isConfigurator && projectMode && projectId) {
       return {
-        patchBrandingPath: configPatchBranding,
-        patchSystemPath: () => {},
+        patchConfigKey: configPatchConfig,
         selectedTemplateId: configTemplateId,
         saveTarget: "project" as const,
         saveLayout: saveProject,
@@ -42,43 +43,27 @@ export function useActiveConfigPatch(): ConfigPatchSurface {
 
     if (pathname.startsWith("/studio")) {
       return {
-        patchBrandingPath: studioPatchBranding,
-        patchSystemPath: studioPatchSystem,
+        patchConfigKey: studioPatchConfig,
         selectedTemplateId: studioTemplateId,
-        saveTarget: "studio-template" as const,
-        saveLayout: async () => {
-          const response = await fetch(
-            `/api/templates/save-config?templateId=${encodeURIComponent(studioTemplateId)}`,
-            {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                config: useStudioConfigStore.getState().config,
-              }),
-            },
-          );
-          const payload = (await response.json()) as { ok?: boolean };
-          return response.ok && Boolean(payload.ok);
-        },
+        saveTarget: "none" as const,
+        saveLayout: async () => false,
       };
     }
 
     return {
-      patchBrandingPath: () => {},
-      patchSystemPath: () => {},
+      patchConfigKey: () => {},
       selectedTemplateId: "",
       saveTarget: "none" as const,
       saveLayout: async () => false,
     };
   }, [
-    configPatchBranding,
+    configPatchConfig,
     configTemplateId,
     pathname,
     projectId,
     projectMode,
     saveProject,
-    studioPatchBranding,
-    studioPatchSystem,
+    studioPatchConfig,
     studioTemplateId,
   ]);
 }

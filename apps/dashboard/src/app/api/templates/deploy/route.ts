@@ -2,9 +2,9 @@ import { loadProject } from "@/lib/project-io";
 import { PROJECT_FILES, resolveProjectDir } from "@/lib/project-paths";
 import { exportTemplateToDirectory } from "@/lib/template-export";
 import {
+  GameConfigSchema,
   normalizeGameConfig,
   type GameConfig,
-  type GameTemplateId,
 } from "@mashedgames/shared";
 import { mkdtemp, rm } from "node:fs/promises";
 import os from "node:os";
@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
       config?: unknown;
     };
 
-    let templateId: GameTemplateId;
+    let templateId: string;
     let config: GameConfig | undefined;
 
     if (body.projectId) {
@@ -52,18 +52,19 @@ export async function POST(request: NextRequest) {
       templateId = loaded.data.manifest.parentTemplateId;
       config = loaded.data.config;
     } else if (body.templateId && body.config) {
-      const normalized = normalizeGameConfig(
-        body.config,
-        body.templateId as GameTemplateId,
-      );
-      if (!normalized) {
+      const normalized = normalizeGameConfig(body.config);
+      const parsed = GameConfigSchema.safeParse({
+        ...normalized,
+        activeTemplateId: body.templateId,
+      });
+      if (!parsed.success) {
         return Response.json(
           { ok: false, error: "Invalid config." },
           { status: 400 },
         );
       }
-      templateId = body.templateId as GameTemplateId;
-      config = normalized;
+      templateId = body.templateId;
+      config = parsed.data;
     } else {
       return Response.json(
         { ok: false, error: "Provide projectId or templateId with config." },
@@ -81,9 +82,7 @@ export async function POST(request: NextRequest) {
           )
         : undefined;
 
-    const exported = await exportTemplateToDirectory(templateId, tempDir, config, {
-      projectAssetsDir,
-    });
+    const exported = await exportTemplateToDirectory(templateId, tempDir);
     if (!exported.ok) {
       return Response.json(
         { ok: false, error: exported.error },
