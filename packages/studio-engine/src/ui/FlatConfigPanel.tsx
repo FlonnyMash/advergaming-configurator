@@ -13,43 +13,17 @@ export type FlatConfigPanelProps = {
     file: File,
     field: FlatFieldDefinition,
   ) => void | Promise<void>;
-  onSave?: () => Promise<void>;
-  onLoad?: () => Promise<void>;
 };
 
 export function FlatConfigPanel({
   config,
   onFieldChange,
   onImageFile,
-  onSave,
-  onLoad,
 }: FlatConfigPanelProps) {
   const fields = fieldsForMode("studio");
 
   return (
     <div className="space-y-4">
-      {(onSave ?? onLoad) ? (
-        <div className="mb-1 flex gap-2 border-b border-zinc-200 pb-3">
-          {onSave ? (
-            <button
-              type="button"
-              onClick={() => void onSave()}
-              className="flex-1 rounded-lg border border-zinc-200 bg-white px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-50"
-            >
-              Save Project
-            </button>
-          ) : null}
-          {onLoad ? (
-            <button
-              type="button"
-              onClick={() => void onLoad()}
-              className="flex-1 rounded-lg border border-zinc-200 bg-white px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-50"
-            >
-              Load Project
-            </button>
-          ) : null}
-        </div>
-      ) : null}
       {fields.map((field) => {
         const value = config[field.key];
 

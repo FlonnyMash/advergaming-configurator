@@ -33,6 +33,8 @@ const nextConfig: NextConfig = {
       "**/.pnpm-store/**",
       "**/pnpm/store/**",
       "**/apps/desktop/dist/**",
+      "**/apps/desktop/_staging/**",
+      "**/apps/desktop/_staging*/**",
       "**/apps/dashboard/.next/**",
       "**/apps/game-engine/dist/**",
       "**/apps/game-engine/node_modules/**",

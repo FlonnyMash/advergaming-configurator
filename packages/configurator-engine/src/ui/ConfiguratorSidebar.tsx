@@ -7,16 +7,12 @@ import { FlatConfigPanel } from "./FlatConfigPanel";
 export function ConfiguratorSidebar({
   previewSlot,
   onImageFile,
-  onSave,
-  onLoad,
 }: {
   previewSlot?: React.ReactNode;
   onImageFile?: (
     file: File,
     field: FlatFieldDefinition,
   ) => void | Promise<void>;
-  onSave?: () => Promise<void>;
-  onLoad?: () => Promise<void>;
 }) {
   const config = useConfiguratorStore((state) => state.config);
   const patchConfig = useConfiguratorStore((state) => state.patchConfig);
@@ -31,7 +27,7 @@ export function ConfiguratorSidebar({
       uploadBrandingAsset(file, field.key));
 
   return (
-    <aside className="flex h-full w-[360px] shrink-0 flex-col border-r border-zinc-200 bg-white">
+    <aside className="flex h-full w-[360px] shrink-0 flex-col border-l border-zinc-200 bg-white">
       <header className="flex items-center justify-between border-b border-zinc-200 px-6 py-5">
         <div>
           <h1 className="text-lg font-semibold text-zinc-900">Brand controls</h1>
@@ -54,8 +50,6 @@ export function ConfiguratorSidebar({
           mode="configurator"
           onFieldChange={patchConfig}
           onImageFile={handleImageFile}
-          onSave={onSave}
-          onLoad={onLoad}
         />
         {previewSlot}
       </div>

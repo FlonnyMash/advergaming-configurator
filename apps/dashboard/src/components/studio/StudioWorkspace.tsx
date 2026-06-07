@@ -4,17 +4,19 @@ import { StudioToolsPanel } from "@/components/studio/StudioToolsPanel";
 import { CenterWorkspace } from "@/components/shell/CenterWorkspace";
 import {
   FlatConfigIpcError,
+  getProjectListViaElectron,
   loadFlatConfigViaElectron,
   saveFlatConfigViaElectron,
 } from "@/lib/flat-config-ipc";
 import { useConfigStore } from "@/store/useConfigStore";
 import { StudioSidebar, useStudioConfigStore } from "@mashedgames/studio-engine";
-import { useCallback, useEffect } from "react";
-
-const STUDIO_SESSION_PROJECT_ID = "studio-session";
+import { useCallback, useEffect, useState } from "react";
 
 export function StudioWorkspace({ suspended = false }: { suspended?: boolean }) {
   const initialTemplateId = useStudioConfigStore.getState().selectedTemplateId;
+  const [availableProjects, setAvailableProjects] = useState<string[]>([]);
+
+  const isDesktop = typeof window !== "undefined" && Boolean(window.electron);
 
   useEffect(() => {
     const syncFromStudio = (
@@ -27,24 +29,24 @@ export function StudioWorkspace({ suspended = false }: { suspended?: boolean }) 
     return useStudioConfigStore.subscribe(syncFromStudio);
   }, []);
 
-  const isDesktop = typeof window !== "undefined" && Boolean(window.electron);
+  useEffect(() => {
+    if (!isDesktop) return;
+    getProjectListViaElectron()
+      .then(setAvailableProjects)
+      .catch(() => setAvailableProjects([]));
+  }, [isDesktop]);
 
-  const handleSave = useCallback(async () => {
+  const handleSave = useCallback(async (projectName: string) => {
     const config = useStudioConfigStore.getState().config;
-    try {
-      await saveFlatConfigViaElectron(STUDIO_SESSION_PROJECT_ID, config);
-    } catch (error) {
-      const message =
-        error instanceof FlatConfigIpcError || error instanceof Error
-          ? error.message
-          : "Save failed.";
-      window.alert(message);
-    }
+    await saveFlatConfigViaElectron(projectName, config);
+    getProjectListViaElectron()
+      .then(setAvailableProjects)
+      .catch(() => undefined);
   }, []);
 
-  const handleLoad = useCallback(async () => {
+  const handleLoad = useCallback(async (projectName: string) => {
     try {
-      const config = await loadFlatConfigViaElectron(STUDIO_SESSION_PROJECT_ID);
+      const config = await loadFlatConfigViaElectron(projectName);
       useStudioConfigStore.getState().hydrateConfig(config);
     } catch (error) {
       const message =
@@ -57,7 +59,8 @@ export function StudioWorkspace({ suspended = false }: { suspended?: boolean }) 
 
   return (
     <div className="flex min-h-0 flex-1 overflow-hidden">
-      <StudioSidebar
+      <StudioToolsPanel
+        availableProjects={isDesktop ? availableProjects : undefined}
         onSave={isDesktop ? handleSave : undefined}
         onLoad={isDesktop ? handleLoad : undefined}
       />
@@ -66,7 +69,7 @@ export function StudioWorkspace({ suspended = false }: { suspended?: boolean }) 
         initialTemplateId={initialTemplateId}
         previewSuspended={suspended}
       />
-      <StudioToolsPanel />
+      <StudioSidebar />
     </div>
   );
 }

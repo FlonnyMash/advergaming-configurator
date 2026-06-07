@@ -5,6 +5,7 @@ const ALLOWED_CHANNELS = new Set([
   "export-project",
   "save-flat-config",
   "load-flat-config",
+  "get-project-list",
 ]);
 
 contextBridge.exposeInMainWorld("electron", {

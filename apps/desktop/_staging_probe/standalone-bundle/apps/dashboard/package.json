@@ -1,0 +1,42 @@
+{
+  "name": "dashboard",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "predev": "pnpm --filter @mashedgames/game-engine sync-manifest-registry",
+    "dev": "next dev",
+    "prebuild": "node scripts/ensure-standalone-writable.mjs",
+    "build": "next build && node scripts/sync-standalone-assets.mjs",
+    "start": "next start",
+    "lint": "eslint",
+    "publish-template": "tsx scripts/publish-template.ts",
+    "import-template": "tsx scripts/import-template-zip.ts"
+  },
+  "dependencies": {
+    "@mashedgames/configurator-engine": "workspace:*",
+    "@mashedgames/game-engine": "workspace:*",
+    "@mashedgames/shared": "workspace:*",
+    "@mashedgames/studio-engine": "workspace:*",
+    "adm-zip": "^0.5.17",
+    "jszip": "^3.10.1",
+    "lucide-react": "^1.17.0",
+    "next": "16.2.6",
+    "react": "19.2.4",
+    "react-dom": "19.2.4",
+    "simple-git": "^3.36.0",
+    "state": "workspace:*"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4",
+    "@types/adm-zip": "^0.5.8",
+    "@types/jszip": "^3.4.1",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "16.2.6",
+    "tailwindcss": "^4",
+    "tsx": "^4.20.3",
+    "typescript": "^5"
+  }
+}

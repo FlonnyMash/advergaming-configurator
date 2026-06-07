@@ -1,0 +1,21 @@
+@import "tailwindcss";
+
+@source "../../../../packages/studio-engine/src/**/*.{ts,tsx}";
+@source "../../../../packages/configurator-engine/src/**/*.{ts,tsx}";
+
+:root {
+  --background: #fafafa;
+  --foreground: #18181b;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+}

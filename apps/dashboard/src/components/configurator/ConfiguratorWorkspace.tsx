@@ -4,6 +4,7 @@ import { ConfiguratorToolsShell } from "@/components/configurator/ConfiguratorTo
 import { CenterWorkspace } from "@/components/shell/CenterWorkspace";
 import {
   FlatConfigIpcError,
+  getProjectListViaElectron,
   loadFlatConfigViaElectron,
   saveFlatConfigViaElectron,
 } from "@/lib/flat-config-ipc";
@@ -18,7 +19,7 @@ import {
   ConfiguratorSidebar,
   useConfiguratorStore,
 } from "@mashedgames/configurator-engine";
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 export function ConfiguratorWorkspace({
   suspended = false,
@@ -36,28 +37,28 @@ export function ConfiguratorWorkspace({
     (state) => state.setAssetSaveHandler,
   );
 
+  const [availableProjects, setAvailableProjects] = useState<string[]>([]);
+
   const isDesktop = typeof window !== "undefined" && Boolean(window.electron);
 
-  const handleSave = useCallback(async () => {
-    const id = useConfiguratorStore.getState().projectId;
-    if (!id) return;
+  useEffect(() => {
+    if (!isDesktop) return;
+    getProjectListViaElectron()
+      .then(setAvailableProjects)
+      .catch(() => setAvailableProjects([]));
+  }, [isDesktop]);
+
+  const handleSave = useCallback(async (projectName: string) => {
     const config = useConfiguratorStore.getState().config;
-    try {
-      await saveFlatConfigViaElectron(id, config);
-    } catch (error) {
-      const message =
-        error instanceof FlatConfigIpcError || error instanceof Error
-          ? error.message
-          : "Save failed.";
-      window.alert(message);
-    }
+    await saveFlatConfigViaElectron(projectName, config);
+    getProjectListViaElectron()
+      .then(setAvailableProjects)
+      .catch(() => undefined);
   }, []);
 
-  const handleLoad = useCallback(async () => {
-    const id = useConfiguratorStore.getState().projectId;
-    if (!id) return;
+  const handleLoad = useCallback(async (projectName: string) => {
     try {
-      const config = await loadFlatConfigViaElectron(id);
+      const config = await loadFlatConfigViaElectron(projectName);
       useConfiguratorStore.getState().setConfig(config);
     } catch (error) {
       const message =
@@ -115,16 +116,17 @@ export function ConfiguratorWorkspace({
 
   return (
     <div className="flex min-h-0 flex-1 overflow-hidden">
-      <ConfiguratorSidebar
-        onSave={isDesktop && projectId ? handleSave : undefined}
-        onLoad={isDesktop && projectId ? handleLoad : undefined}
+      <ConfiguratorToolsShell
+        availableProjects={isDesktop ? availableProjects : undefined}
+        onSave={isDesktop ? handleSave : undefined}
+        onLoad={isDesktop ? handleLoad : undefined}
       />
       <CenterWorkspace
         appMode="configurator"
         initialTemplateId={initialTemplateId}
         previewSuspended={suspended}
       />
-      <ConfiguratorToolsShell />
+      <ConfiguratorSidebar />
     </div>
   );
 }

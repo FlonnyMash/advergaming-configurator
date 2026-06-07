@@ -37,6 +37,8 @@ export type ExportProjectResult =
   | { ok: true; savePath: string }
   | { ok: false; canceled: true };
 
+export type GetProjectListResult = string[];
+
 export interface ElectronAPI {
   ipcRenderer: {
     invoke(
@@ -55,6 +57,7 @@ export interface ElectronAPI {
       channel: "load-flat-config",
       payload: LoadFlatConfigPayload,
     ): Promise<LoadFlatConfigResult>;
+    invoke(channel: "get-project-list"): Promise<GetProjectListResult>;
   };
 }
 

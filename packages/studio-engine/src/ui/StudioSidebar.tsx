@@ -5,19 +5,15 @@ import { FlatConfigPanel } from "./FlatConfigPanel";
 
 export function StudioSidebar({
   previewSlot,
-  onSave,
-  onLoad,
 }: {
   previewSlot?: React.ReactNode;
-  onSave?: () => Promise<void>;
-  onLoad?: () => Promise<void>;
 }) {
   const config = useStudioConfigStore((state) => state.config);
   const patchConfig = useStudioConfigStore((state) => state.patchConfig);
   const resetConfig = useStudioConfigStore((state) => state.resetConfig);
 
   return (
-    <aside className="flex h-full w-[360px] shrink-0 flex-col border-r border-zinc-200 bg-white">
+    <aside className="flex h-full w-[360px] shrink-0 flex-col border-l border-zinc-200 bg-white">
       <header className="flex items-center justify-between border-b border-zinc-200 px-6 py-5">
         <div>
           <h1 className="text-lg font-semibold text-zinc-900">Game controls</h1>
@@ -33,12 +29,7 @@ export function StudioSidebar({
       </header>
 
       <div className="flex-1 overflow-y-auto px-6 py-6">
-        <FlatConfigPanel
-          config={config}
-          onFieldChange={patchConfig}
-          onSave={onSave}
-          onLoad={onLoad}
-        />
+        <FlatConfigPanel config={config} onFieldChange={patchConfig} />
         {previewSlot}
       </div>
     </aside>

@@ -118,10 +118,29 @@ function loadFlatConfig(workspacePath, payload) {
   return { ok: true, raw };
 }
 
+function getProjectList(workspacePath) {
+  const projectsDir = path.join(workspacePath, PROJECTS_DIR_NAME);
+  if (!fs.existsSync(projectsDir)) return [];
+  let entries;
+  try {
+    entries = fs.readdirSync(projectsDir, { withFileTypes: true });
+  } catch {
+    return [];
+  }
+  return entries
+    .filter((e) => {
+      if (!e.isDirectory() || !PROJECT_ID_PATTERN.test(e.name)) return false;
+      const configPath = path.join(projectsDir, e.name, CONFIG_FILE_NAME);
+      return fs.existsSync(configPath);
+    })
+    .map((e) => e.name);
+}
+
 module.exports = {
   CONFIG_FILE_NAME,
   isPathInsideWorkspace,
   resolveProjectConfigPath,
   saveFlatConfig,
   loadFlatConfig,
+  getProjectList,
 };
