@@ -43,6 +43,6 @@ if (installExitCode !== 0) {
   process.exit(installExitCode);
 }
 
-const result = run("pnpm", ["run", "build:desktop"], baseEnv);
+const result = run("pnpm", ["run", "build:pipeline"], baseEnv);
 
 process.exit(result);

@@ -4,10 +4,11 @@
   "private": true,
   "scripts": {
     "predev": "node scripts/sync-brand-from-logo.mjs",
-    "dev": "node scripts/dev.mjs",
+    "dev": "pnpm exec next dev",
     "prebuild": "node scripts/ensure-standalone-writable.mjs",
     "build": "next build && node scripts/sync-standalone-assets.mjs",
     "build:desktop": "node scripts/build-desktop.mjs",
+    "sync:standalone-assets": "node scripts/sync-standalone-assets.mjs",
     "start": "next start",
     "lint": "eslint",
     "publish-template": "tsx scripts/publish-template.ts",

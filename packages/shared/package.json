@@ -5,9 +5,17 @@
   "exports": {
     ".": "./src/index.ts"
   },
+  "scripts": {
+    "build": "tsc --noEmit",
+    "watch": "tsc --watch --noEmit --preserveWatchOutput"
+  },
   "types": "./src/index.ts",
   "license": "ISC",
   "dependencies": {
     "zod": "^3.24.2"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "typescript": "^5"
   }
 }
