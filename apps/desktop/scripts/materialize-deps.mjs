@@ -18,9 +18,10 @@ import { fileURLToPath } from "node:url";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const desktopDir = join(__dirname, "..");
 const workspaceRoot = join(desktopDir, "..", "..");
-const stagingDir = join(desktopDir, "_staging");
+const stagingDir = join(desktopDir, "_staging_probe");
 
 // ── 1. Clean & deploy all prod deps into staging ───────────────────────────
+console.log(`[materialize-deps] creating ephemeral staging workspace at ${stagingDir}`);
 console.log("[materialize-deps] running pnpm deploy...");
 if (existsSync(stagingDir)) {
   rmSync(stagingDir, { recursive: true, force: true });
