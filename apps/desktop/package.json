@@ -10,7 +10,8 @@
     "verify:asset-ipc": "npm run test:asset-ipc && npm run verify:asset-ipc-wiring",
     "sync-branding": "node scripts/sync-installer-workspace.mjs && node scripts/sync-installer-branding.mjs",
     "prebuild": "node scripts/ensure-dist-writable.mjs && node scripts/sync-installer-workspace.mjs && node scripts/sync-installer-branding.mjs && node scripts/apply-nsis-install-overrides.mjs && node scripts/materialize-deps.mjs",
-    "build": "echo build completed via materialize-deps",
+    "build:package": "pnpm run prebuild",
+    "build": "pnpm run build:package",
     "dist": "electron-builder"
   },
   "dependencies": {
@@ -57,6 +58,9 @@
       "buildResources": "nsis"
     },
     "asar": true,
+    "asarUnpack": [
+      "**/*.node"
+    ],
     "files": [
       "main.js",
       "preload.js",
