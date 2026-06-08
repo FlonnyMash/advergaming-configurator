@@ -7,6 +7,16 @@ import { supabase } from "@/lib/supabaseClient";
 import type { Tables } from "@/lib/supabaseClient";
 import { useAuthStore } from "@/store/useAuthStore";
 
+declare global {
+  interface Window {
+    electron?: {
+      ipcRenderer: {
+        invoke(channel: string, payload?: unknown): Promise<unknown>;
+      };
+    };
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -228,12 +238,64 @@ function TemplateCard({ template }: { template: EnrichedTemplate }) {
 // Main storefront component
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// Dev-preview banner (DCE-eligible)
+//
+// This component is only included in the bundle when NODE_ENV !== "production"
+// OR when the Electron dev-preview flag is active at runtime.  In a standard
+// Next.js production build webpack replaces process.env.NODE_ENV with the
+// literal "production", making the entire branch statically false and
+// eligible for dead-code elimination.
+// ---------------------------------------------------------------------------
+
+function DevPreviewBanner() {
+  if (process.env.NODE_ENV === "production") {
+    return null;
+  }
+  return (
+    <div
+      role="status"
+      aria-live="polite"
+      className="mb-6 flex items-start gap-3 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-xs text-amber-800"
+    >
+      <svg
+        className="mt-px h-4 w-4 shrink-0 text-amber-500"
+        fill="none"
+        viewBox="0 0 24 24"
+        stroke="currentColor"
+        aria-hidden="true"
+      >
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={2}
+          d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"
+        />
+      </svg>
+      <span>
+        <strong className="font-semibold">Dev Preview Mode</strong> — The
+        template catalog shown below is placeholder data. Supabase credentials
+        are not configured for this local build. Set{" "}
+        <code className="rounded bg-amber-100 px-1 font-mono">
+          devStorePreview: true
+        </code>{" "}
+        in{" "}
+        <code className="rounded bg-amber-100 px-1 font-mono">
+          dev-runtime-override.json
+        </code>{" "}
+        alongside real credentials to browse the live catalog.
+      </span>
+    </div>
+  );
+}
+
 export function TemplateStorefront() {
   const userId = useAuthStore((s) => s.userId);
   const devStorePreview = canBrowseStoreWithoutAuth();
   const [templates, setTemplates] = useState<EnrichedTemplate[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isDevPreview, setIsDevPreview] = useState(false);
 
   useEffect(() => {
     if (!userId && !devStorePreview) {
@@ -242,6 +304,25 @@ export function TemplateStorefront() {
     }
 
     let cancelled = false;
+
+    async function loadViaIpc(): Promise<{ templates: EnrichedTemplate[]; devPreview: boolean }> {
+      type IpcResponse =
+        | { ok: true; templates: EnrichedTemplate[]; _devPreview?: boolean }
+        | { ok: false; error: string };
+
+      const result = (await window.electron!.ipcRenderer.invoke(
+        "store:load-catalog",
+      )) as IpcResponse;
+
+      if (!result.ok) {
+        throw new Error(result.error ?? "Failed to load templates.");
+      }
+
+      return {
+        templates: result.templates,
+        devPreview: result._devPreview === true,
+      };
+    }
 
     async function loadTemplatesCatalog() {
       const templatesResult = await supabase
@@ -300,20 +381,34 @@ export function TemplateStorefront() {
     async function load() {
       setLoading(true);
       setError(null);
+      setIsDevPreview(false);
 
       try {
-        const catalog = await loadTemplatesCatalog();
-        const activeLicensedIds = userId
-          ? await loadLicensedTemplateIds(userId)
-          : new Set<string>();
+        let enriched: EnrichedTemplate[];
+        let devPreview = false;
 
-        const enriched: EnrichedTemplate[] = catalog.map((template) => ({
-          ...template,
-          isLicensed: activeLicensedIds.has(template.id),
-        }));
+        if (typeof window !== "undefined" && window.electron) {
+          // Electron: route through IPC so the main process uses its
+          // authenticated JWT — the renderer's Supabase client is anon-only.
+          const ipcResult = await loadViaIpc();
+          enriched = ipcResult.templates;
+          devPreview = ipcResult.devPreview;
+        } else {
+          // Web: renderer has a full browser session, query Supabase directly.
+          const catalog = await loadTemplatesCatalog();
+          const activeLicensedIds = userId
+            ? await loadLicensedTemplateIds(userId)
+            : new Set<string>();
+
+          enriched = catalog.map((template) => ({
+            ...template,
+            isLicensed: activeLicensedIds.has(template.id),
+          }));
+        }
 
         if (!cancelled) {
           setTemplates(enriched);
+          setIsDevPreview(devPreview);
         }
       } catch (err) {
         if (!cancelled) {
@@ -365,11 +460,14 @@ export function TemplateStorefront() {
   // --- Empty state ---
   if (templates.length === 0) {
     return (
-      <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-12 text-center">
-        <p className="text-sm font-medium text-zinc-600">No templates available</p>
-        <p className="mt-1 text-xs text-zinc-400">
-          Templates published by Mashed Games Studio will appear here.
-        </p>
+      <div className="space-y-4">
+        {isDevPreview && <DevPreviewBanner />}
+        <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-12 text-center">
+          <p className="text-sm font-medium text-zinc-600">No templates available</p>
+          <p className="mt-1 text-xs text-zinc-400">
+            Templates published by Mashed Games Studio will appear here.
+          </p>
+        </div>
       </div>
     );
   }
@@ -379,6 +477,7 @@ export function TemplateStorefront() {
 
   return (
     <div className="space-y-10">
+      {isDevPreview && <DevPreviewBanner />}
       {owned.length > 0 && (
         <section>
           <div className="mb-4 flex items-center gap-2">

@@ -68,6 +68,7 @@
       "asset-ipc-utils.js",
       "auth-ipc-utils.js",
       "license-ipc-utils.js",
+      "store-ipc-utils.js",
       "export-ipc-utils.js",
       "flat-config-ipc-utils.js",
       "constants.js",

@@ -10,6 +10,7 @@ const ALLOWED_CHANNELS = new Set([
   "auth:logout",
   "auth:get-status",
   "license:check-eligibility",
+  "store:load-catalog",
 ]);
 
 contextBridge.exposeInMainWorld("electron", {
@@ -23,7 +24,19 @@ contextBridge.exposeInMainWorld("electron", {
   },
 });
 
+// The dev-store-preview flag may arrive via two channels:
+//  1. process.env  — set at OS level or inherited from main-process env at
+//                    renderer-process spawn time.
+//  2. process.argv — injected via BrowserWindow.webPreferences.additionalArguments
+//                    by main.js after loadDevRuntimeOverride() runs; this is the
+//                    reliable path for packaged builds where env mutations in
+//                    the main process are not guaranteed to propagate to the
+//                    renderer subprocess.
+const devStorePreviewActive =
+  process.env.MASHEDGAMES_DEV_STORE_PREVIEW === "1" ||
+  process.argv.includes("--mashed-dev-store-preview");
+
 contextBridge.exposeInMainWorld("mashedRuntime", {
-  devStorePreview: process.env.MASHEDGAMES_DEV_STORE_PREVIEW === "1",
+  devStorePreview: devStorePreviewActive,
   usesExternalDashboard: Boolean(process.env.MASHEDGAMES_DASHBOARD_URL?.trim()),
 });

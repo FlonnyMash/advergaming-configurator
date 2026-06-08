@@ -30,6 +30,7 @@ const {
 const { saveFlatConfig, loadFlatConfig, getProjectList } = require("./flat-config-ipc-utils");
 const { registerAuthIpc, getSessionForInternal } = require("./auth-ipc-utils");
 const { registerLicenseIpc } = require("./license-ipc-utils");
+const { registerStoreIpc } = require("./store-ipc-utils");
 
 const STUDIO_PROTOCOL = STUDIO_ASSET_PROTOCOL;
 const STUDIO_PROTOCOL_PREFIX = `${STUDIO_PROTOCOL}://`;
@@ -777,6 +778,14 @@ function createMainWindow(port) {
   const mainWindowUrl = dashboardUrlBase
     ? `${dashboardUrlBase}/`
     : `http://127.0.0.1:${port}/`;
+  // Pass dev-preview flag via additionalArguments so the preload can read it
+  // from process.argv regardless of whether the renderer inherits main-process
+  // env-var mutations made after startup (behaviour varies by Electron/OS).
+  const extraArgs = [];
+  if (process.env.MASHEDGAMES_DEV_STORE_PREVIEW === "1") {
+    extraArgs.push("--mashed-dev-store-preview");
+  }
+
   mainWindow = new BrowserWindow({
     width: 1440,
     height: 960,
@@ -789,6 +798,7 @@ function createMainWindow(port) {
       sandbox: true,
       nodeIntegration: false,
       preload: resolveDesktopAssetPath("preload.js"),
+      additionalArguments: extraArgs,
     },
   });
 
@@ -930,6 +940,75 @@ function loadRuntimeConfig() {
     const envLocalPath = path.join(__dirname, "..", "..", ".env.local");
     parseEnvFile(envLocalPath);
   }
+
+  // -------------------------------------------------------------------------
+  // Dev-runtime override — internal QA / local-EXE preview escape hatch.
+  //
+  // Developers can place a JSON file at:
+  //   {userData}/dev-runtime-override.json
+  // to supply Supabase credentials and/or enable the dev store preview
+  // without rebuilding the binary.  Schema:
+  //   {
+  //     "supabaseUrl":    "https://<project>.supabase.co",   // optional
+  //     "supabaseAnonKey": "<anon-key>",                     // optional
+  //     "devStorePreview": true                              // optional
+  //   }
+  //
+  // This file is NEVER shipped in the release build (it is user-data, not
+  // app-data) and requires deliberate manual placement.  Production end-users
+  // do not create it.  The override is silently skipped when absent (ENOENT).
+  // -------------------------------------------------------------------------
+  loadDevRuntimeOverride();
+}
+
+/**
+ * Reads {userData}/dev-runtime-override.json and injects any values it
+ * provides into process.env.  Silent no-op when the file is absent.
+ * Must be called after app.whenReady() so app.getPath("userData") resolves.
+ */
+function loadDevRuntimeOverride() {
+  let overridePath;
+  try {
+    overridePath = path.join(app.getPath("userData"), "dev-runtime-override.json");
+  } catch {
+    return;
+  }
+
+  let raw;
+  try {
+    raw = fs.readFileSync(overridePath, "utf8");
+  } catch (err) {
+    if (err.code !== "ENOENT") {
+      console.warn("[runtime-config] Could not read dev-runtime-override.json:", err.message);
+    }
+    return;
+  }
+
+  let override;
+  try {
+    override = JSON.parse(raw);
+  } catch (err) {
+    console.warn("[runtime-config] dev-runtime-override.json is not valid JSON:", err.message);
+    return;
+  }
+
+  if (typeof override !== "object" || override === null || Array.isArray(override)) {
+    console.warn("[runtime-config] dev-runtime-override.json must be a JSON object — ignored.");
+    return;
+  }
+
+  if (typeof override.supabaseUrl === "string" && !process.env.NEXT_PUBLIC_SUPABASE_URL) {
+    process.env.NEXT_PUBLIC_SUPABASE_URL = override.supabaseUrl;
+    console.info("[runtime-config] Supabase URL injected from dev override.");
+  }
+  if (typeof override.supabaseAnonKey === "string" && !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = override.supabaseAnonKey;
+    console.info("[runtime-config] Supabase anon key injected from dev override.");
+  }
+  if (override.devStorePreview === true && !process.env.MASHEDGAMES_DEV_STORE_PREVIEW) {
+    process.env.MASHEDGAMES_DEV_STORE_PREVIEW = "1";
+    console.info("[runtime-config] Dev store preview enabled via override file at:", overridePath);
+  }
 }
 
 app.whenReady().then(async () => {
@@ -947,6 +1026,7 @@ app.whenReady().then(async () => {
     registerGetProjectListIpc(workspacePath);
     await registerAuthIpc();
     registerLicenseIpc(getSessionForInternal);
+    registerStoreIpc(getSessionForInternal);
     registerStudioProtocol(workspacePath);
     autoMigrateLegacyProjects(getProjectsPath(workspacePath));
     const externalDashboardUrl = resolveExternalDashboardUrl();
