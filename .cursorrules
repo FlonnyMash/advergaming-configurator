@@ -63,12 +63,42 @@ Core inbound type: **`UPDATE_CONFIG`** (flat `GameConfig` payload).
 
 ```bash
 pnpm dev
-pnpm run build:engine
-pnpm run build:dashboard
+pnpm run dev:phase1
+pnpm run dev:phase2
+pnpm run dev:phase3
+pnpm run build:pipeline
 pnpm run build:desktop
+pnpm run build:release:client
+pnpm run build:release:studio
 ```
 
-After engine bridge changes, run `build:engine` so embedded `/engine` preview picks them up.
+Dev flow is deterministic and phase-based:
+- **Phase 1:** package watchers (`shared`, `configurator-engine`, `studio-engine`)
+- **Phase 2:** dashboard + game-engine
+- **Phase 3:** Electron starts only after Dashboard health check passes
+
+Build flow is deterministic and clean-first:
+- `build:clean` -> `build:packages` -> `build:dashboard:standalone` -> `build:game-engine` -> `build:assets:sync` -> `build:desktop:package`
+
+After engine bridge changes, run `build:engine` (or full `build:pipeline`) so embedded `/engine` preview picks up the latest bundle.
+
+## Electron Main Process Reliability Rules
+
+- Always branch path resolution by runtime mode:
+  - **Packaged:** use `process.resourcesPath` and/or `app.getAppPath()`; never rely on `__dirname` traversal for runtime assets.
+  - **Dev:** explicit repo-relative paths are allowed.
+- Dashboard standalone server startup must be wrapped in `try/catch` with:
+  - startup readiness checks (`/` + `/engine/index.html`)
+  - stdout/stderr capture for post-mortem diagnostics
+  - explicit error surface to the user with actionable message
+- Main process must register global crash handlers:
+  - `process.on("uncaughtException")`
+  - `process.on("unhandledRejection")`
+  - errors must be appended to a log file under `app.getPath("userData")`
+- Production failures must show a clean custom error dialog that references the log file path.
+- `electron-builder` packaging:
+  - native modules must be covered by `asarUnpack` (e.g. `**/*.node`)
+  - Next standalone payload is shipped via `extraResources` (not inside app ASAR)
 
 # Security, DRM & Cloud Laws
 
