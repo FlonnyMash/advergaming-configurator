@@ -22,3 +22,8 @@ contextBridge.exposeInMainWorld("electron", {
     },
   },
 });
+
+contextBridge.exposeInMainWorld("mashedRuntime", {
+  devStorePreview: process.env.MASHEDGAMES_DEV_STORE_PREVIEW === "1",
+  usesExternalDashboard: Boolean(process.env.MASHEDGAMES_DASHBOARD_URL?.trim()),
+});

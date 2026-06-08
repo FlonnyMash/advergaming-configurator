@@ -23,6 +23,7 @@ const devDistDir =
 
 const nextConfig: NextConfig = {
   ...(devDistDir ? { distDir: devDistDir } : {}),
+  allowedDevOrigins: ["127.0.0.1"],
   output: "standalone",
   outputFileTracingRoot: monorepoRoot,
   typescript: {

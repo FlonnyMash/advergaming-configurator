@@ -3,3 +3,9 @@ _staging_probe/
 dist/
 out/
 release/
+
+# Next.js standalone output copied here by the build pipeline
+standalone-bundle/
+
+# Local Supabase credential override written by build:desktop:package
+runtime-supabase.json

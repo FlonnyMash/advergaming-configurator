@@ -13,13 +13,17 @@ const tabClass = (active: boolean) =>
       : "text-zinc-600 hover:bg-zinc-100/80 hover:text-zinc-900",
   ].join(" ");
 
+const TAB_COUNT = 4;
+
 type EnvironmentNavProps = {
   appName: string;
   primaryColor: string;
   isHome: boolean;
   isStudio: boolean;
+  isStore: boolean;
   isConfigurator: boolean;
   studioHref: string;
+  storeHref: string;
   configuratorHref: string;
   onHomeClick: () => void;
   showStudioTab: boolean;
@@ -28,11 +32,13 @@ type EnvironmentNavProps = {
 function activeIndexFromFlags(
   isHome: boolean,
   isStudio: boolean,
+  isStore: boolean,
   isConfigurator: boolean,
 ): number {
   if (isHome) return 0;
   if (isStudio) return 1;
-  if (isConfigurator) return 2;
+  if (isStore) return 2;
+  if (isConfigurator) return 3;
   return 0;
 }
 
@@ -55,16 +61,25 @@ export function EnvironmentNav({
   primaryColor,
   isHome,
   isStudio,
+  isStore,
   isConfigurator,
   studioHref,
+  storeHref,
   configuratorHref,
   onHomeClick,
   showStudioTab,
 }: EnvironmentNavProps) {
   const navRef = useRef<HTMLElement>(null);
   const itemRefs = useRef<(HTMLElement | null)[]>([]);
-  const tabRectsRef = useRef<(IndicatorRect | null)[]>([null, null, null]);
-  const routeActiveIndex = activeIndexFromFlags(isHome, isStudio, isConfigurator);
+  const tabRectsRef = useRef<(IndicatorRect | null)[]>(
+    Array.from({ length: TAB_COUNT }, () => null),
+  );
+  const routeActiveIndex = activeIndexFromFlags(
+    isHome,
+    isStudio,
+    isStore,
+    isConfigurator,
+  );
   const [pendingIndex, setPendingIndex] = useState<number | null>(null);
   const displayIndex = pendingIndex ?? routeActiveIndex;
   const displayIndexRef = useRef(displayIndex);
@@ -96,7 +111,7 @@ export function EnvironmentNav({
       const navRect = nav.getBoundingClientRect();
       const nextRects: (IndicatorRect | null)[] = [];
 
-      for (let i = 0; i < 3; i++) {
+      for (let i = 0; i < TAB_COUNT; i++) {
         const item = itemRefs.current[i];
         if (!item) {
           nextRects.push(null);
@@ -128,7 +143,7 @@ export function EnvironmentNav({
       observer.disconnect();
       window.removeEventListener("resize", measureAll);
     };
-  }, [appName, studioHref, configuratorHref]);
+  }, [appName, studioHref, storeHref, configuratorHref, showStudioTab]);
 
   const setItemRef = (index: number) => (el: HTMLElement | null) => {
     itemRefs.current[index] = el;
@@ -183,10 +198,19 @@ export function EnvironmentNav({
       ) : null}
       <Link
         ref={setItemRef(2)}
-        href={configuratorHref}
+        href={storeHref}
         onClick={() => selectTab(2)}
         className={tabClass(displayIndex === 2)}
         aria-current={routeActiveIndex === 2 ? "page" : undefined}
+      >
+        <TabLabel>Store</TabLabel>
+      </Link>
+      <Link
+        ref={setItemRef(3)}
+        href={configuratorHref}
+        onClick={() => selectTab(3)}
+        className={tabClass(displayIndex === 3)}
+        aria-current={routeActiveIndex === 3 ? "page" : undefined}
       >
         <TabLabel>Configurator</TabLabel>
       </Link>

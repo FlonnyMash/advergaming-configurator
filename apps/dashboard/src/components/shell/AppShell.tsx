@@ -23,6 +23,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const isHome = pathname === "/";
   const isStudio = pathname.startsWith("/studio");
   const isConfigurator = pathname.startsWith("/configurator");
+  const isStore = pathname.startsWith("/dashboard/store");
   const appName = usePlatformStore((s) => s.appName);
   const primaryColor = usePlatformStore((s) => s.primaryColor);
   const enableLeadGen = usePlatformStore((s) => s.features.enableLeadGen);
@@ -55,9 +56,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             primaryColor={primaryColor}
             isHome={isHome}
             isStudio={isStudio}
+            isStore={isStore}
             isConfigurator={isConfigurator}
             showStudioTab={STUDIO_MODE_ENABLED}
             studioHref={STUDIO_MODE_ENABLED ? studioHref : ""}
+            storeHref="/dashboard/store"
             configuratorHref={configuratorHref}
             onHomeClick={requestHomeNavigation}
           />
@@ -83,13 +86,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             Lead Generation
           </button>
           <p className="hidden text-xs text-zinc-500 sm:block">
-            {STUDIO_MODE_ENABLED && isStudio
-              ? "Build mechanics & publish templates"
-              : isConfigurator
-                ? "White-label branding for clients"
-                : STUDIO_MODE_ENABLED
-                  ? "Choose Studio or Configurator to get started"
-                  : "Open a project to get started"}
+            {isStore
+              ? "Browse owned games and unlock new templates"
+              : STUDIO_MODE_ENABLED && isStudio
+                ? "Build mechanics & publish templates"
+                : isConfigurator
+                  ? "White-label branding for clients"
+                  : STUDIO_MODE_ENABLED
+                    ? "Choose Studio or Configurator to get started"
+                    : "Open a project to get started"}
           </p>
           <UserMenu />
         </div>

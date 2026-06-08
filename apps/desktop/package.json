@@ -4,7 +4,7 @@
   "private": true,
   "main": "main.js",
   "scripts": {
-    "dev": "electron .",
+    "dev": "node ../../scripts/dev-desktop.mjs",
     "test:asset-ipc": "node --test asset-ipc-utils.test.js export-ipc-utils.test.js",
     "verify:asset-ipc-wiring": "node scripts/verify-asset-ipc-wiring.mjs",
     "verify:asset-ipc": "npm run test:asset-ipc && npm run verify:asset-ipc-wiring",
@@ -38,7 +38,8 @@
     "sax": "^1.6.0",
     "semver": "^7.8.1",
     "tiny-typed-emitter": "^2.1.0",
-    "universalify": "^2.0.1"
+    "universalify": "^2.0.1",
+    "ws": "^8.21.0"
   },
   "devDependencies": {
     "adm-zip": "^0.5.17",
@@ -65,15 +66,16 @@
       "main.js",
       "preload.js",
       "asset-ipc-utils.js",
+      "auth-ipc-utils.js",
+      "license-ipc-utils.js",
       "export-ipc-utils.js",
       "flat-config-ipc-utils.js",
       "constants.js",
       "package.json",
       "splash.html",
       "splash-logo.png",
-      "node_modules/**/*",
-      "node_modules/.pnpm/**/*",
-      "node_modules/.modules.yaml"
+      "runtime-supabase.json",
+      "node_modules/**/*"
     ],
     "extraResources": [
       {

@@ -51,19 +51,24 @@ function getMainProcessLogPath() {
 }
 
 function getElectronBinaryPathHint() {
-  const releaseFile = path.resolve(
-    app.getAppPath(),
-    "..",
-    "..",
-    "node_modules",
-    ".pnpm",
-    "electron@31.7.7",
-    "node_modules",
-    "electron",
-    "dist",
-    process.platform === "win32" ? "electron.exe" : "electron",
-  );
-  return releaseFile;
+  if (app.isPackaged) {
+    return process.execPath;
+  }
+
+  const binaryName = process.platform === "win32" ? "electron.exe" : "electron";
+  const candidates = [
+    process.execPath,
+    path.join(__dirname, "node_modules", "electron", "dist", binaryName),
+    path.join(__dirname, "..", "..", "node_modules", "electron", "dist", binaryName),
+  ];
+
+  for (const candidate of candidates) {
+    if (fs.existsSync(candidate)) {
+      return candidate;
+    }
+  }
+
+  return process.execPath;
 }
 
 function appendMainProcessLog(message) {
@@ -106,16 +111,63 @@ function reportFatalError(source, error) {
   showFatalErrorDialog(`${APP_DISPLAY_NAME} encountered a fatal error`, error);
 }
 
+function isElectronDevMode() {
+  return !app.isPackaged || process.env.MASHEDGAMES_ELECTRON_DEV === "1";
+}
+
+function isDevElectronBinary(execPath) {
+  const binaryName = path.basename(execPath).toLowerCase();
+  return binaryName === "electron" || binaryName === "electron.exe";
+}
+
+function isDesktopBuilderOutputBinary(execPath) {
+  const normalizedExec = path.normalize(execPath);
+  const builderRoots = [
+    path.normalize(path.join(__dirname, "dist")),
+    path.normalize(path.join(__dirname, "release")),
+    path.normalize(path.join(__dirname, "out")),
+  ];
+
+  return builderRoots.some((root) => {
+    if (normalizedExec === root) {
+      return true;
+    }
+    const rootPrefix = `${root}${path.sep}`;
+    return normalizedExec.startsWith(rootPrefix);
+  });
+}
+
 function validateElectronRuntimeBinary() {
   if (app.isPackaged) {
     return;
   }
+
   const binaryHint = getElectronBinaryPathHint();
   if (!fs.existsSync(binaryHint)) {
     const message = `Electron runtime binary missing at ${binaryHint}. Reinstall dependencies with 'pnpm install'.`;
     appendMainProcessLog(`[electron-runtime] ${message}`);
     throw new Error(message);
   }
+
+  if (isDesktopBuilderOutputBinary(process.execPath) && !isDevElectronBinary(process.execPath)) {
+    const message =
+      "Dev launch is targeting electron-builder output. Use `pnpm dev:client` or `pnpm --filter desktop dev` so Electron loads the Next.js dev server.";
+    appendMainProcessLog(`[electron-runtime] ${message}`);
+    throw new Error(message);
+  }
+}
+
+const DEFAULT_DEV_DASHBOARD_URL = "http://127.0.0.1:3000";
+
+function resolveExternalDashboardUrl() {
+  const fromEnv = process.env.MASHEDGAMES_DASHBOARD_URL?.trim();
+  if (fromEnv) {
+    return fromEnv;
+  }
+  if (isElectronDevMode()) {
+    return DEFAULT_DEV_DASHBOARD_URL;
+  }
+  return null;
 }
 
 protocol.registerSchemesAsPrivileged([
@@ -820,7 +872,68 @@ function cleanupDashboardServer() {
   dashboardServer = null;
 }
 
+// ---------------------------------------------------------------------------
+// Runtime config — populate Supabase env vars for the main process.
+//
+// NEXT_PUBLIC_* vars are baked into the Next.js JS bundle at build time, so
+// the dashboard server child process never needs them in its env.  However,
+// auth-ipc-utils.js runs here in the main process and reads process.env at
+// runtime, so we must inject the values before registerAuthIpc() is called.
+//
+//  - Packaged build: reads runtime-supabase.json from app.getAppPath()
+//    (written by scripts/build-release.mjs and bundled via electron-builder).
+//  - Dev mode: parses .env.local from the monorepo root (2 levels up from
+//    apps/desktop).
+// ---------------------------------------------------------------------------
+
+function parseEnvFile(filePath) {
+  try {
+    const content = fs.readFileSync(filePath, "utf8");
+    for (const line of content.split("\n")) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith("#")) continue;
+      const eqIdx = trimmed.indexOf("=");
+      if (eqIdx < 1) continue;
+      const key = trimmed.slice(0, eqIdx).trim();
+      let value = trimmed.slice(eqIdx + 1).trim();
+      if (
+        (value.startsWith('"') && value.endsWith('"')) ||
+        (value.startsWith("'") && value.endsWith("'"))
+      ) {
+        value = value.slice(1, -1);
+      }
+      if (!(key in process.env)) {
+        process.env[key] = value;
+      }
+    }
+  } catch (err) {
+    console.warn("[runtime-config] Could not parse env file:", filePath, err.message);
+  }
+}
+
+function loadRuntimeConfig() {
+  if (app.isPackaged) {
+    const configPath = path.join(app.getAppPath(), "runtime-supabase.json");
+    try {
+      const config = JSON.parse(fs.readFileSync(configPath, "utf8"));
+      if (config.supabaseUrl && !process.env.NEXT_PUBLIC_SUPABASE_URL) {
+        process.env.NEXT_PUBLIC_SUPABASE_URL = config.supabaseUrl;
+      }
+      if (config.supabaseAnonKey && !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = config.supabaseAnonKey;
+      }
+    } catch (err) {
+      console.warn("[runtime-config] Could not load runtime-supabase.json:", err.message);
+    }
+  } else {
+    // Dev: load .env.local from the monorepo root (../../ relative to apps/desktop).
+    const envLocalPath = path.join(__dirname, "..", "..", ".env.local");
+    parseEnvFile(envLocalPath);
+  }
+}
+
 app.whenReady().then(async () => {
+  loadRuntimeConfig();
   createSplashWindow();
 
   try {
@@ -836,8 +949,11 @@ app.whenReady().then(async () => {
     registerLicenseIpc(getSessionForInternal);
     registerStudioProtocol(workspacePath);
     autoMigrateLegacyProjects(getProjectsPath(workspacePath));
-    const externalDashboardUrl = process.env.MASHEDGAMES_DASHBOARD_URL;
+    const externalDashboardUrl = resolveExternalDashboardUrl();
     if (externalDashboardUrl) {
+      console.info(
+        `[boot] ${isElectronDevMode() ? "dev" : "external"} dashboard → ${externalDashboardUrl}`,
+      );
       await waitForExternalDashboardServer(externalDashboardUrl);
       const parsedUrl = new URL(externalDashboardUrl);
       dashboardPort = parsedUrl.port ? Number(parsedUrl.port) : 80;

@@ -2,6 +2,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 const { app, ipcMain, safeStorage } = require("electron");
 const { createClient } = require("@supabase/supabase-js");
+const ws = require("ws");
 
 const TOKEN_FILE = "mashed-auth.bin";
 
@@ -41,6 +42,12 @@ function getSupabaseClient() {
       autoRefreshToken: false,
       detectSessionInUrl: false,
       storageKey: "mashed-auth-noop",
+    },
+    // Electron main process runs Node.js < 22 which has no native WebSocket.
+    // Provide the ws package so the realtime transport initialises cleanly.
+    // Auth-only usage means no realtime channels are ever opened.
+    realtime: {
+      transport: ws,
     },
   });
 
@@ -140,6 +147,7 @@ function buildStatusPayload(session) {
   return {
     isAuthenticated: session !== null,
     email: session?.email ?? null,
+    userId: session?.user?.id ?? null,
   };
 }
 
@@ -236,14 +244,19 @@ async function handleLogin(_event, payload) {
     typeof payload.email !== "string" ||
     typeof payload.password !== "string"
   ) {
-    return { isAuthenticated: false, email: null, error: "Invalid login payload." };
+    return {
+      isAuthenticated: false,
+      email: null,
+      userId: null,
+      error: "Invalid login payload.",
+    };
   }
 
   let supabase;
   try {
     supabase = getSupabaseClient();
   } catch (error) {
-    return { isAuthenticated: false, email: null, error: error.message };
+    return { isAuthenticated: false, email: null, userId: null, error: error.message };
   }
 
   const { data, error } = await supabase.auth.signInWithPassword({
@@ -255,6 +268,7 @@ async function handleLogin(_event, payload) {
     return {
       isAuthenticated: false,
       email: null,
+      userId: null,
       error: error?.message ?? "Login failed.",
     };
   }
@@ -283,7 +297,7 @@ async function handleLogout(_event) {
 
   _session = null;
   clearPersistedSession();
-  return { isAuthenticated: false, email: null };
+  return { isAuthenticated: false, email: null, userId: null };
 }
 
 function handleGetStatus(_event) {

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { canBrowseStoreWithoutAuth } from "@/lib/dev-store-access";
 import { supabase } from "@/lib/supabaseClient";
 import type { Tables } from "@/lib/supabaseClient";
 import { useAuthStore } from "@/store/useAuthStore";
@@ -229,74 +230,87 @@ function TemplateCard({ template }: { template: EnrichedTemplate }) {
 
 export function TemplateStorefront() {
   const userId = useAuthStore((s) => s.userId);
+  const devStorePreview = canBrowseStoreWithoutAuth();
   const [templates, setTemplates] = useState<EnrichedTemplate[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!userId) {
+    if (!userId && !devStorePreview) {
       setLoading(false);
       return;
     }
 
     let cancelled = false;
 
+    async function loadTemplatesCatalog() {
+      const templatesResult = await supabase
+        .from("templates")
+        .select(
+          "id, template_slug, tier, version, manifest, published_at, is_latest, storage_key, checksum, bundle_signature, yanked",
+        )
+        .eq("is_latest", true)
+        .eq("yanked", false)
+        .order("published_at", { ascending: false });
+
+      if (templatesResult.error) {
+        throw templatesResult.error;
+      }
+
+      return templatesResult.data ?? [];
+    }
+
+    async function loadLicensedTemplateIds(activeUserId: string) {
+      const { data: profile, error: profileError } = await supabase
+        .from("profiles")
+        .select("organization_id")
+        .eq("id", activeUserId)
+        .maybeSingle();
+
+      if (profileError) {
+        throw profileError;
+      }
+
+      const organizationId = profile?.organization_id ?? null;
+      if (!organizationId) {
+        return new Set<string>();
+      }
+
+      const { data: licenses, error: licensesError } = await supabase
+        .from("licenses")
+        .select("template_id, valid_until")
+        .eq("organization_id", organizationId);
+
+      if (licensesError) {
+        throw licensesError;
+      }
+
+      const now = new Date();
+      return new Set(
+        (licenses ?? [])
+          .filter(
+            (license) =>
+              license.valid_until === null ||
+              new Date(license.valid_until) > now,
+          )
+          .map((license) => license.template_id),
+      );
+    }
+
     async function load() {
       setLoading(true);
       setError(null);
 
       try {
-        // Step 1: resolve the user's organization_id from public.profiles
-        const { data: profile, error: profileError } = await supabase
-          .from("profiles")
-          .select("organization_id")
-          .eq("id", userId!)
-          .maybeSingle();
+        const catalog = await loadTemplatesCatalog();
+        const activeLicensedIds = userId
+          ? await loadLicensedTemplateIds(userId)
+          : new Set<string>();
 
-        if (profileError) throw profileError;
-
-        const organizationId = profile?.organization_id ?? null;
-
-        // Step 2: fetch templates + licenses in parallel
-        const licensesQuery = organizationId
-          ? supabase
-              .from("licenses")
-              .select("template_id, valid_until")
-              .eq("organization_id", organizationId)
-          : null;
-
-        const [templatesResult, licensesResult] = await Promise.all([
-          supabase
-            .from("templates")
-            .select(
-              "id, template_slug, tier, version, manifest, published_at, is_latest, storage_key, checksum, bundle_signature, yanked",
-            )
-            .eq("is_latest", true)
-            .eq("yanked", false)
-            .order("published_at", { ascending: false }),
-          licensesQuery
-            ? licensesQuery
-            : Promise.resolve({
-                data: [] as Array<{ template_id: string; valid_until: string | null }>,
-                error: null,
-              }),
-        ]);
-
-        if (templatesResult.error) throw templatesResult.error;
-        if (licensesResult.error) throw licensesResult.error;
-
-        const now = new Date();
-        const activeLicensedIds = new Set(
-          (licensesResult.data ?? [])
-            .filter(
-              (l) => l.valid_until === null || new Date(l.valid_until) > now,
-            )
-            .map((l) => l.template_id),
-        );
-
-        const enriched: EnrichedTemplate[] = (templatesResult.data ?? []).map(
-          (t) => ({ ...t, isLicensed: activeLicensedIds.has(t.id) }),
-        );
+        const enriched: EnrichedTemplate[] = catalog.map((template) => ({
+          ...template,
+          isLicensed: activeLicensedIds.has(template.id),
+        }));
 
         if (!cancelled) {
           setTemplates(enriched);
@@ -316,7 +330,7 @@ export function TemplateStorefront() {
     return () => {
       cancelled = true;
     };
-  }, [userId]);
+  }, [devStorePreview, userId]);
 
   // --- Loading skeleton ---
   if (loading) {
@@ -339,8 +353,8 @@ export function TemplateStorefront() {
     );
   }
 
-  // --- Unauthenticated ---
-  if (!userId) {
+  // --- Unauthenticated (production only) ---
+  if (!userId && !devStorePreview) {
     return (
       <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-12 text-center">
         <p className="text-sm font-medium text-zinc-600">Sign in to view templates</p>

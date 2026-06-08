@@ -10,10 +10,22 @@ export default function HomePage() {
           <BrandMark size="lg" linkHome={false} layout="stacked" />
         </div>
         <p className="mt-4 text-sm text-zinc-600">
-          Choose an environment to open the live editor and game preview.
+          Browse licensed game templates, or open an environment to edit and
+          preview.
         </p>
       </div>
-      <div className="flex gap-4">
+      <div className="flex flex-wrap justify-center gap-4">
+        <Link
+          href="/dashboard/store"
+          className="rounded-xl border border-zinc-200 bg-white px-8 py-4 text-center shadow-sm transition-shadow hover:shadow-md"
+        >
+          <span className="block text-sm font-semibold text-zinc-900">
+            Template Store
+          </span>
+          <span className="mt-1 block text-xs text-zinc-500">
+            Browse owned & available games
+          </span>
+        </Link>
         {STUDIO_MODE_ENABLED ? (
           <Link
             href="/studio/templates"

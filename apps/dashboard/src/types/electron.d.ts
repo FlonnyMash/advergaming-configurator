@@ -39,6 +39,11 @@ export type ExportProjectResult =
 
 export type GetProjectListResult = string[];
 
+export interface MashedRuntimeBridge {
+  devStorePreview: boolean;
+  usesExternalDashboard: boolean;
+}
+
 export interface ElectronAPI {
   ipcRenderer: {
     invoke(
@@ -64,6 +69,7 @@ export interface ElectronAPI {
 declare global {
   interface Window {
     electron?: ElectronAPI;
+    mashedRuntime?: MashedRuntimeBridge;
   }
 }
 

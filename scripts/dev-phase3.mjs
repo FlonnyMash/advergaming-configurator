@@ -20,6 +20,8 @@ function run(command, args, env) {
 
 const env = {
   ...process.env,
+  NODE_ENV: "development",
+  MASHEDGAMES_ELECTRON_DEV: "1",
   MASHEDGAMES_DASHBOARD_URL: dashboardUrl,
 };
 

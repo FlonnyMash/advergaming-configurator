@@ -96,8 +96,7 @@ export const useAuthStore = create<AuthStore>((set) => ({
       set({
         isAuthenticated: status.isAuthenticated,
         email: status.email,
-        // userId and role remain null in Electron context — tokens live in main
-        userId: null,
+        userId: status.userId ?? null,
         role: null,
         isLoading: false,
       });
@@ -117,7 +116,7 @@ export const useAuthStore = create<AuthStore>((set) => ({
       set({
         isAuthenticated: status.isAuthenticated,
         email: status.email,
-        userId: null,
+        userId: status.userId ?? null,
         role: null,
         isLoading: false,
       });

@@ -7,6 +7,7 @@ import { supabase } from "@/lib/supabaseClient";
 import { BRAND_LOGO_INTRINSIC_SIZE } from "@/lib/brand-logo-constants";
 import { isStudioMode } from "@/lib/app-mode";
 import { usePlatformStore } from "@/store/usePlatformStore";
+import { useAuthStore } from "@/store/useAuthStore";
 
 // ---------------------------------------------------------------------------
 // Config per build mode
@@ -65,6 +66,7 @@ export function LoginComponent() {
   const searchParams = useSearchParams();
   const appName = usePlatformStore((s) => s.appName);
   const logoPath = usePlatformStore((s) => s.logoPath);
+  const login = useAuthStore((s) => s.login);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -90,6 +92,27 @@ export function LoginComponent() {
 
     setIsSubmitting(true);
 
+    // In Electron, authentication must go through IPC so the main process holds
+    // session tokens in safeStorage. The renderer's Supabase client is anon-only
+    // and AuthGuard's Electron path never checks onAuthStateChange — only IPC.
+    const isElectron =
+      typeof window !== "undefined" &&
+      !!(window as Window & { electron?: { ipcRenderer?: unknown } }).electron
+        ?.ipcRenderer;
+
+    if (isElectron) {
+      const errorMsg = await login(trimmedEmail, password);
+      setIsSubmitting(false);
+      if (errorMsg) {
+        setFormError(resolveErrorMessage(errorMsg));
+        return;
+      }
+      router.replace(POST_LOGIN_REDIRECT);
+      return;
+    }
+
+    // Web context: use Supabase client directly. AuthGuard picks up the session
+    // via onAuthStateChange and applies role-gating before granting access.
     const { error: signInError } = await supabase.auth.signInWithPassword({
       email: trimmedEmail,
       password,
@@ -101,9 +124,6 @@ export function LoginComponent() {
       return;
     }
 
-    // Role verification is handled by AuthGuard via onAuthStateChange, which
-    // has a reliable session context. If the role doesn't match the build mode,
-    // AuthGuard signs the user out and redirects back here with ?error=access_denied.
     router.replace(POST_LOGIN_REDIRECT);
   };
 

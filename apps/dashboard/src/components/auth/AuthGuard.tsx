@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import type { Enums } from "@/lib/supabaseClient";
 import { isStudioMode } from "@/lib/app-mode";
+import { isAuthExemptBrowsePath } from "@/lib/dev-store-access";
 import { useAuthStore } from "@/store/useAuthStore";
 
 type UserRole = Enums<"user_role">;
@@ -50,6 +51,7 @@ function LoadingSpinner() {
  */
 export function AuthGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter();
+  const pathname = usePathname();
   const [status, setStatus] = useState<GuardStatus>("loading");
   const setSession = useAuthStore((s) => s.setSession);
   const syncAuthStatus = useAuthStore((s) => s.syncAuthStatus);
@@ -59,6 +61,13 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     mountedRef.current = true;
+
+    if (isAuthExemptBrowsePath(pathname)) {
+      setStatus("authenticated");
+      return () => {
+        mountedRef.current = false;
+      };
+    }
 
     // ------------------------------------------------------------------
     // Detect runtime context
@@ -148,7 +157,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
       mountedRef.current = false;
       subscription.unsubscribe();
     };
-  }, [router, setSession, syncAuthStatus]);
+  }, [pathname, router, setSession, syncAuthStatus]);
 
   if (status === "loading" || status === "redirecting") {
     return <LoadingSpinner />;

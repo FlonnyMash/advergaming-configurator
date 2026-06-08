@@ -2,6 +2,7 @@
 export type AuthStatus = {
   isAuthenticated: boolean;
   email: string | null;
+  userId: string | null;
   error?: string;
 };
 

@@ -1,17 +1,11 @@
 import { spawnSync } from "node:child_process";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
+import {
+  resolveDesktopRoot,
+  resolveElectronCli,
+} from "./resolve-electron-cli.mjs";
 
-const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const electronCli = path.join(
-  repoRoot,
-  "apps",
-  "desktop",
-  "node_modules",
-  "electron",
-  "cli.js",
-);
-const desktopRoot = path.join(repoRoot, "apps", "desktop");
+const desktopRoot = resolveDesktopRoot();
+const electronCli = resolveElectronCli(desktopRoot);
 const dashboardUrl = process.env.MASHEDGAMES_DASHBOARD_URL ?? "http://127.0.0.1:3000";
 
 const result = spawnSync(process.execPath, [electronCli, "."], {
@@ -20,7 +14,13 @@ const result = spawnSync(process.execPath, [electronCli, "."], {
   shell: false,
   env: {
     ...process.env,
+    NODE_ENV: "development",
+    MASHEDGAMES_ELECTRON_DEV: "1",
     MASHEDGAMES_DASHBOARD_URL: dashboardUrl,
+    NEXT_PUBLIC_MASHED_DEV_STORE_PREVIEW:
+      process.env.NEXT_PUBLIC_MASHED_DEV_STORE_PREVIEW ?? "1",
+    MASHEDGAMES_DEV_STORE_PREVIEW:
+      process.env.MASHEDGAMES_DEV_STORE_PREVIEW ?? "1",
   },
 });
 

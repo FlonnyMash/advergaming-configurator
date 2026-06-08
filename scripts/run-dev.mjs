@@ -19,18 +19,11 @@ function run(command, args, env) {
 
 const baseEnv = {
   ...process.env,
+  NODE_ENV: "development",
   NPM_CONFIG_PRODUCTION: "false",
+  MASHEDGAMES_ELECTRON_DEV: "1",
+  NEXT_PUBLIC_MASHED_DEV_STORE_PREVIEW: "1",
 };
-
-// Ensure local toolchain binaries like vite/tsc are available before dev.
-const installExitCode = run(
-  "pnpm",
-  ["install", "--prod=false", "--yes", "--no-optimistic-repeat-install"],
-  baseEnv,
-);
-if (installExitCode !== 0) {
-  process.exit(installExitCode);
-}
 
 // Phase 1 bootstrap: compile/check local workspace packages before app startup.
 const packageBootstrapExitCode = run("pnpm", ["run", "build:packages"], baseEnv);
