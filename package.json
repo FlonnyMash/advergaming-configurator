@@ -4,12 +4,17 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "dev": "pnpm --parallel --filter dashboard --filter game-engine dev",
+    "dev": "node scripts/run-dev.mjs",
+    "dev:studio": "pnpm exec cross-env NEXT_PUBLIC_ENABLE_STUDIO_MODE=true pnpm dev",
+    "dev:client": "pnpm exec cross-env NEXT_PUBLIC_ENABLE_STUDIO_MODE=false pnpm dev",
+    "dev:desktop": "pnpm --filter desktop dev",
+    "dev:desktop:studio": "pnpm exec cross-env NEXT_PUBLIC_ENABLE_STUDIO_MODE=true pnpm run build:engine && pnpm exec cross-env NEXT_PUBLIC_ENABLE_STUDIO_MODE=true pnpm --filter desktop dev",
     "test": "echo \"Error: no test specified\" && exit 1",
     "build:engine": "pnpm --filter game-engine build && node scripts/copy-engine-to-dashboard.mjs",
     "build:dashboard": "pnpm --filter dashboard build",
     "build:desktop": "pnpm build:engine && pnpm --filter dashboard build:desktop && pnpm --filter desktop build",
-    "dev:desktop": "pnpm --filter desktop dev",
+    "build:release:client": "node scripts/build-release.mjs client",
+    "build:release:studio": "node scripts/build-release.mjs studio",
     "sync:brand": "pnpm --filter desktop sync-branding"
   },
   "keywords": [],
@@ -23,5 +28,8 @@
       "onFail": "download"
     }
   },
-  "type": "module"
+  "type": "module",
+  "devDependencies": {
+    "cross-env": "^10.1.0"
+  }
 }

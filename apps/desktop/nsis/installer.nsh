@@ -40,6 +40,14 @@
   !insertmacro EnsureMashedGamesWorkspace
   DetailPrint "Desktop preview will resolve project assets via ${STUDIO_ASSET_PROTOCOL}:// at startup."
   DetailPrint "Creating shortcuts..."
+  ; Pin uninstaller to the real install folder (fixes leftover files on custom paths).
+  ${if} $installMode == "all"
+    StrCpy $R4 "/allusers"
+  ${else}
+    StrCpy $R4 "/currentuser"
+  ${endif}
+  WriteRegStr SHELL_CONTEXT "${UNINSTALL_REGISTRY_KEY}" UninstallString '"$INSTDIR\${UNINSTALL_FILENAME}" $R4 _?=$INSTDIR'
+  WriteRegStr SHELL_CONTEXT "${UNINSTALL_REGISTRY_KEY}" QuietUninstallString '"$INSTDIR\${UNINSTALL_FILENAME}" $R4 /S _?=$INSTDIR'
   DetailPrint "Finalizing installation..."
 !macroend
 
@@ -48,8 +56,27 @@
   DetailPrint "Keeping Documents\${WORKSPACE_DIR} (projects and assets/)..."
 !macroend
 
+!macro StudioEnsureUninstallInstDir
+  ReadRegStr $R0 SHELL_CONTEXT "${INSTALL_REGISTRY_KEY}" InstallLocation
+  ${if} $R0 != ""
+    StrCpy $INSTDIR $R0
+  ${endif}
+
+  ${if} $EXEDIR != ""
+    ${if} ${FileExists} "$EXEDIR\${UNINSTALL_FILENAME}"
+      StrCpy $INSTDIR $EXEDIR
+    ${endif}
+  ${endif}
+
+  DetailPrint "Uninstall target: $INSTDIR"
+!macroend
+
+!macro customUnInit
+  !insertmacro StudioEnsureUninstallInstDir
+!macroend
+
 !macro KillStudioDashboardChildren
-  nsExec::Exec `%SYSTEMROOT%\System32\WindowsPowerShell\v1.0\powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "Get-CimInstance Win32_Process -Filter \"Name='${APP_EXECUTABLE_FILENAME}'\" | Where-Object { $$_.CommandLine -like '*server.js*' } | ForEach-Object { Stop-Process -Id $$_.ProcessId -Force -ErrorAction SilentlyContinue }"`
+  nsExec::Exec `%SYSTEMROOT%\System32\WindowsPowerShell\v1.0\powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "Get-CimInstance Win32_Process -Filter \"Name='${APP_EXECUTABLE_FILENAME}'\" | Where-Object { $$_.CommandLine -like '*server.js*' -or $$_.CommandLine -like '*\resources\*' -or $$_.CommandLine -like '*\standalone\*' } | ForEach-Object { Stop-Process -Id $$_.ProcessId -Force -ErrorAction SilentlyContinue }"`
 !macroend
 
 !macro KillStudioAppProcessesQuick
@@ -63,6 +90,65 @@
 !macro KillStudioAppProcessesFull
   !insertmacro KillStudioDashboardChildren
   !insertmacro KillStudioAppProcessesQuick
+!macroend
+
+!macro StudioKillForUninstall
+  !define StudioKillUid ${__LINE__}
+  StrCpy $R9 0
+
+  studio_kill_loop_${StudioKillUid}:
+    IntOp $R9 $R9 + 1
+    DetailPrint `Stopping ${PRODUCT_NAME} processes (attempt $R9)...`
+    !insertmacro KillStudioAppProcessesFull
+    Sleep 700
+
+    !insertmacro FIND_PROCESS "${APP_EXECUTABLE_FILENAME}" $R8
+    ${if} $R8 != 0
+      Goto studio_kill_done_${StudioKillUid}
+    ${endif}
+
+    ${if} $R9 >= 8
+      Goto studio_kill_done_${StudioKillUid}
+    ${endif}
+
+    Sleep 900
+    Goto studio_kill_loop_${StudioKillUid}
+
+  studio_kill_done_${StudioKillUid}:
+  !undef StudioKillUid
+!macroend
+
+!macro StudioForceRemoveInstallDir
+  nsExec::Exec `%SYSTEMROOT%\System32\WindowsPowerShell\v1.0\powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "if (Test-Path -LiteralPath '$INSTDIR') { Remove-Item -LiteralPath '$INSTDIR' -Recurse -Force -ErrorAction SilentlyContinue }"`
+!macroend
+
+!macro customRemoveFiles
+  !define StudioRmUid ${__LINE__}
+  !insertmacro StudioKillForUninstall
+  Sleep 500
+  !insertmacro StudioKillForUninstall
+
+  StrCpy $R5 0
+
+  studio_rm_retry_${StudioRmUid}:
+    IntOp $R5 $R5 + 1
+    DetailPrint "Removing application files from $INSTDIR (attempt $R5)..."
+    RMDir /r "$INSTDIR"
+    IfFileExists "$INSTDIR\*.*" 0 studio_rm_done_${StudioRmUid}
+
+    ${if} $R5 >= 6
+      DetailPrint "Some files are still locked; running forced cleanup..."
+      !insertmacro StudioKillForUninstall
+      !insertmacro StudioForceRemoveInstallDir
+      Goto studio_rm_done_${StudioRmUid}
+    ${endif}
+
+    !insertmacro StudioKillForUninstall
+    Sleep 1500
+    Goto studio_rm_retry_${StudioRmUid}
+
+  studio_rm_done_${StudioRmUid}:
+  !undef StudioRmUid
 !macroend
 
 ; Cancel = Quit (no partial / broken install).
@@ -88,9 +174,7 @@
 !macro customCheckAppRunning
   !ifdef __UNINSTALL__
     DetailPrint `Closing running "${PRODUCT_NAME}" before uninstall...`
-    !insertmacro KillStudioAppProcessesQuick
-    Sleep 400
-    !insertmacro KillStudioAppProcessesQuick
+    !insertmacro StudioKillForUninstall
     Goto customCheckAppRunning_done
   !endif
 

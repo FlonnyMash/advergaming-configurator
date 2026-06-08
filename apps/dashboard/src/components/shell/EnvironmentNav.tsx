@@ -22,6 +22,7 @@ type EnvironmentNavProps = {
   studioHref: string;
   configuratorHref: string;
   onHomeClick: () => void;
+  showStudioTab: boolean;
 };
 
 function activeIndexFromFlags(
@@ -58,6 +59,7 @@ export function EnvironmentNav({
   studioHref,
   configuratorHref,
   onHomeClick,
+  showStudioTab,
 }: EnvironmentNavProps) {
   const navRef = useRef<HTMLElement>(null);
   const itemRefs = useRef<(HTMLElement | null)[]>([]);
@@ -168,15 +170,17 @@ export function EnvironmentNav({
       >
         <TabLabel>{appName}</TabLabel>
       </button>
-      <Link
-        ref={setItemRef(1)}
-        href={studioHref}
-        onClick={() => selectTab(1)}
-        className={tabClass(displayIndex === 1)}
-        aria-current={routeActiveIndex === 1 ? "page" : undefined}
-      >
-        <TabLabel>Studio</TabLabel>
-      </Link>
+      {showStudioTab ? (
+        <Link
+          ref={setItemRef(1)}
+          href={studioHref}
+          onClick={() => selectTab(1)}
+          className={tabClass(displayIndex === 1)}
+          aria-current={routeActiveIndex === 1 ? "page" : undefined}
+        >
+          <TabLabel>Studio</TabLabel>
+        </Link>
+      ) : null}
       <Link
         ref={setItemRef(2)}
         href={configuratorHref}

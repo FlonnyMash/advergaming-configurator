@@ -8,6 +8,7 @@ import { MetaBuilderDevFabHost } from "@/components/shell/MetaBuilderDevFabHost"
 import { PersistentWorkspaces } from "@/components/shell/PersistentWorkspaces";
 import { TemplatePreviewWarmup } from "@/components/shell/TemplatePreviewWarmup";
 import { useHomeNavigation } from "@/hooks/useHomeNavigation";
+import { STUDIO_MODE_ENABLED } from "@/lib/studio-mode";
 import {
   configuratorWorkspaceHref,
   studioWorkspaceHref,
@@ -15,6 +16,7 @@ import {
 } from "@/lib/workspace-session-store";
 import { usePlatformStore } from "@/store/usePlatformStore";
 import { Lock } from "lucide-react";
+import { UserMenu } from "@/components/shell/UserMenu";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -54,7 +56,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             isHome={isHome}
             isStudio={isStudio}
             isConfigurator={isConfigurator}
-            studioHref={studioHref}
+            showStudioTab={STUDIO_MODE_ENABLED}
+            studioHref={STUDIO_MODE_ENABLED ? studioHref : ""}
             configuratorHref={configuratorHref}
             onHomeClick={requestHomeNavigation}
           />
@@ -80,12 +83,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             Lead Generation
           </button>
           <p className="hidden text-xs text-zinc-500 sm:block">
-            {isStudio
+            {STUDIO_MODE_ENABLED && isStudio
               ? "Build mechanics & publish templates"
               : isConfigurator
                 ? "White-label branding for clients"
-                : "Choose Studio or Configurator to get started"}
+                : STUDIO_MODE_ENABLED
+                  ? "Choose Studio or Configurator to get started"
+                  : "Open a project to get started"}
           </p>
+          <UserMenu />
         </div>
       </header>
       <main className="flex min-h-0 flex-1 flex-col overflow-hidden">

@@ -6,6 +6,10 @@ const ALLOWED_CHANNELS = new Set([
   "save-flat-config",
   "load-flat-config",
   "get-project-list",
+  "auth:login",
+  "auth:logout",
+  "auth:get-status",
+  "license:check-eligibility",
 ]);
 
 contextBridge.exposeInMainWorld("electron", {

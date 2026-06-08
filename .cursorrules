@@ -69,3 +69,112 @@ pnpm run build:desktop
 ```
 
 After engine bridge changes, run `build:engine` so embedded `/engine` preview picks them up.
+
+# Security, DRM & Cloud Laws
+
+These rules are **absolute**. They apply to every file in the monorepo. Any generated code that violates them must be rejected and rewritten before being accepted.
+
+**Canonical reference:** Before implementing any feature touching licensing, template distribution, network calls, or the export pipeline, read `ARCHITECTURE_CLOUD_DRM.md` at the monorepo root. All API shapes, table schemas, and data-flow diagrams in that document are authoritative.
+
+## Rule 1 — Architecture Reference
+
+Any implementation of the following must trace back to `ARCHITECTURE_CLOUD_DRM.md`:
+
+- Template registry, publishing, or bundle download
+- License manifest fetching or entitlement checking
+- Export pipeline changes (DRM injection, campaign creation)
+- OTA versioning, migration scripts, or parent-drift integration
+- Any `/api/drm/*`, `/api/licenses/*`, `/api/registry/*`, or `/api/campaigns/*` route
+
+If a design decision conflicts with the blueprint, raise it explicitly before writing code. Do not silently deviate.
+
+## Rule 2 — Electron Process Isolation (Security Boundary)
+
+The Electron **main process** is the only permitted for:
+
+- Access tokens and refresh tokens (read/written exclusively via `safeStorage`)
+- License keys and entitlement data
+- AES-256-GCM decryption logic for template bundles
+- HMAC signature verification
+- Any call to authenticated backend API endpoints
+
+These values and this logic **must never appear in**:
+
+- The renderer process (`apps/dashboard/src/` React code)
+- `preload.js` (the bridge surface) — except as type-safe IPC channel definitions
+- `window.*`, `localStorage`, `sessionStorage`, or any renderer-accessible global
+- Log output, error messages, or toast notifications sent to the renderer
+
+IPC channels exposed via `contextBridge` may only carry:
+
+- Action triggers (e.g. `"download-template"`, `"refresh-license"`)
+- Safe, already-decrypted payloads (e.g. template manifest metadata, entitlement boolean flags)
+- Error codes — never raw error messages that expose server internals
+
+## Rule 3 — Sensitive Data Storage
+
+All sensitive persistent data stored on disk must use `Electron.safeStorage` (OS-level encryption):
+
+| Data | Permitted storage | Prohibited storage |
+|---|---|---|
+| `accessToken` | `safeStorage` (main process only) | Any file, `localStorage`, env var at runtime |
+| `refreshToken` | `safeStorage` (main process only) | Any file, `localStorage`, env var at runtime |
+| `licenseCache` (serialized manifest) | `{workspace}/license.json` (plaintext acceptable — not a secret) | n/a |
+| AES decryption key (ephemeral) | In-memory only, main process | Disk, IPC payload, log output |
+| Org private key | `safeStorage` (main process only) | Any file, renderer memory |
+
+`safeStorage.encryptString` / `decryptString` must wrap all reads and writes of the above. A raw string write of a token to any file path is a blocking violation.
+
+## Rule 4 — OTA Migration Scripts Are Declarative-Only
+
+Template migration scripts fetched from the registry (`GET /api/templates/{id}/migrate`) must conform to the declarative transform format defined in `ARCHITECTURE_CLOUD_DRM.md §4.4`. Permitted operations:
+
+```
+{ "op": "rename",     "from": "fieldA", "to": "fieldB" }
+{ "op": "remove",     "path": "fieldA" }
+{ "op": "setDefault", "path": "fieldA", "value": <primitive> }
+{ "op": "coerce",     "path": "fieldA", "type": "number" | "string" | "boolean" }
+```
+
+The following are categorically **banned** in migration scripts:
+
+- `eval()`, `new Function()`, `vm.runInContext()`, or any dynamic code execution
+- Arbitrary JavaScript or TypeScript module imports
+- Shell commands or filesystem access beyond reading/writing the target `config.json`
+- Any transform operation not listed in the permitted set above
+
+The migration runner must validate the transform list against a Zod schema before applying any operation. If the script contains an unrecognised `op`, the entire migration is aborted and the original file is restored from its `.pre-migration.bak` copy.
+
+## Rule 5 — Export DRM Shim Is Mandatory for DRM-Enabled Projects
+
+When exporting a project that has DRM settings configured (`campaign.endDate` or `campaign.allowedOrigins` is set), the export pipeline in `apps/desktop/export-ipc-utils.js` **must**:
+
+1. Create a campaign record via `POST /api/campaigns/create` before zipping
+2. Embed the signed DRM config blob (campaignId, pingUrl, allowedOrigins, scheduledEnd) into the shim config
+3. Inject `drm.js` as the **first** `<script>` tag in `index.html`, before the engine bootstrap script
+4. Verify the injected shim is present in the zip before returning success
+
+Exporting a DRM-configured project without the shim is a silent security failure and is prohibited. The export function must throw and surface an error to the UI rather than produce an unprotected bundle.
+
+The `drm.js` shim source lives in `apps/game-engine/src/drm/`. It is built as part of `build:engine` and copied to `apps/dashboard/public/engine/drm.js`. Never inline or hand-write DRM logic directly into `index.html` — always use the versioned, obfuscated build artifact.
+
+# Mashed Games Studio - Backend & Database Rules
+
+## Migration Strategy (CRITICAL)
+- NEVER edit existing migration files in `supabase/migrations/` (e.g., 00001_initial_schema.sql).
+- For ANY database change, always create a NEW migration file: `supabase/migrations/0000X_<description>.sql`.
+- Always wrap SQL migrations in `BEGIN;` and `COMMIT;` blocks.
+- Ensure all new policies use `DROP POLICY IF EXISTS ...` before creating them to avoid idempotency errors.
+- Always check for foreign key constraints and RLS before modifying tables.
+
+## Supabase Interaction
+- Always use the `supabaseClient` initialized in `apps/dashboard/src/lib/supabaseClient.ts`.
+- Never expose `SUPABASE_SERVICE_ROLE_KEY` in frontend code.
+- Prefer Type-Safe database queries using `database.types.ts`.
+- If a query fails, audit the RLS policies first, as they are the primary source of access errors.
+
+## Application Architecture
+- We follow a strict separation: 
+    - Studio Mode (internal, strictly gated by NEXT_PUBLIC_ENABLE_STUDIO_MODE).
+    - Configurator Mode (B2B client-facing).
+- No server-side middleware. Auth and Route guarding must happen via client-side React components (AuthGuard).

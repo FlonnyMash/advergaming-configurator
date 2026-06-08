@@ -14,10 +14,12 @@
     "import-template": "tsx scripts/import-template-zip.ts"
   },
   "dependencies": {
+    "@hookform/resolvers": "^5.4.0",
     "@mashedgames/configurator-engine": "workspace:*",
     "@mashedgames/game-engine": "workspace:*",
     "@mashedgames/shared": "workspace:*",
     "@mashedgames/studio-engine": "workspace:*",
+    "@supabase/supabase-js": "^2.107.0",
     "@swc/helpers": "0.5.15",
     "adm-zip": "^0.5.17",
     "jszip": "^3.10.1",
@@ -25,8 +27,11 @@
     "next": "16.2.6",
     "react": "19.2.4",
     "react-dom": "19.2.4",
+    "react-hook-form": "^7.77.0",
     "simple-git": "^3.36.0",
-    "state": "workspace:*"
+    "sonner": "^2.0.7",
+    "state": "workspace:*",
+    "zod": "^3.25.76"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

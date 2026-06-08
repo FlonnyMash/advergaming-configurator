@@ -12,6 +12,9 @@ const monorepoRoot = path.join(dashboardRoot, "../..");
 const isConfiguratorBuild =
   process.env.NEXT_PUBLIC_APP_MODE === "configurator";
 
+const isStudioEnabled =
+  process.env.NEXT_PUBLIC_ENABLE_STUDIO_MODE === "true";
+
 const devDistDir =
   process.env.NODE_ENV === "development" &&
   shouldUseLocalDevCache(monorepoRoot)
@@ -92,7 +95,7 @@ const nextConfig: NextConfig = {
         /[\\/](AppData|Anwendungsdaten|\.pnpm-store|node_modules[\\/]\.pnpm)[\\/]/,
     };
 
-    if (isConfiguratorBuild) {
+    if (isConfiguratorBuild || !isStudioEnabled) {
       config.plugins.push(
         new webpack.IgnorePlugin({
           resourceRegExp: /^@mashedgames\/studio-engine$/,

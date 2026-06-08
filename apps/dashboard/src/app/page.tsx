@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { BrandMark } from "@/components/shell/BrandMark";
+import { STUDIO_MODE_ENABLED } from "@/lib/studio-mode";
 
 export default function HomePage() {
   return (
@@ -13,17 +14,19 @@ export default function HomePage() {
         </p>
       </div>
       <div className="flex gap-4">
-        <Link
-          href="/studio/templates"
-          className="rounded-xl border border-zinc-200 bg-white px-8 py-4 text-center shadow-sm transition-shadow hover:shadow-md"
-        >
-          <span className="block text-sm font-semibold text-zinc-900">
-            Studio
-          </span>
-          <span className="mt-1 block text-xs text-zinc-500">
-            Mechanics, templates, dev tools
-          </span>
-        </Link>
+        {STUDIO_MODE_ENABLED ? (
+          <Link
+            href="/studio/templates"
+            className="rounded-xl border border-zinc-200 bg-white px-8 py-4 text-center shadow-sm transition-shadow hover:shadow-md"
+          >
+            <span className="block text-sm font-semibold text-zinc-900">
+              Studio
+            </span>
+            <span className="mt-1 block text-xs text-zinc-500">
+              Mechanics, templates, dev tools
+            </span>
+          </Link>
+        ) : null}
         <Link
           href="/configurator/projects"
           className="rounded-xl border border-zinc-200 bg-white px-8 py-4 text-center shadow-sm transition-shadow hover:shadow-md"

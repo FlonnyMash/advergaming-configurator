@@ -1,5 +1,7 @@
 "use client";
 
+import { notFound } from "next/navigation";
+import { STUDIO_MODE_ENABLED } from "@/lib/studio-mode";
 import { CreateAndOpenTemplateModal } from "@/components/studio/CreateAndOpenTemplateModal";
 import { CreateTemplateModal } from "@/components/studio/CreateTemplateModal";
 import { ImportTemplateModal } from "@/components/studio/ImportTemplateModal";
@@ -32,6 +34,8 @@ async function fetchTemplatesFromDisk(): Promise<TemplateOverviewEntry[] | null>
 }
 
 export default function StudioTemplatesPage() {
+  if (!STUDIO_MODE_ENABLED) notFound();
+
   const [liveTemplates, setLiveTemplates] = useState<
     TemplateOverviewEntry[] | null
   >(null);

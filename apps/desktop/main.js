@@ -28,6 +28,8 @@ const {
   resolveBundledEngineDir,
 } = require("./export-ipc-utils");
 const { saveFlatConfig, loadFlatConfig, getProjectList } = require("./flat-config-ipc-utils");
+const { registerAuthIpc, getSessionForInternal } = require("./auth-ipc-utils");
+const { registerLicenseIpc } = require("./license-ipc-utils");
 
 const STUDIO_PROTOCOL = STUDIO_ASSET_PROTOCOL;
 const STUDIO_PROTOCOL_PREFIX = `${STUDIO_PROTOCOL}://`;
@@ -694,6 +696,8 @@ app.whenReady().then(async () => {
     registerSaveFlatConfigIpc(workspacePath);
     registerLoadFlatConfigIpc(workspacePath);
     registerGetProjectListIpc(workspacePath);
+    await registerAuthIpc();
+    registerLicenseIpc(getSessionForInternal);
     registerStudioProtocol(workspacePath);
     autoMigrateLegacyProjects(getProjectsPath(workspacePath));
     dashboardPort = await spawnDashboardServer(workspacePath);

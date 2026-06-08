@@ -1,7 +1,8 @@
 import { APP_DISPLAY_NAME } from "@mashedgames/shared";
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import { AppShell } from "@/components/shell/AppShell";
+import { Toaster } from "sonner";
+import { LayoutGuard } from "@/components/shell/LayoutGuard";
 import { brandLogoSrc } from "@/lib/brand-logo-src";
 import "./globals.css";
 
@@ -36,7 +37,8 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="flex h-full flex-col overflow-hidden font-sans antialiased text-zinc-900">
-        <AppShell>{children}</AppShell>
+        <LayoutGuard>{children}</LayoutGuard>
+        <Toaster position="bottom-right" richColors />
       </body>
     </html>
   );

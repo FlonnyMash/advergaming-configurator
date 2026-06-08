@@ -14,7 +14,10 @@
     "dist": "electron-builder"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.107.0",
     "archiver": "^7.0.1",
+    "archiver-utils": "^5.0.2",
+    "async": "^3.2.4",
     "balanced-match": "^1.0.2",
     "brace-expansion": "^2.1.1",
     "builder-util-runtime": "^9.5.1",
