@@ -40,6 +40,83 @@ let dashboardServer = null;
 let dashboardPort = null;
 let dashboardServerLog = "";
 let dashboardServerExitCode = null;
+let errorDialogShown = false;
+
+function getMainProcessLogPath() {
+  try {
+    return path.join(app.getPath("userData"), "main-process-error.log");
+  } catch {
+    return path.join(process.cwd(), "main-process-error.log");
+  }
+}
+
+function getElectronBinaryPathHint() {
+  const releaseFile = path.resolve(
+    app.getAppPath(),
+    "..",
+    "..",
+    "node_modules",
+    ".pnpm",
+    "electron@31.7.7",
+    "node_modules",
+    "electron",
+    "dist",
+    process.platform === "win32" ? "electron.exe" : "electron",
+  );
+  return releaseFile;
+}
+
+function appendMainProcessLog(message) {
+  try {
+    fs.mkdirSync(app.getPath("userData"), { recursive: true });
+    fs.appendFileSync(getMainProcessLogPath(), `${new Date().toISOString()} ${message}\n`);
+  } catch (error) {
+    console.error("[error-log] failed to write main process log", error);
+  }
+}
+
+function formatErrorForLog(error) {
+  if (error instanceof Error) {
+    return error.stack || `${error.name}: ${error.message}`;
+  }
+  return String(error);
+}
+
+function showFatalErrorDialog(title, error) {
+  if (errorDialogShown) {
+    return;
+  }
+  errorDialogShown = true;
+  const message = error instanceof Error ? error.message : String(error);
+  const details = `A fatal startup/runtime error occurred.\n\nLog file:\n${getMainProcessLogPath()}\n\nError:\n${message}`;
+  dialog.showMessageBoxSync({
+    type: "error",
+    title,
+    message: title,
+    detail: details,
+    buttons: ["Close"],
+    noLink: true,
+  });
+}
+
+function reportFatalError(source, error) {
+  const printable = formatErrorForLog(error);
+  console.error(`[fatal:${source}]`, printable);
+  appendMainProcessLog(`[${source}] ${printable}`);
+  showFatalErrorDialog(`${APP_DISPLAY_NAME} encountered a fatal error`, error);
+}
+
+function validateElectronRuntimeBinary() {
+  if (app.isPackaged) {
+    return;
+  }
+  const binaryHint = getElectronBinaryPathHint();
+  if (!fs.existsSync(binaryHint)) {
+    const message = `Electron runtime binary missing at ${binaryHint}. Reinstall dependencies with 'pnpm install'.`;
+    appendMainProcessLog(`[electron-runtime] ${message}`);
+    throw new Error(message);
+  }
+}
 
 protocol.registerSchemesAsPrivileged([
   {
@@ -55,6 +132,7 @@ protocol.registerSchemesAsPrivileged([
 ]);
 
 function resolveStandaloneServerPath() {
+  const appPath = app.getAppPath();
   if (app.isPackaged) {
     return path.join(
       process.resourcesPath,
@@ -66,9 +144,22 @@ function resolveStandaloneServerPath() {
   }
 
   return path.resolve(
-    __dirname,
-    "../dashboard/.next/standalone/apps/dashboard/server.js",
+    appPath,
+    "..",
+    "dashboard",
+    ".next",
+    "standalone",
+    "apps",
+    "dashboard",
+    "server.js",
   );
+}
+
+function resolveDesktopAssetPath(...segments) {
+  if (app.isPackaged) {
+    return path.join(app.getAppPath(), ...segments);
+  }
+  return path.join(__dirname, ...segments);
 }
 
 function getAdvergamingWorkspacePath() {
@@ -408,6 +499,18 @@ function probeUrl(url) {
   });
 }
 
+async function waitForHttpReady(urls, timeoutMs) {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    const ready = await Promise.all(urls.map((url) => probeUrl(url)));
+    if (ready.every(Boolean)) {
+      return;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 250));
+  }
+  throw new Error(`HTTP readiness timeout for: ${urls.join(", ")}`);
+}
+
 function appendDashboardServerLog(chunk) {
   dashboardServerLog = (dashboardServerLog + chunk.toString()).slice(-8000);
 }
@@ -449,6 +552,13 @@ async function waitForDashboardServer(port) {
   throw new Error(formatDashboardServerFailure(port, timeoutMs / 1000));
 }
 
+async function waitForExternalDashboardServer(baseUrl) {
+  const timeoutMs = 180_000;
+  const normalizedBase = baseUrl.replace(/\/+$/, "");
+  const urls = [`${normalizedBase}/`, `${normalizedBase}/engine/index.html`];
+  await waitForHttpReady(urls, timeoutMs);
+}
+
 function buildDashboardServerEnv(workspaceBasePath, port) {
   return {
     ELECTRON_RUN_AS_NODE: "1",
@@ -470,45 +580,60 @@ function buildDashboardServerEnv(workspaceBasePath, port) {
 }
 
 async function spawnDashboardServer(workspaceBasePath) {
-  const port = await getPort();
-  const serverEntry = resolveStandaloneServerPath();
-  if (!fs.existsSync(serverEntry)) {
-    throw new Error(`Dashboard standalone server not found: ${serverEntry}`);
-  }
-
-  dashboardServerLog = "";
-  dashboardServerExitCode = null;
-
-  dashboardServer = spawn(process.execPath, [serverEntry], {
-    cwd: path.dirname(serverEntry),
-    env: buildDashboardServerEnv(workspaceBasePath, port),
-    // Do not pipe stdout: Next.js can write enough logs to fill the buffer and block startup.
-    stdio: ["ignore", "ignore", "pipe"],
-    windowsHide: true,
-  });
-
-  dashboardServer.on("error", (error) => {
-    console.error("[dashboard-server] spawn error", error);
-  });
-  dashboardServer.stderr?.on("data", (chunk) => {
-    appendDashboardServerLog(chunk);
-    console.error("[dashboard-server]", chunk.toString());
-  });
-  dashboardServer.on("exit", (code, signal) => {
-    dashboardServerExitCode = code ?? 1;
-    if (code !== 0 && code !== null) {
-      console.error(
-        `[dashboard-server] exited early code=${code} signal=${signal ?? ""}`,
-      );
+  try {
+    const port = await getPort();
+    const serverEntry = resolveStandaloneServerPath();
+    if (!fs.existsSync(serverEntry)) {
+      throw new Error(`Dashboard standalone server not found: ${serverEntry}`);
     }
-  });
 
-  await waitForDashboardServer(port);
-  return port;
+    dashboardServerLog = "";
+    dashboardServerExitCode = null;
+
+    dashboardServer = spawn(process.execPath, [serverEntry], {
+      cwd: path.dirname(serverEntry),
+      env: buildDashboardServerEnv(workspaceBasePath, port),
+      stdio: ["ignore", "pipe", "pipe"],
+      windowsHide: true,
+    });
+
+    dashboardServer.on("error", (error) => {
+      const printable = formatErrorForLog(error);
+      appendMainProcessLog(`[dashboard-server-spawn-error] ${printable}`);
+      console.error("[dashboard-server] spawn error", error);
+    });
+    dashboardServer.stdout?.on("data", (chunk) => {
+      appendDashboardServerLog(chunk);
+      appendMainProcessLog(`[dashboard-server:stdout] ${chunk.toString().trimEnd()}`);
+      console.log("[dashboard-server]", chunk.toString());
+    });
+    dashboardServer.stderr?.on("data", (chunk) => {
+      appendDashboardServerLog(chunk);
+      appendMainProcessLog(`[dashboard-server:stderr] ${chunk.toString().trimEnd()}`);
+      console.error("[dashboard-server]", chunk.toString());
+    });
+    dashboardServer.on("exit", (code, signal) => {
+      dashboardServerExitCode = code ?? 1;
+      appendMainProcessLog(
+        `[dashboard-server-exit] code=${String(code)} signal=${String(signal ?? "")}`,
+      );
+      if (code !== 0 && code !== null) {
+        console.error(
+          `[dashboard-server] exited early code=${code} signal=${signal ?? ""}`,
+        );
+      }
+    });
+
+    await waitForDashboardServer(port);
+    return port;
+  } catch (error) {
+    reportFatalError("dashboard-server", error);
+    throw error;
+  }
 }
 
 function resolveSplashAssetPath(...segments) {
-  return path.join(__dirname, ...segments);
+  return resolveDesktopAssetPath(...segments);
 }
 
 function createSplashWindow() {
@@ -557,8 +682,8 @@ function closeSplashWindow() {
   splashWindow.close();
 }
 
-function attachMainWindowNavigationGuards(window, port) {
-  const allowedOrigin = `http://127.0.0.1:${port}`;
+function attachMainWindowNavigationGuards(window, allowedOrigin) {
+  const allowedOriginWithSlash = `${allowedOrigin}/`;
 
   window.webContents.on("will-navigate", (event, url) => {
     if (!url.startsWith(allowedOrigin)) {
@@ -590,12 +715,16 @@ function attachMainWindowNavigationGuards(window, port) {
       if (validatedURL.startsWith(allowedOrigin)) {
         return;
       }
-      window.loadURL(`${allowedOrigin}/`);
+      window.loadURL(allowedOriginWithSlash);
     },
   );
 }
 
 function createMainWindow(port) {
+  const dashboardUrlBase = process.env.MASHEDGAMES_DASHBOARD_URL?.replace(/\/+$/, "");
+  const mainWindowUrl = dashboardUrlBase
+    ? `${dashboardUrlBase}/`
+    : `http://127.0.0.1:${port}/`;
   mainWindow = new BrowserWindow({
     width: 1440,
     height: 960,
@@ -607,7 +736,7 @@ function createMainWindow(port) {
       contextIsolation: true,
       sandbox: true,
       nodeIntegration: false,
-      preload: path.join(__dirname, "preload.js"),
+      preload: resolveDesktopAssetPath("preload.js"),
     },
   });
 
@@ -619,14 +748,20 @@ function createMainWindow(port) {
     }
   });
 
-  attachMainWindowNavigationGuards(mainWindow, port);
-  mainWindow.loadURL(`http://127.0.0.1:${port}/`);
+  const allowedOrigin = dashboardUrlBase
+    ? new URL(mainWindowUrl).origin
+    : `http://127.0.0.1:${port}`;
+  attachMainWindowNavigationGuards(mainWindow, allowedOrigin);
+  mainWindow.loadURL(mainWindowUrl);
   mainWindow.on("closed", () => {
     mainWindow = null;
   });
 }
 
 function setupAutoUpdater() {
+  if (!app.isPackaged) {
+    return;
+  }
   autoUpdater.on("checking-for-update", () => {
     console.log("[updater] checking-for-update");
   });
@@ -689,6 +824,7 @@ app.whenReady().then(async () => {
   createSplashWindow();
 
   try {
+    validateElectronRuntimeBinary();
     const workspacePath = getAdvergamingWorkspacePath();
     ensureWorkspaceStructure(workspacePath);
     registerSaveProjectAssetIpc(workspacePath);
@@ -700,8 +836,16 @@ app.whenReady().then(async () => {
     registerLicenseIpc(getSessionForInternal);
     registerStudioProtocol(workspacePath);
     autoMigrateLegacyProjects(getProjectsPath(workspacePath));
-    dashboardPort = await spawnDashboardServer(workspacePath);
-    createMainWindow(dashboardPort);
+    const externalDashboardUrl = process.env.MASHEDGAMES_DASHBOARD_URL;
+    if (externalDashboardUrl) {
+      await waitForExternalDashboardServer(externalDashboardUrl);
+      const parsedUrl = new URL(externalDashboardUrl);
+      dashboardPort = parsedUrl.port ? Number(parsedUrl.port) : 80;
+      createMainWindow(dashboardPort);
+    } else {
+      dashboardPort = await spawnDashboardServer(workspacePath);
+      createMainWindow(dashboardPort);
+    }
     setupAutoUpdater();
 
     app.on("activate", () => {
@@ -711,14 +855,23 @@ app.whenReady().then(async () => {
     });
   } catch (error) {
     closeSplashWindow();
+    reportFatalError("startup", error);
     throw error;
   }
 }).catch((error) => {
-  console.error("[startup] failed", error);
-  dialog.showErrorBox(
-    `${APP_DISPLAY_NAME} failed to start`,
-    error instanceof Error ? error.message : String(error),
-  );
+  reportFatalError("startup-catch", error);
+  app.quit();
+});
+
+process.on("uncaughtException", (error) => {
+  reportFatalError("uncaughtException", error);
+  cleanupDashboardServer();
+  app.quit();
+});
+
+process.on("unhandledRejection", (reason) => {
+  reportFatalError("unhandledRejection", reason);
+  cleanupDashboardServer();
   app.quit();
 });
 
