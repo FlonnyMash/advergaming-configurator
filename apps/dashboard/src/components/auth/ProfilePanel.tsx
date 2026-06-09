@@ -1,9 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ExternalLink, LogOut, User } from "lucide-react";
 import { supabase, type Tables } from "@/lib/supabaseClient";
+import { getProfileViaIpc, wipePersistedTokensViaIpc } from "@/lib/auth-ipc";
 import { useAuthStore } from "@/store/useAuthStore";
 import { RoleGate } from "./RoleGate";
 
@@ -15,7 +17,16 @@ type OrgRow = Pick<Tables<"organizations">, "name" | "plan">;
 
 type FetchState =
   | { status: "loading" }
-  | { status: "success"; org: OrgRow | null }
+  | {
+      status: "success";
+      org: OrgRow | null;
+      /**
+       * Role resolved via the `auth:get-profile` IPC channel (Electron path
+       * only). Undefined on the web path — the store's `role` value is used
+       * instead. `null` means the user has no role set in the DB.
+       */
+      ipcRole?: Tables<"profiles">["role"] | null;
+    }
   | { status: "error" };
 
 // ---------------------------------------------------------------------------
@@ -42,6 +53,33 @@ function FieldSkeleton() {
 }
 
 // ---------------------------------------------------------------------------
+// Auth-error detector
+// ---------------------------------------------------------------------------
+
+/**
+ * Returns true when a PostgREST / Supabase error signals that the caller's
+ * JWT is invalid or expired. Used to trigger the auto-healing logout flow
+ * instead of showing a generic error banner.
+ *
+ * Covered cases:
+ *   - HTTP 401 mapped to PostgREST code "PGRST301" (JWT expired)
+ *   - Any message that explicitly references JWT invalidity / expiry
+ *   - Generic "not authenticated" / "unauthorized" messages
+ */
+function isAuthError(error: { code?: string; message?: string }): boolean {
+  const msg = (error.message ?? "").toLowerCase();
+  const code = (error.code ?? "").toLowerCase();
+  return (
+    code === "pgrst301" ||
+    msg.includes("jwt expired") ||
+    msg.includes("jwt invalid") ||
+    msg.includes("invalid jwt") ||
+    msg.includes("not authenticated") ||
+    msg.includes("unauthorized")
+  );
+}
+
+// ---------------------------------------------------------------------------
 // ProfilePanel
 // ---------------------------------------------------------------------------
 
@@ -54,6 +92,7 @@ function FieldSkeleton() {
  * Drop into any Sidebar or Header — the card is self-contained.
  */
 export function ProfilePanel() {
+  const router = useRouter();
   const email = useAuthStore((s) => s.email);
   const role = useAuthStore((s) => s.role);
   const userId = useAuthStore((s) => s.userId);
@@ -61,8 +100,45 @@ export function ProfilePanel() {
   const [fetchState, setFetchState] = useState<FetchState>({ status: "loading" });
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
-  // Fetch org on mount. Skip entirely when userId is null (Electron IPC path
-  // where the session lives in main process and the anon client has no session).
+  // ---------------------------------------------------------------------------
+  // Fail-safe logout — guaranteed to clear local state and redirect even when
+  // the remote sign-out call is rejected (e.g. 401, network error, zombie JWT).
+  // Each remote operation is wrapped in its own try/catch so a failure in one
+  // never skips the others or the mandatory local wipe + redirect at the end.
+  // ---------------------------------------------------------------------------
+
+  const performFailSafeLogout = useCallback(async () => {
+    try {
+      await supabase.auth.signOut();
+    } catch (err) {
+      console.warn("[ProfilePanel] supabase.auth.signOut failed (ignored):", err);
+    }
+    try {
+      await wipePersistedTokensViaIpc();
+    } catch (err) {
+      console.warn("[ProfilePanel] wipePersistedTokensViaIpc failed (ignored):", err);
+    }
+    // These two lines are unconditional — they run regardless of what the
+    // remote calls above returned.
+    useAuthStore.getState().clearSession();
+    router.replace("/login");
+  }, [router]);
+
+  // ---------------------------------------------------------------------------
+  // Profile fetch on mount.
+  //
+  // Electron path  — `window.electron` is present.
+  //   The renderer's Supabase client is anonymous; the JWT lives exclusively
+  //   in the main process.  Fetching via `auth:get-profile` IPC lets the main
+  //   process run the query with the user's JWT so RLS is satisfied.
+  //
+  // Web path — `window.electron` is absent.
+  //   The browser holds its own session; the renderer's Supabase client is
+  //   authenticated and can query directly.
+  //
+  // When `userId` is null the fetch is skipped entirely (the auth store has
+  // not been populated yet, which can happen transiently during boot).
+  // ---------------------------------------------------------------------------
   useEffect(() => {
     if (!userId) {
       setFetchState({ status: "success", org: null });
@@ -72,46 +148,87 @@ export function ProfilePanel() {
     let cancelled = false;
 
     void (async () => {
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("organizations(name, plan)")
-        .eq("id", userId)
-        .maybeSingle();
+      if (window.electron) {
+        // ── Electron path ────────────────────────────────────────────────
+        const result = await getProfileViaIpc();
 
-      if (cancelled) return;
+        if (cancelled) return;
 
-      if (error) {
-        console.error("[ProfilePanel] Failed to fetch organisation:", error);
-        setFetchState({ status: "error" });
-        return;
+        if (!result) {
+          // IPC bridge unexpectedly returned null — treat as transient error.
+          setFetchState({ status: "error" });
+          return;
+        }
+
+        if (!result.ok) {
+          // Auth errors (session wiped, JWT invalid) force a logout regardless
+          // of cancellation — the session is globally broken.
+          if (isAuthError({ message: result.error })) {
+            console.warn("[ProfilePanel] Auth error via IPC — forcing logout:", result.error);
+            await performFailSafeLogout();
+            return;
+          }
+          console.error("[ProfilePanel] IPC profile fetch failed:", result.error);
+          setFetchState({ status: "error" });
+          return;
+        }
+
+        const rawOrg = result.profile.org;
+        const org: OrgRow | null = rawOrg
+          ? (rawOrg as OrgRow)
+          : null;
+
+        setFetchState({
+          status: "success",
+          org,
+          ipcRole: result.profile.role as Tables<"profiles">["role"] | null,
+        });
+      } else {
+        // ── Web path ─────────────────────────────────────────────────────
+        const { data, error } = await supabase
+          .from("profiles")
+          .select("organizations(name, plan)")
+          .eq("id", userId)
+          .maybeSingle();
+
+        // Auth errors trigger recovery before the cancelled guard — the token
+        // is globally invalid so the redirect must fire even if unmounted.
+        if (error && isAuthError(error)) {
+          console.warn("[ProfilePanel] Auth error on profile fetch — forcing logout:", error);
+          await performFailSafeLogout();
+          return;
+        }
+
+        if (cancelled) return;
+
+        if (error) {
+          console.error("[ProfilePanel] Failed to fetch organisation:", error);
+          setFetchState({ status: "error" });
+          return;
+        }
+
+        const raw = data?.organizations;
+        const org: OrgRow | null =
+          raw && !Array.isArray(raw) ? (raw as OrgRow) : null;
+
+        setFetchState({ status: "success", org });
       }
-
-      // The join returns organizations as a nested object or null.
-      const raw = data?.organizations;
-      const org: OrgRow | null =
-        raw && !Array.isArray(raw) ? (raw as OrgRow) : null;
-
-      setFetchState({ status: "success", org });
     })();
 
     return () => {
       cancelled = true;
     };
-  }, [userId]);
+  }, [userId, performFailSafeLogout]);
+
+  // ---------------------------------------------------------------------------
+  // Logout handler — delegates to performFailSafeLogout so the spinner state
+  // is the only concern here; all safety guarantees live in the shared helper.
+  // ---------------------------------------------------------------------------
 
   const handleLogout = async () => {
     setIsLoggingOut(true);
     try {
-      await supabase.auth.signOut();
-      // AuthGuard's onAuthStateChange subscription fires after signOut and
-      // redirects to /login. Reset store state eagerly so UI reflects the
-      // signed-out status immediately.
-      useAuthStore.getState().setSession({
-        isAuthenticated: false,
-        email: null,
-        userId: null,
-        role: null,
-      });
+      await performFailSafeLogout();
     } finally {
       setIsLoggingOut(false);
     }
@@ -119,30 +236,65 @@ export function ProfilePanel() {
 
   const handleRetry = () => {
     setFetchState({ status: "loading" });
-    // Re-trigger effect by toggling a dummy dep isn't clean — instead just
-    // re-run the fetch directly here.
     if (!userId) {
       setFetchState({ status: "success", org: null });
       return;
     }
     void (async () => {
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("organizations(name, plan)")
-        .eq("id", userId)
-        .maybeSingle();
+      if (window.electron) {
+        // Electron path — re-fetch via IPC.
+        const result = await getProfileViaIpc();
 
-      if (error) {
-        console.error("[ProfilePanel] Retry: failed to fetch organisation:", error);
-        setFetchState({ status: "error" });
-        return;
+        if (!result) {
+          setFetchState({ status: "error" });
+          return;
+        }
+
+        if (!result.ok) {
+          if (isAuthError({ message: result.error })) {
+            console.warn("[ProfilePanel] Auth error on IPC retry — forcing logout:", result.error);
+            await performFailSafeLogout();
+            return;
+          }
+          console.error("[ProfilePanel] IPC retry failed:", result.error);
+          setFetchState({ status: "error" });
+          return;
+        }
+
+        const rawOrg = result.profile.org;
+        const org: OrgRow | null = rawOrg ? (rawOrg as OrgRow) : null;
+
+        setFetchState({
+          status: "success",
+          org,
+          ipcRole: result.profile.role as Tables<"profiles">["role"] | null,
+        });
+      } else {
+        // Web path — direct Supabase query.
+        const { data, error } = await supabase
+          .from("profiles")
+          .select("organizations(name, plan)")
+          .eq("id", userId)
+          .maybeSingle();
+
+        if (error && isAuthError(error)) {
+          console.warn("[ProfilePanel] Auth error on retry — forcing logout:", error);
+          await performFailSafeLogout();
+          return;
+        }
+
+        if (error) {
+          console.error("[ProfilePanel] Retry: failed to fetch organisation:", error);
+          setFetchState({ status: "error" });
+          return;
+        }
+
+        const raw = data?.organizations;
+        const org: OrgRow | null =
+          raw && !Array.isArray(raw) ? (raw as OrgRow) : null;
+
+        setFetchState({ status: "success", org });
       }
-
-      const raw = data?.organizations;
-      const org: OrgRow | null =
-        raw && !Array.isArray(raw) ? (raw as OrgRow) : null;
-
-      setFetchState({ status: "success", org });
     })();
   };
 
@@ -151,7 +303,16 @@ export function ProfilePanel() {
   // ---------------------------------------------------------------------------
 
   const displayEmail = email ?? "—";
-  const displayRole = role ? (ROLE_LABELS[role] ?? role) : "—";
+
+  // In Electron, `role` from the auth store is always null (tokens are in the
+  // main process).  `ipcRole` is populated by the auth:get-profile IPC fetch
+  // and takes precedence when available.
+  const ipcRole =
+    fetchState.status === "success" && "ipcRole" in fetchState
+      ? fetchState.ipcRole
+      : undefined;
+  const effectiveRole = ipcRole !== undefined ? ipcRole : role;
+  const displayRole = effectiveRole ? (ROLE_LABELS[effectiveRole] ?? effectiveRole) : "—";
 
   const isLoading = fetchState.status === "loading";
   const isError = fetchState.status === "error";

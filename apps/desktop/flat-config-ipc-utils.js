@@ -75,9 +75,22 @@ function saveFlatConfig(workspacePath, payload) {
     );
   }
 
+  const tmpPath = configPath + ".tmp";
   try {
-    fs.writeFileSync(configPath, json, "utf8");
+    // Remove any leftover .tmp file from a previous crashed write
+    if (fs.existsSync(tmpPath)) {
+      fs.unlinkSync(tmpPath);
+    }
+    fs.writeFileSync(tmpPath, json, "utf8");
+    // fs.renameSync is atomic on NTFS (same volume) — the original config.json
+    // is never touched if the process crashes between the two operations above.
+    fs.renameSync(tmpPath, configPath);
   } catch (error) {
+    try {
+      fs.unlinkSync(tmpPath);
+    } catch {
+      // Ignore cleanup failure; the stale .tmp will be removed on next save
+    }
     const message = error instanceof Error ? error.message : String(error);
     throw new Error(`Failed to write config to "${configPath}": ${message}`);
   }

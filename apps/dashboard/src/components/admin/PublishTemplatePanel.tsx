@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { CheckCircle2, Loader2, RefreshCw, UploadCloud } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
+import { getAdminRefDataViaIpc, publishTemplateViaIpc } from "@/lib/auth-ipc";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -44,6 +45,14 @@ const TIER_COLORS: Record<Tier, string> = {
   enterprise: "bg-violet-50 text-violet-700 border border-violet-200",
 };
 
+function isElectronRuntime() {
+  return (
+    typeof window !== "undefined" &&
+    !!(window as Window & { electron?: { ipcRenderer?: unknown } }).electron
+      ?.ipcRenderer
+  );
+}
+
 // ---------------------------------------------------------------------------
 // PublishTemplatePanel
 // ---------------------------------------------------------------------------
@@ -80,6 +89,28 @@ export function PublishTemplatePanel() {
 
   const fetchPublishedVersions = useCallback(async () => {
     try {
+      if (isElectronRuntime()) {
+        const body = await getAdminRefDataViaIpc();
+        if (body?.ok) {
+          const versionMap: Record<string, PublishedVersion> = {};
+          for (const tpl of body.templates) {
+            const published = {
+              version: "published",
+              publishedAt: "",
+            };
+            // `template_slug` maps to local template IDs; keep `id` too as a
+            // defensive fallback if future payloads switch identifiers.
+            versionMap[tpl.template_slug] = published;
+            versionMap[tpl.id] = published;
+          }
+          setPublishedVersions(versionMap);
+          return;
+        }
+
+        // If Electron bridge exists but admin IPC handlers are not registered
+        // yet, fall back to web fetch path below instead of hard failing.
+      }
+
       const {
         data: { session },
       } = await supabase.auth.getSession();
@@ -99,10 +130,12 @@ export function PublishTemplatePanel() {
       // (ref-data only returns slug+id; we use it to know what's published)
       const versionMap: Record<string, PublishedVersion> = {};
       for (const tpl of body.templates) {
-        versionMap[tpl.template_slug] = {
+        const published = {
           version: "published",
           publishedAt: "",
         };
+        versionMap[tpl.template_slug] = published;
+        versionMap[tpl.id] = published;
       }
       setPublishedVersions(versionMap);
     } catch {
@@ -122,12 +155,51 @@ export function PublishTemplatePanel() {
         [templateId]: { status: "publishing" },
       }));
 
+      if (isElectronRuntime()) {
+        const tier: Tier = tierSelections[templateId] ?? "free";
+        const body = await publishTemplateViaIpc({ templateId, tier });
+
+        if (body?.ok) {
+          const newVersion: PublishedVersion = {
+            version: body.version,
+            publishedAt: new Date().toISOString(),
+          };
+
+          setPublishedVersions((prev) => ({ ...prev, [templateId]: newVersion }));
+          setTemplateStates((prev) => ({
+            ...prev,
+            [templateId]: { status: "done", version: body.version },
+          }));
+
+          toast.success(`Template published`, {
+            description: `${templateId} v${body.version} is now live.`,
+          });
+
+          setTimeout(() => {
+            setTemplateStates((prev) => ({
+              ...prev,
+              [templateId]: { status: "idle", publishedVersion: newVersion },
+            }));
+          }, 3000);
+          return;
+        }
+
+        // IPC unavailable in this running Electron instance (stale main/preload).
+        // Fall back to web path below before surfacing an error.
+      }
+
       const {
         data: { session },
       } = await supabase.auth.getSession();
 
       if (!session?.access_token) {
-        toast.error("Session expired. Please log in again.");
+        if (isElectronRuntime()) {
+          toast.error(
+            "Desktop auth bridge is out of date. Restart the app to refresh IPC handlers.",
+          );
+        } else {
+          toast.error("Session expired. Please log in again.");
+        }
         setTemplateStates((prev) => ({
           ...prev,
           [templateId]: {

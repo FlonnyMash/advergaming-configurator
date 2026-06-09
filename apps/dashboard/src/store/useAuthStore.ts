@@ -1,7 +1,7 @@
 "use client";
 
 import { getAuthStatusViaIpc, loginViaIpc, logoutViaIpc } from "@/lib/auth-ipc";
-import type { Enums } from "@/lib/supabaseClient";
+import { supabase, type Enums } from "@/lib/supabaseClient";
 import { create } from "state";
 
 type UserRole = Enums<"user_role">;
@@ -44,6 +44,14 @@ type AuthStore = {
     role: UserRole | null;
   }) => void;
 
+  /**
+   * Completely resets all auth fields to their unauthenticated defaults,
+   * including isLoading. Use this as the single source-of-truth wipe on
+   * logout or SIGNED_OUT events rather than calling setSession with all-null
+   * args (which does not reset isLoading).
+   */
+  clearSession: () => void;
+
   // ---------------------------------------------------------------------------
   // Electron IPC auth path — delegates to the Electron main process
   // ---------------------------------------------------------------------------
@@ -85,7 +93,25 @@ export const useAuthStore = create<AuthStore>((set) => ({
     set({ isAuthenticated, email, userId, role });
   },
 
+  clearSession: () => {
+    set({ isAuthenticated: false, email: null, userId: null, role: null, isLoading: false });
+  },
+
   syncAuthStatus: async () => {
+    // In the web context, auth is managed entirely by AuthGuard's Supabase
+    // subscription (getSession + onAuthStateChange). syncAuthStatus is
+    // Electron-only; calling it in a browser would reset isAuthenticated to
+    // false and clobber a valid web session.
+    const isElectron =
+      typeof window !== "undefined" &&
+      !!(window as Window & { electron?: { ipcRenderer?: unknown } }).electron
+        ?.ipcRenderer;
+
+    if (!isElectron) {
+      set({ isLoading: false });
+      return;
+    }
+
     set({ isLoading: true });
     try {
       const status = await getAuthStatusViaIpc();
@@ -130,8 +156,17 @@ export const useAuthStore = create<AuthStore>((set) => ({
   logout: async () => {
     set({ isLoading: true });
     try {
+      // Attempt to revoke the renderer-side session first. Any rejection
+      // (invalid JWT, 401, network error) is silently swallowed so the IPC
+      // wipe and the local state reset in `finally` always execute.
+      try {
+        await supabase.auth.signOut();
+      } catch (err) {
+        console.warn("[AuthStore] supabase.auth.signOut failed (ignored):", err);
+      }
       await logoutViaIpc();
     } finally {
+      // Guaranteed wipe — runs even if logoutViaIpc() throws.
       set({ isAuthenticated: false, email: null, userId: null, role: null, isLoading: false });
     }
   },

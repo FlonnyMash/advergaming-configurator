@@ -1,6 +1,6 @@
 "use client";
 
-import { getBridgePostMessageTargetOrigin } from "@/bridge/messenger";
+import { dashboardMessenger, getBridgePostMessageTargetOrigin } from "@/bridge/messenger";
 import {
   BRIDGE_MESSAGE_TYPE,
   DEFAULT_GAME_CONFIG,
@@ -115,9 +115,21 @@ function postConfigToIframe(config: GameConfig): void {
   iframeTarget.postMessage(message, targetOrigin);
 }
 
+let configSyncSequenceId = 0;
+
 useConfigStore.subscribe((state, prev) => {
   if (state.config === prev.config) return;
   postConfigToIframe(state.config);
+  const projectId = state.config.projectId;
+  if (projectId) {
+    dashboardMessenger.sendConfigSync({
+      mode: "full",
+      config: state.config,
+      projectId,
+      sequenceId: ++configSyncSequenceId,
+      timestamp: Date.now(),
+    });
+  }
 });
 
 export function flushConfigToIframe(): void {

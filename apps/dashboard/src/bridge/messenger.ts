@@ -2,6 +2,8 @@ import {
   AssetReadyPayloadSchema,
   AssetLoadErrorMessageSchema,
   BRIDGE_MESSAGE_TYPE,
+  ConfigSyncPayloadSchema,
+  ConfigUpdatedMessageSchema,
   EngineReadyMessageSchema,
   GameConfigSchema,
   LoadExternalAssetPayloadSchema,
@@ -15,6 +17,7 @@ import {
   type AppMode,
   type AssetLoadErrorPayload,
   type AssetReadyPayload,
+  type ConfigSyncPayload,
   type GameConfig,
   type GameEventMessage,
   type GameTemplateId,
@@ -331,6 +334,28 @@ class DashboardMessenger {
       data,
     };
     this.targetWindow.postMessage(message, getBridgePostMessageTargetOrigin());
+  }
+
+  sendConfigSync(payload: ConfigSyncPayload): void {
+    const parsed = ConfigSyncPayloadSchema.safeParse(payload);
+    if (!parsed.success) {
+      devWarn("sendConfigSync rejected", parsed.error.flatten());
+      return;
+    }
+
+    if (!this.engineReady || !this.targetWindow) {
+      if (parsed.data.mode === "full") {
+        this.pendingConfig = parsed.data.config;
+      }
+      return;
+    }
+
+    const message = {
+      type: BRIDGE_MESSAGE_TYPE.CONFIG_UPDATED,
+      payload: parsed.data,
+    };
+    warnIfInvalid(ConfigUpdatedMessageSchema, message, "CONFIG_UPDATED");
+    postMessageToIframe(this.targetWindow, message, "CONFIG_UPDATED");
   }
 
   sendLoadTemplate(templateId: GameTemplateId): void {

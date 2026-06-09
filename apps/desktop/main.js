@@ -31,6 +31,7 @@ const { saveFlatConfig, loadFlatConfig, getProjectList } = require("./flat-confi
 const { registerAuthIpc, getSessionForInternal } = require("./auth-ipc-utils");
 const { registerLicenseIpc } = require("./license-ipc-utils");
 const { registerStoreIpc } = require("./store-ipc-utils");
+const { registerAdminIpc } = require("./admin-ipc-utils");
 
 const STUDIO_PROTOCOL = STUDIO_ASSET_PROTOCOL;
 const STUDIO_PROTOCOL_PREFIX = `${STUDIO_PROTOCOL}://`;
@@ -42,6 +43,13 @@ let dashboardPort = null;
 let dashboardServerLog = "";
 let dashboardServerExitCode = null;
 let errorDialogShown = false;
+
+function getDashboardBaseUrl() {
+  const external = process.env.MASHEDGAMES_DASHBOARD_URL?.replace(/\/+$/, "");
+  if (external) return external;
+  if (dashboardPort === null || dashboardPort === undefined) return null;
+  return `http://127.0.0.1:${dashboardPort}`;
+}
 
 function getMainProcessLogPath() {
   try {
@@ -937,8 +945,13 @@ function loadRuntimeConfig() {
     }
   } else {
     // Dev: load .env.local from the monorepo root (../../ relative to apps/desktop).
-    const envLocalPath = path.join(__dirname, "..", "..", ".env.local");
-    parseEnvFile(envLocalPath);
+    // Since parseEnvFile only sets keys that are not already present in
+    // process.env, the root file takes precedence over the dashboard-level one.
+    parseEnvFile(path.join(__dirname, "..", "..", ".env.local"));
+    // Fallback: some developers keep their NEXT_PUBLIC_SUPABASE_* vars inside
+    // the Next.js app directory (apps/dashboard/.env.local) rather than at the
+    // monorepo root.  Parse it second so the root file wins when both exist.
+    parseEnvFile(path.join(__dirname, "..", "dashboard", ".env.local"));
   }
 
   // -------------------------------------------------------------------------
@@ -1027,6 +1040,7 @@ app.whenReady().then(async () => {
     await registerAuthIpc();
     registerLicenseIpc(getSessionForInternal);
     registerStoreIpc(getSessionForInternal);
+    registerAdminIpc(getSessionForInternal, getDashboardBaseUrl);
     registerStudioProtocol(workspacePath);
     autoMigrateLegacyProjects(getProjectsPath(workspacePath));
     const externalDashboardUrl = resolveExternalDashboardUrl();

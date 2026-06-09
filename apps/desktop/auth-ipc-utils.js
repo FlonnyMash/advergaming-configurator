@@ -127,16 +127,64 @@ function readPersistedSession() {
   }
 }
 
-/** Removes the persisted session file. */
+/**
+ * Removes the persisted session file.
+ *
+ * Returns true when the file is gone (either deleted or was never present).
+ * Returns false when the OS-level deletion throws — the caller must treat
+ * this as a critical failure and notify the renderer accordingly.
+ * The raw error is logged here; callers must NOT re-log error.message.
+ */
 function clearPersistedSession() {
   try {
     const tokenPath = getTokenPath();
     if (fs.existsSync(tokenPath)) {
       fs.unlinkSync(tokenPath);
     }
+    return true;
   } catch (error) {
     console.error("[auth] Failed to delete token file:", error);
+    return false;
   }
+}
+
+// ---------------------------------------------------------------------------
+// Authenticated per-request client — used for RLS-gated profile queries
+// ---------------------------------------------------------------------------
+
+/**
+ * Creates a short-lived Supabase client that carries the user's JWT in the
+ * Authorization header.  This causes PostgREST to evaluate RLS policies as
+ * the `authenticated` role, which is required for any query against tables
+ * that restrict anonymous reads.
+ *
+ * The client intentionally disables session persistence and auto-refresh —
+ * token lifecycle is managed exclusively by the auth IPC layer.
+ *
+ * @param {string} accessToken  The user's current Supabase JWT.
+ * @returns {import('@supabase/supabase-js').SupabaseClient}
+ */
+function buildAuthenticatedClient(accessToken) {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  if (!url || !anonKey) {
+    throw new Error(
+      "[auth] NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY must be set.",
+    );
+  }
+
+  return createClient(url, anonKey, {
+    global: {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    },
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+      detectSessionInUrl: false,
+    },
+    realtime: { transport: ws },
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -285,23 +333,129 @@ async function handleLogin(_event, payload) {
   return buildStatusPayload(_session);
 }
 
+/**
+ * Handles auth:logout / auth wipe IPC requests from the renderer.
+ *
+ * Sequence (mirrors the renderer-side directive):
+ *  1. Best-effort remote Supabase sign-out (revokes the refresh token
+ *     server-side; network failures are non-fatal).
+ *  2. Clear the in-memory session immediately so auth:get-status reflects
+ *     the signed-out state even if the disk wipe subsequently fails.
+ *  3. Delete the OS-encrypted token file and log success or critical failure.
+ *     Tokens are NEVER logged — only boolean wipe status and error objects.
+ *  4. Return { isAuthenticated: false, email: null, userId: null, wiped }
+ *     so the renderer can detect and surface disk-wipe failures if needed.
+ */
 async function handleLogout(_event) {
-  try {
-    if (_session) {
+  console.info("[auth:logout] Token wipe requested by renderer.");
+
+  // Step 1 — best-effort remote sign-out.
+  if (_session) {
+    try {
       const supabase = getSupabaseClient();
       await supabase.auth.signOut();
+    } catch (err) {
+      // Non-fatal: the local wipe proceeds regardless.
+      console.warn(
+        "[auth:logout] Remote sign-out failed — continuing local wipe:",
+        err.message ?? String(err),
+      );
     }
-  } catch {
-    // Best-effort remote sign-out. Always clear local state.
   }
 
+  // Step 2 — wipe in-memory state before touching disk.
   _session = null;
-  clearPersistedSession();
-  return { isAuthenticated: false, email: null, userId: null };
+
+  // Step 3 — delete the OS-encrypted token file.
+  const wiped = clearPersistedSession();
+
+  if (wiped) {
+    console.info("[auth:logout] Token file wiped successfully.");
+  } else {
+    // The encrypted file may persist on disk. Because it can only be
+    // decrypted by the same OS user account on the same machine (DPAPI /
+    // Keychain / libsecret), this is not an immediate cross-user security
+    // risk, but should be investigated.
+    console.error(
+      "[auth:logout] CRITICAL: OS-level token file deletion failed. " +
+        "Encrypted file may persist on disk. " +
+        "In-memory session cleared; re-authentication will be required.",
+    );
+  }
+
+  // Step 4 — return status to renderer. The `wiped` boolean lets the renderer
+  // surface a warning if the disk wipe failed without exposing any token data.
+  return { isAuthenticated: false, email: null, userId: null, wiped };
 }
 
 function handleGetStatus(_event) {
   return buildStatusPayload(_session);
+}
+
+/**
+ * IPC handler for `auth:get-profile`.
+ *
+ * Builds a short-lived authenticated Supabase client from the in-memory JWT
+ * and queries the `profiles` row for the current user, joining the linked
+ * `organizations` row to retrieve name and plan.
+ *
+ * This handler exists because the renderer's Supabase client is always
+ * anonymous (tokens are secured in the main process), so any RLS-protected
+ * query from the renderer fails with a permission error.  By running the
+ * query here, we satisfy RLS via the Authorization header without ever
+ * exposing the token to the renderer.
+ *
+ * Response shape:
+ *   { ok: true,  profile: { role: string|null, org: { name, plan }|null } }
+ *   { ok: false, error: string }
+ */
+async function handleGetProfile(_event) {
+  if (!_session?.access_token) {
+    return { ok: false, error: "NOT_AUTHENTICATED" };
+  }
+
+  const userId = _session.user?.id;
+  if (!userId) {
+    return { ok: false, error: "NOT_AUTHENTICATED" };
+  }
+
+  let supabase;
+  try {
+    supabase = buildAuthenticatedClient(_session.access_token);
+  } catch (err) {
+    console.error("[auth:get-profile] Failed to build authenticated client:", err.message);
+    return { ok: false, error: err.message };
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("role, organizations(name, plan)")
+      .eq("id", userId)
+      .maybeSingle();
+
+    if (error) {
+      console.error("[auth:get-profile] Query failed:", error.message);
+      return { ok: false, error: error.message };
+    }
+
+    const raw = data?.organizations;
+    const org =
+      raw && !Array.isArray(raw)
+        ? { name: raw.name, plan: raw.plan }
+        : null;
+
+    return {
+      ok: true,
+      profile: {
+        role: data?.role ?? null,
+        org,
+      },
+    };
+  } catch (err) {
+    console.error("[auth:get-profile] Unexpected error:", err.message);
+    return { ok: false, error: err.message };
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -309,10 +463,11 @@ function handleGetStatus(_event) {
 // ---------------------------------------------------------------------------
 
 /**
- * Restores any persisted session and registers the three auth IPC channels:
- *   auth:login      { email, password }  → { isAuthenticated, email, error? }
- *   auth:logout     (no payload)         → { isAuthenticated: false, email: null }
- *   auth:get-status (no payload)         → { isAuthenticated, email }
+ * Restores any persisted session and registers the four auth IPC channels:
+ *   auth:login       { email, password }  → { isAuthenticated, email, error? }
+ *   auth:logout      (no payload)         → { isAuthenticated: false, email: null }
+ *   auth:get-status  (no payload)         → { isAuthenticated, email }
+ *   auth:get-profile (no payload)         → { ok, profile: { role, org }? }
  *
  * This function is async because session restore may involve a network call to
  * refresh an expired access token. Awaiting it before createMainWindow() ensures
@@ -324,6 +479,7 @@ async function registerAuthIpc() {
   ipcMain.handle("auth:login", handleLogin);
   ipcMain.handle("auth:logout", handleLogout);
   ipcMain.handle("auth:get-status", handleGetStatus);
+  ipcMain.handle("auth:get-profile", handleGetProfile);
 }
 
 /**

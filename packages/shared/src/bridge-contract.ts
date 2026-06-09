@@ -15,6 +15,7 @@ export const BRIDGE_MESSAGE_TYPE = {
   ASSET_LOAD_ERROR: "ASSET_LOAD_ERROR",
   SET_RUNTIME_ASSETS: "SET_RUNTIME_ASSETS",
   GAME_EVENT: "GAME_EVENT",
+  CONFIG_UPDATED: "CONFIG_UPDATED",
 } as const;
 
 export type BridgeMessageType =
@@ -67,6 +68,34 @@ export const SetRuntimeAssetsMessageSchema = z.object({
   payload: SetRuntimeAssetsPayloadSchema,
 });
 
+/**
+ * Structured real-time config sync payload.
+ * "full" replaces the engine's entire config state in-place.
+ * "delta" merges only the changed fields into the current state.
+ * sequenceId allows the engine to discard out-of-order messages.
+ */
+export const ConfigSyncPayloadSchema = z.discriminatedUnion("mode", [
+  z.object({
+    mode: z.literal("full"),
+    config: GameConfigSchema,
+    projectId: z.string().min(1),
+    sequenceId: z.number().int().nonnegative(),
+    timestamp: z.number(),
+  }),
+  z.object({
+    mode: z.literal("delta"),
+    fields: GameConfigSchema.partial(),
+    projectId: z.string().min(1),
+    sequenceId: z.number().int().nonnegative(),
+    timestamp: z.number(),
+  }),
+]);
+
+export const ConfigUpdatedMessageSchema = z.object({
+  type: z.literal(BRIDGE_MESSAGE_TYPE.CONFIG_UPDATED),
+  payload: ConfigSyncPayloadSchema,
+});
+
 export const BridgeMessageSchema = z.discriminatedUnion("type", [
   UpdateConfigMessageSchema,
   EngineReadyMessageSchema,
@@ -76,6 +105,7 @@ export const BridgeMessageSchema = z.discriminatedUnion("type", [
   LoadExternalAssetMessageSchema,
   AssetReadyMessageSchema,
   SetRuntimeAssetsMessageSchema,
+  ConfigUpdatedMessageSchema,
 ]);
 
 export type UpdateConfigMessage = z.infer<typeof UpdateConfigMessageSchema>;
@@ -91,6 +121,8 @@ export type AssetReadyMessage = z.infer<typeof AssetReadyMessageSchema>;
 export type SetRuntimeAssetsMessage = z.infer<
   typeof SetRuntimeAssetsMessageSchema
 >;
+export type ConfigSyncPayload = z.infer<typeof ConfigSyncPayloadSchema>;
+export type ConfigUpdatedMessage = z.infer<typeof ConfigUpdatedMessageSchema>;
 export type BridgeMessage = z.infer<typeof BridgeMessageSchema>;
 
 export function parseBridgeMessage(data: unknown): BridgeMessage | null {
@@ -126,6 +158,12 @@ export function isAssetLoadErrorMessage(
   message: BridgeMessage,
 ): message is AssetLoadErrorMessage {
   return message.type === BRIDGE_MESSAGE_TYPE.ASSET_LOAD_ERROR;
+}
+
+export function isConfigUpdatedMessage(
+  message: BridgeMessage,
+): message is ConfigUpdatedMessage {
+  return message.type === BRIDGE_MESSAGE_TYPE.CONFIG_UPDATED;
 }
 
 export type { GameConfig };

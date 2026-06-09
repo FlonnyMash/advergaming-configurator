@@ -1,6 +1,7 @@
 import {
   BRIDGE_MESSAGE_TYPE,
   BridgeMessageSchema,
+  ConfigSyncPayloadSchema,
   GameConfigSchema,
   LoadExternalAssetPayloadSchema,
   SetRuntimeAssetsPayloadSchema,
@@ -136,6 +137,25 @@ export class EngineMessenger {
         const parsed = SetRuntimeAssetsPayloadSchema.safeParse(message.payload);
         if (!parsed.success) break;
         setRuntimeAssets(parsed.data.assets);
+        break;
+      }
+      case BRIDGE_MESSAGE_TYPE.CONFIG_UPDATED: {
+        const parsed = ConfigSyncPayloadSchema.safeParse(message.payload);
+        if (!parsed.success) break;
+        let nextConfig: GameConfig;
+        if (parsed.data.mode === "full") {
+          nextConfig = parsed.data.config;
+        } else {
+          const merged = { ...handlers.getCurrentConfig(), ...parsed.data.fields };
+          const validated = GameConfigSchema.safeParse(merged);
+          if (!validated.success) break;
+          nextConfig = validated.data;
+        }
+        this.notifyConfigUpdate(nextConfig);
+        const game = handlers.getGame();
+        if (game) {
+          game.events.emit("bridge:config-update", nextConfig);
+        }
         break;
       }
       default:

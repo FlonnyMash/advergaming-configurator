@@ -24,6 +24,7 @@ import {
 import { supabase } from "@/lib/supabaseClient";
 import { useAuthStore } from "@/store/useAuthStore";
 import type { Tables } from "@/lib/supabaseClient";
+import { getAdminRefDataViaIpc, provisionLicenseViaIpc } from "@/lib/auth-ipc";
 
 // ---------------------------------------------------------------------------
 // Reference data types
@@ -116,6 +117,14 @@ const inputClass =
   "focus:border-zinc-400 focus:bg-white " +
   "disabled:cursor-not-allowed disabled:opacity-50 " +
   "aria-invalid:border-red-400 aria-invalid:bg-red-50";
+
+function isElectronRuntime() {
+  return (
+    typeof window !== "undefined" &&
+    !!(window as Window & { electron?: { ipcRenderer?: unknown } }).electron
+      ?.ipcRenderer
+  );
+}
 
 // ---------------------------------------------------------------------------
 // Combobox — searchable select, no external library
@@ -368,6 +377,21 @@ export function LicenseProvisioningForm() {
   const fetchRefData = useCallback(async () => {
     setRefData({ status: "loading" });
 
+    if (isElectronRuntime()) {
+      const body = await getAdminRefDataViaIpc();
+      if (!body?.ok) {
+        setRefData({ status: "error" });
+        return;
+      }
+      // Keep only the shape this form needs.
+      setRefData({
+        status: "success",
+        orgs: body.orgs,
+        templates: body.templates.map((t) => ({ id: t.id, template_slug: t.template_slug })),
+      });
+      return;
+    }
+
     const {
       data: { session },
     } = await supabase.auth.getSession();
@@ -437,6 +461,27 @@ export function LicenseProvisioningForm() {
 
   const onSubmit = async (values: FormValues) => {
     setApiError(null);
+
+    if (isElectronRuntime()) {
+      const payload = {
+        org_id: values.org_id,
+        template_id: values.template_id,
+        max_projects: values.max_projects,
+        valid_until: values.valid_until?.trim() || null,
+      };
+
+      const body = await provisionLicenseViaIpc(payload);
+      if (!body?.ok) {
+        setApiError(body?.error ?? "Desktop auth bridge is out of date. Restart the app.");
+        return;
+      }
+
+      toast.success("License provisioned", {
+        description: `License ID: ${body.licenseId}`,
+      });
+      reset();
+      return;
+    }
 
     const {
       data: { session },

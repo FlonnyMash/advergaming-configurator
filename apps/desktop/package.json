@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "node ../../scripts/dev-desktop.mjs",
     "test:asset-ipc": "node --test asset-ipc-utils.test.js export-ipc-utils.test.js",
+    "test:auth-ipc": "node scripts/verify-auth-ipc.mjs",
     "verify:asset-ipc-wiring": "node scripts/verify-asset-ipc-wiring.mjs",
     "verify:asset-ipc": "npm run test:asset-ipc && npm run verify:asset-ipc-wiring",
     "sync-branding": "node scripts/sync-installer-workspace.mjs && node scripts/sync-installer-branding.mjs",

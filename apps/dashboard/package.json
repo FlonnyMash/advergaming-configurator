@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "predev": "node scripts/sync-brand-from-logo.mjs",
+    "predev": "node scripts/setup-dev-cache.mjs && node scripts/sync-brand-from-logo.mjs",
     "dev": "pnpm exec next dev",
     "prebuild": "node scripts/ensure-standalone-writable.mjs",
     "build": "next build && node scripts/sync-standalone-assets.mjs",

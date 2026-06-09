@@ -297,21 +297,53 @@ export async function POST(request: NextRequest): Promise<Response> {
     publishedAt: new Date().toISOString(),
   };
 
+  const insertPayload = {
+    template_slug: templateId,
+    version,
+    tier,
+    checksum,
+    bundle_signature: bundleSignature,
+    storage_key: storageKey,
+    manifest,
+    is_latest: true,
+    yanked: false,
+  };
+
   const { data: inserted, error: insertError } = await serviceClient
     .from("templates")
-    .insert({
-      template_slug: templateId,
-      version,
-      tier,
-      checksum,
-      bundle_signature: bundleSignature,
-      storage_key: storageKey,
-      manifest,
-      is_latest: true,
-      yanked: false,
-    })
+    .insert(insertPayload)
     .select("id")
     .single();
+
+  // Some environments enforce UNIQUE(template_slug), which means "re-publish"
+  // must UPDATE the existing row instead of inserting a version history row.
+  if (insertError?.code === "23505") {
+    const { data: updated, error: updateError } = await serviceClient
+      .from("templates")
+      .update(insertPayload)
+      .eq("template_slug", templateId)
+      .select("id")
+      .single();
+
+    if (updateError || !updated) {
+      console.error("[publish-template] Update-after-conflict failed:", updateError);
+      await serviceClient.storage.from(STORAGE_BUCKET).remove([storageKey]);
+      return Response.json<PublishResponse>(
+        { ok: false, error: updateError?.message ?? "Database update failed." },
+        { status: 500 },
+      );
+    }
+
+    console.info(
+      `[publish-template] Re-published (update): slug=${templateId} v=${version} ` +
+        `tier=${tier} id=${updated.id} by=${authResult.userId}`,
+    );
+
+    return Response.json<PublishResponse>(
+      { ok: true, templateRowId: updated.id, version, storageKey },
+      { status: 200 },
+    );
+  }
 
   if (insertError || !inserted) {
     console.error("[publish-template] Insert failed:", insertError);

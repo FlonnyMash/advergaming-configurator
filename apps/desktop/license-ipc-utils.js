@@ -1,5 +1,6 @@
 const { ipcMain } = require("electron");
 const { createClient } = require("@supabase/supabase-js");
+const ws = require("ws");
 
 // ---------------------------------------------------------------------------
 // LicenseManager — Electron main-process DRM & entitlement gatekeeper.
@@ -83,6 +84,7 @@ function buildUserClient(accessToken) {
       autoRefreshToken: false,
       detectSessionInUrl: false,
     },
+    realtime: { transport: ws },
   });
 }
 

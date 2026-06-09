@@ -9,6 +9,10 @@ const ALLOWED_CHANNELS = new Set([
   "auth:login",
   "auth:logout",
   "auth:get-status",
+  "auth:get-profile",
+  "admin:publish-template",
+  "admin:ref-data",
+  "admin:provision-license",
   "license:check-eligibility",
   "store:load-catalog",
 ]);

@@ -1,5 +1,6 @@
 const { ipcMain } = require("electron");
 const { createClient } = require("@supabase/supabase-js");
+const ws = require("ws");
 
 // ---------------------------------------------------------------------------
 // StoreManager — Electron main-process template catalog fetcher.
@@ -151,6 +152,7 @@ function buildUserClient(accessToken) {
       autoRefreshToken: false,
       detectSessionInUrl: false,
     },
+    realtime: { transport: ws },
   });
 }
 
@@ -193,7 +195,7 @@ async function fetchStoreCatalog() {
       console.info("[store] Dev-preview: falling back to mock catalog (Supabase unconfigured).");
       return { ok: true, templates: DEV_MOCK_CATALOG, _devPreview: true };
     }
-    return { ok: false, error: "CLIENT_ERROR" };
+    return { ok: false, error: err.message };
   }
 
   try {
@@ -283,7 +285,7 @@ async function fetchStoreCatalog() {
 
   } catch (err) {
     console.error("[store] Network/unexpected error fetching catalog:", err.message);
-    return { ok: false, error: "NETWORK_ERROR" };
+    return { ok: false, error: err.message };
   }
 }
 
