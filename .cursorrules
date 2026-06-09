@@ -32,6 +32,8 @@ Production ships as **Electron desktop** embedding the Next.js dashboard. Local 
 * **Protocol-only assets:** Use `mashedgames-studio://` (via `resolveStudioAssetUrl`). Base64 / `data:` URLs are prohibited.
 * **Workspace I/O guard:** Call `ensureWorkspaceExists()` before any disk access. Paths are relative to `MASHEDGAMES_WORKSPACE_PATH`.
 * **Separation of concerns:** Dashboard owns state and disk; game-engine is receiver + renderer; contracts live in `@mashedgames/shared`.
+* **Read-only install:** NEVER write files to `app.getAppPath()`, `process.resourcesPath`, or any path inside the `.asar` archive. All persistent writes go to `app.getPath('userData')` (managed by `electron-updater`) or `MASHEDGAMES_WORKSPACE_PATH` (managed by IPC utils in `apps/desktop/`).
+* **Zip extraction safety:** Any code that extracts a `.zip` / `.mgt` archive MUST validate every entry path before writing a single byte. The invariant: `path.normalize(path.join(destDir, entry.entryName))` must start with `path.resolve(destDir) + path.sep`. If it does not, throw immediately — do not skip, do not log-and-continue. This guard applies to every entry in the archive, not just the first.
 
 # Workspace & project persistence
 
