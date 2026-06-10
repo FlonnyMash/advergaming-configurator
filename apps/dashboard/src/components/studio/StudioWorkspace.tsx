@@ -14,6 +14,9 @@ import { useCallback, useEffect, useState } from "react";
 
 export function StudioWorkspace({ suspended = false }: { suspended?: boolean }) {
   const initialTemplateId = useStudioConfigStore.getState().selectedTemplateId;
+  const selectedTemplateId = useStudioConfigStore(
+    (state) => state.selectedTemplateId,
+  );
   const [availableProjects, setAvailableProjects] = useState<string[]>([]);
 
   const isDesktop = typeof window !== "undefined" && Boolean(window.electron);
@@ -29,20 +32,25 @@ export function StudioWorkspace({ suspended = false }: { suspended?: boolean }) 
     return useStudioConfigStore.subscribe(syncFromStudio);
   }, []);
 
+  // Refresh the save list whenever the desktop runtime loads or the active
+  // template changes — each template owns its own isolated save slot list.
   useEffect(() => {
     if (!isDesktop) return;
-    getProjectListViaElectron()
+    getProjectListViaElectron("studio", { templateId: selectedTemplateId })
       .then(setAvailableProjects)
       .catch(() => setAvailableProjects([]));
-  }, [isDesktop]);
+  }, [isDesktop, selectedTemplateId]);
 
-  const handleSave = useCallback(async (projectName: string) => {
-    const config = useStudioConfigStore.getState().config;
-    await saveFlatConfigViaElectron(projectName, config);
-    getProjectListViaElectron()
-      .then(setAvailableProjects)
-      .catch(() => undefined);
-  }, []);
+  const handleSave = useCallback(
+    async (projectName: string) => {
+      const config = useStudioConfigStore.getState().config;
+      await saveFlatConfigViaElectron(projectName, config);
+      getProjectListViaElectron("studio", { templateId: selectedTemplateId })
+        .then(setAvailableProjects)
+        .catch(() => undefined);
+    },
+    [selectedTemplateId],
+  );
 
   const handleLoad = useCallback(async (projectName: string) => {
     try {
