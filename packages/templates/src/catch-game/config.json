@@ -1,0 +1,11 @@
+{
+  "activeTemplateId": "catch-game",
+  "schemaVersion": "2.0.0",
+  "themeColor": "#6366f1",
+  "backgroundColor": "#0f172a",
+  "startScreenTitle": "Ready to play?",
+  "startScreenSubtitle": "Tap start when you are ready.",
+  "ctaLabel": "Start Game",
+  "playerSpeed": 320,
+  "gameDurationSeconds": 60
+}
