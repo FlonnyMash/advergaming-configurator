@@ -177,11 +177,9 @@ export class EngineMessenger {
     // Broadcast as a DOM CustomEvent so any non-Phaser listener can react.
     window.dispatchEvent(new CustomEvent("engine:control", { detail: { action } }));
 
-    // START_GAME is re-broadcast as a dedicated local event INSIDE the iframe.
-    // Template scenes (e.g. CatchGameScene) subscribe via
-    // `window.addEventListener("ENGINE_START_GAME", ...)` to unpause and run.
+    // Canonical local trigger consumed by main.ts.
     if (action === "START_GAME") {
-      window.dispatchEvent(new CustomEvent("ENGINE_START_GAME"));
+      window.dispatchEvent(new CustomEvent("GAME_START"));
     }
 
     // Also route through the Phaser game event bus so scenes can listen with
@@ -197,7 +195,12 @@ export const engineMessenger = new EngineMessenger();
 
 export function setupBridge(handlers: EngineBridgeHandlers): void {
   engineMessenger.start(handlers);
-  engineMessenger.sendEngineReady();
+  // ENGINE_READY is sent only once the Phaser game fires its own "ready" event
+  // (see main.ts game.events.once("ready", ...)).  Sending it here — before the
+  // game object even exists — produces a premature handshake that the dashboard
+  // immediately invalidates via useBridgeSync's onLoad → initSync() reset,
+  // leaving messenger.engineReady === false until the second ENGINE_READY
+  // arrives.  That race is the source of the "sendEngineControl dropped" bug.
 }
 
 export function setBridgeTemplateId(id: GameTemplateId): void {

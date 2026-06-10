@@ -66,8 +66,13 @@ export function DevicePreview({
       if (!contentWindow || contentWindow === window) {
         return;
       }
+      // Only bind the postMessage target here.  engineReady must NOT be set
+      // to true until the engine iframe confirms readiness via ENGINE_READY
+      // postMessage (handled by useBridgeSync → messenger.onEngineReady).
+      // Setting it here (on iframe "load") creates a race where the React
+      // StartScreen button is enabled before messenger.engineReady is true,
+      // causing sendEngineControl to drop the START_GAME action.
       useConfigStore.getState().setIframeTarget(contentWindow);
-      useConfigStore.getState().setEngineReady(true);
       messenger.setTarget(contentWindow);
     };
 

@@ -19,13 +19,19 @@ export interface OverlayLayerProps {
  * change (visibility toggles, text, colors, bold/italic/underline) triggers an
  * immediate re-render. Each overlay component self-gates via its own
  * `showXxx` flag and returns null when disabled.
+ *
+ * `engineReady` is set exclusively when the engine iframe sends ENGINE_READY
+ * via postMessage (handled by useBridgeSync → messenger.onEngineReady).  The
+ * StartScreen CTA is disabled until that handshake completes, preventing
+ * sendEngineControl from silently dropping the START_GAME action.
  */
 export function OverlayLayer({ messenger }: OverlayLayerProps) {
   const config = useConfigStore((state) => state.config);
+  const engineReady = useConfigStore((state) => state.engineReady);
 
   return (
     <>
-      <StartScreen config={config} messenger={messenger} />
+      <StartScreen config={config} messenger={messenger} disabled={!engineReady} />
       <HighscoreTable config={config} messenger={messenger} />
       <LeadCaptureForm config={config} messenger={messenger} />
     </>

@@ -7,5 +7,21 @@
   "startScreenSubtitle": "Tap start when you are ready.",
   "ctaLabel": "Start Game",
   "playerSpeed": 320,
-  "gameDurationSeconds": 60
+  "gameDurationSeconds": 60,
+  "startScreenTitleColor": "#ffffff",
+  "startScreenTitleBold": false,
+  "startScreenTitleItalic": false,
+  "startScreenTitleUnderline": false,
+  "startScreenSubtitleColor": "#ffffff",
+  "startScreenSubtitleBold": false,
+  "startScreenSubtitleItalic": false,
+  "startScreenSubtitleUnderline": false,
+  "ctaTextColor": "#1e293b",
+  "ctaLabelBold": false,
+  "ctaLabelItalic": false,
+  "ctaLabelUnderline": false,
+  "showStartScreen": true,
+  "showHighscore": true,
+  "showLeadCapture": false,
+  "showCountdownTimer": true
 }

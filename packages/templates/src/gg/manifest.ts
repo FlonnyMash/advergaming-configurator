@@ -1,9 +1,9 @@
 import { type TemplateSchema } from "@mashedgames/shared";
 
-export const fgManifest = {
-  templateId: "fg",
+export const ggManifest = {
+  templateId: "gg",
   version: "1.0.0",
-  displayName: "fg",
+  displayName: "gg",
   lockedFields: ["activeTemplateId", "schemaVersion"],
   supportsUI: [],
   supportedEvents: [],
@@ -12,4 +12,4 @@ export const fgManifest = {
   configFieldHints: {},
 } satisfies TemplateSchema;
 
-export type FgManifest = typeof fgManifest;
+export type GgManifest = typeof ggManifest;
