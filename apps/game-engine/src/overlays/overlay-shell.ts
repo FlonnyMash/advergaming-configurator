@@ -107,7 +107,3 @@ export function onOverlayGameStart(listener: () => void): () => void {
 export function showStartScreen(): void {
   startScreenEl?.classList.remove("hidden");
 }
-
-export function hideStartScreen(): void {
-  startScreenEl?.classList.add("hidden");
-}

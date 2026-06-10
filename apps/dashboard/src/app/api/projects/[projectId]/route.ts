@@ -1,6 +1,5 @@
 import { deleteProject } from "@/lib/project-delete";
 import { loadProject, patchProjectDisplayName } from "@/lib/project-io";
-import { normalizeTemplateId } from "@mashedgames/shared";
 import type { NextRequest } from "next/server";
 
 export const runtime = "nodejs";
@@ -20,15 +19,9 @@ export async function GET(_request: NextRequest, context: RouteContext) {
 
   return Response.json({
     ok: true,
-    manifest: {
-      ...result.data.manifest,
-      parentTemplateId: normalizeTemplateId(result.data.manifest.parentTemplateId),
-    },
+    manifest: result.data.manifest,
     client: result.data.client,
-    config: {
-      ...result.data.config,
-      activeTemplateId: normalizeTemplateId(result.data.config.activeTemplateId),
-    },
+    config: result.data.config,
     parentLock: result.data.parentLock,
     runtimeAssets: result.data.runtimeAssets,
   });

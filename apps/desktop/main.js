@@ -426,12 +426,8 @@ function registerLoadFlatConfigIpc(workspacePath) {
 }
 
 function registerGetProjectListIpc(workspacePath) {
-  ipcMain.handle("get-project-list", (_event, payload) =>
-    getProjectList(workspacePath, {
-      mode: payload?.mode,
-      templateId: payload?.templateId,
-      projectId: payload?.projectId,
-    }),
+  ipcMain.handle("get-project-list", (_event) =>
+    getProjectList(workspacePath),
   );
 }
 

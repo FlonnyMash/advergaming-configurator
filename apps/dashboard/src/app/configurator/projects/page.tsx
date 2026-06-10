@@ -34,7 +34,7 @@ export default function ConfiguratorProjectsPage() {
   const loadProjects = useCallback(async () => {
     setLoading(true);
     try {
-      const response = await fetch("/api/projects?mode=configurator");
+      const response = await fetch("/api/projects");
       const data = (await response.json()) as {
         ok?: boolean;
         projects?: ProjectSummary[];

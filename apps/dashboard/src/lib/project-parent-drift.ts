@@ -1,4 +1,4 @@
-import { normalizeTemplateId, type ParentDriftReport } from "@mashedgames/shared";
+import type { ParentDriftReport } from "@mashedgames/shared";
 import { loadProject } from "@/lib/project-io";
 import { buildLiveParentConfig } from "@/lib/project-parent-config";
 
@@ -8,10 +8,9 @@ export function computeParentDriftReport(input: {
   lockedVersion: string;
   liveVersion: string;
 }): ParentDriftReport {
-  const resolvedTemplateId = normalizeTemplateId(input.parentTemplateId);
   return {
     projectId: input.projectId,
-    parentTemplateId: resolvedTemplateId,
+    parentTemplateId: input.parentTemplateId,
     lockedVersion: input.lockedVersion,
     liveVersion: input.liveVersion,
     items: [],
@@ -35,7 +34,7 @@ export async function computeParentDrift(projectId: string): Promise<
     ok: true,
     report: computeParentDriftReport({
       projectId,
-      parentTemplateId: normalizeTemplateId(manifest.parentTemplateId),
+      parentTemplateId: manifest.parentTemplateId,
       lockedVersion: manifest.parentVersion,
       liveVersion: liveManifest.version,
     }),

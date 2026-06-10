@@ -2,12 +2,9 @@
 
 import { dashboardMessenger, getBridgePostMessageTargetOrigin } from "@/bridge/messenger";
 import {
-  BASELINE_TEMPLATE_ID,
   BRIDGE_MESSAGE_TYPE,
   DEFAULT_GAME_CONFIG,
   GameConfigSchema,
-  normalizeTemplateId,
-  isLegacyTemplateId,
   type GameConfig,
   type GameTemplateId,
 } from "@mashedgames/shared";
@@ -37,87 +34,46 @@ export interface ConfigStore {
 }
 
 export const useConfigStore = create<ConfigStore>((set, get) => ({
-  config: GameConfigSchema.parse({
-    ...DEFAULT_GAME_CONFIG,
-    activeTemplateId: normalizeTemplateId(DEFAULT_GAME_CONFIG.activeTemplateId),
-  }),
-  selectedTemplateId: normalizeTemplateId(DEFAULT_GAME_CONFIG.activeTemplateId),
+  config: GameConfigSchema.parse(DEFAULT_GAME_CONFIG),
+  selectedTemplateId: DEFAULT_GAME_CONFIG.activeTemplateId,
   iframeTarget: null,
   engineReady: false,
 
   setConfig: (next) => {
-    const sanitized = {
-      ...next,
-      activeTemplateId: normalizeTemplateId(next.activeTemplateId),
-    };
-    if (isLegacyTemplateId(next.activeTemplateId)) {
-      devWarn(
-        "Migrating legacy activeTemplateId",
-        `"${next.activeTemplateId}" -> "${BASELINE_TEMPLATE_ID}"`,
-      );
-    }
-    const parsed = GameConfigSchema.safeParse(sanitized);
+    const parsed = GameConfigSchema.safeParse(next);
     if (!parsed.success) {
       devWarn("Rejected setConfig payload", parsed.error.flatten());
       return;
     }
-    set({
-      config: parsed.data,
-      selectedTemplateId: normalizeTemplateId(parsed.data.activeTemplateId),
-    });
+    set({ config: parsed.data });
   },
 
   patchConfig: (patch) => {
-    const merged = {
-      ...get().config,
-      ...patch,
-      activeTemplateId: normalizeTemplateId(
-        patch.activeTemplateId ?? get().config.activeTemplateId,
-      ),
-    };
+    const merged = { ...get().config, ...patch };
     const parsed = GameConfigSchema.safeParse(merged);
     if (!parsed.success) {
       devWarn("Rejected patchConfig payload", parsed.error.flatten());
       return;
     }
-    set({
-      config: parsed.data,
-      selectedTemplateId: normalizeTemplateId(parsed.data.activeTemplateId),
-    });
+    set({ config: parsed.data });
   },
 
   patchConfigKey: (key, value) => {
-    const merged = {
-      ...get().config,
-      [key]:
-        key === "activeTemplateId"
-          ? normalizeTemplateId(value as GameTemplateId)
-          : value,
-    };
+    const merged = { ...get().config, [key]: value };
     const parsed = GameConfigSchema.safeParse(merged);
     if (!parsed.success) {
       devWarn("Rejected patchConfigKey", parsed.error.flatten());
       return;
     }
-    set({
-      config: parsed.data,
-      selectedTemplateId: normalizeTemplateId(parsed.data.activeTemplateId),
-    });
+    set({ config: parsed.data });
   },
 
   setSelectedTemplateId: (id) => {
-    const normalizedId = normalizeTemplateId(id);
-    if (isLegacyTemplateId(id)) {
-      devWarn(
-        "Migrating legacy selectedTemplateId",
-        `"${id}" -> "${BASELINE_TEMPLATE_ID}"`,
-      );
-    }
     set((state) => ({
-      selectedTemplateId: normalizedId,
+      selectedTemplateId: id,
       config: {
         ...state.config,
-        activeTemplateId: normalizedId,
+        activeTemplateId: id,
       },
     }));
   },

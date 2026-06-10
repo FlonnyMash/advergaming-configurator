@@ -1,12 +1,9 @@
 import {
-  BASELINE_TEMPLATE_ID,
   assertPermission,
   ClientProjectPayloadSchema,
   DEFAULT_GAME_CONFIG,
   exportClientPayload,
   enrichClientMeta,
-  normalizeTemplateId,
-  isLegacyTemplateId,
   patchFlatConfig,
   type ClientProjectPayload,
   type FlatFieldDefinition,
@@ -65,17 +62,15 @@ export interface ConfiguratorStore {
 
 function brandingDefaults(): GameConfig {
   assertPermission(CONFIGURATOR_MODE, "schema:branding");
-  const fallbackTemplateId = normalizeTemplateId(DEFAULT_GAME_CONFIG.activeTemplateId);
   return {
     ...DEFAULT_GAME_CONFIG,
-    activeTemplateId: fallbackTemplateId,
     appMode: CONFIGURATOR_MODE,
   };
 }
 
 export const useConfiguratorStore = create<ConfiguratorStore>((set, get) => ({
   config: brandingDefaults(),
-  selectedTemplateId: normalizeTemplateId(DEFAULT_GAME_CONFIG.activeTemplateId),
+  selectedTemplateId: DEFAULT_GAME_CONFIG.activeTemplateId,
   projectId: null,
   projectManifest: null,
   savedClient: null,
@@ -84,15 +79,9 @@ export const useConfiguratorStore = create<ConfiguratorStore>((set, get) => ({
 
   setSelectedTemplateId: (id) => {
     if (get().projectMode) return;
-    const normalizedId = normalizeTemplateId(id);
-    if (isLegacyTemplateId(id)) {
-      console.warn(
-        `[useConfiguratorStore] Migrating legacy template "${id}" -> "${BASELINE_TEMPLATE_ID}"`,
-      );
-    }
     set({
-      selectedTemplateId: normalizedId,
-      config: { ...get().config, activeTemplateId: normalizedId },
+      selectedTemplateId: id,
+      config: { ...get().config, activeTemplateId: id },
     });
   },
 
@@ -118,31 +107,12 @@ export const useConfiguratorStore = create<ConfiguratorStore>((set, get) => ({
   },
 
   hydrateProject: ({ manifest, config, client }) => {
-    const resolvedTemplateId = normalizeTemplateId(
-      manifest.parentTemplateId || config.activeTemplateId,
-    );
-    if (
-      isLegacyTemplateId(manifest.parentTemplateId) ||
-      isLegacyTemplateId(config.activeTemplateId)
-    ) {
-      console.warn(
-        `[useConfiguratorStore] Migrating legacy project template to "${BASELINE_TEMPLATE_ID}"`,
-      );
-    }
     set({
       projectMode: true,
       projectId: manifest.projectId,
-      projectManifest: {
-        ...manifest,
-        parentTemplateId: resolvedTemplateId,
-      },
-      selectedTemplateId: resolvedTemplateId,
-      config: {
-        ...config,
-        ...client,
-        activeTemplateId: resolvedTemplateId,
-        projectId: manifest.projectId,
-      },
+      projectManifest: manifest,
+      selectedTemplateId: manifest.parentTemplateId,
+      config: { ...config, ...client, projectId: manifest.projectId },
       savedClient: ClientProjectPayloadSchema.parse(client),
     });
   },
@@ -154,7 +124,7 @@ export const useConfiguratorStore = create<ConfiguratorStore>((set, get) => ({
       projectManifest: null,
       savedClient: null,
       config: brandingDefaults(),
-      selectedTemplateId: normalizeTemplateId(DEFAULT_GAME_CONFIG.activeTemplateId),
+      selectedTemplateId: DEFAULT_GAME_CONFIG.activeTemplateId,
     });
   },
 
@@ -178,19 +148,9 @@ export const useConfiguratorStore = create<ConfiguratorStore>((set, get) => ({
   },
 
   setConfig: (config) => {
-    const resolvedTemplateId = normalizeTemplateId(config.activeTemplateId);
-    if (isLegacyTemplateId(config.activeTemplateId)) {
-      console.warn(
-        `[useConfiguratorStore] Migrating legacy config template "${config.activeTemplateId}" -> "${BASELINE_TEMPLATE_ID}"`,
-      );
-    }
     set({
-      config: {
-        ...config,
-        activeTemplateId: resolvedTemplateId,
-        appMode: CONFIGURATOR_MODE,
-      },
-      selectedTemplateId: resolvedTemplateId,
+      config: { ...config, appMode: CONFIGURATOR_MODE },
+      selectedTemplateId: config.activeTemplateId,
     });
   },
 

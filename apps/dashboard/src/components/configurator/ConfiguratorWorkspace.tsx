@@ -41,32 +41,20 @@ export function ConfiguratorWorkspace({
 
   const isDesktop = typeof window !== "undefined" && Boolean(window.electron);
 
-  // Refresh the save list whenever the desktop runtime loads or the open
-  // project changes — saves are scoped to the current projectId only.
   useEffect(() => {
-    if (!isDesktop || !projectId) {
-      setAvailableProjects([]);
-      return;
-    }
-    getProjectListViaElectron("configurator", { projectId })
+    if (!isDesktop) return;
+    getProjectListViaElectron()
       .then(setAvailableProjects)
       .catch(() => setAvailableProjects([]));
-  }, [isDesktop, projectId]);
+  }, [isDesktop]);
 
-  const handleSave = useCallback(
-    async (projectName: string) => {
-      const config = useConfiguratorStore.getState().config;
-      await saveFlatConfigViaElectron(projectName, config);
-      const currentProjectId = useConfiguratorStore.getState().projectId;
-      if (!currentProjectId) return;
-      getProjectListViaElectron("configurator", {
-        projectId: currentProjectId,
-      })
-        .then(setAvailableProjects)
-        .catch(() => undefined);
-    },
-    [],
-  );
+  const handleSave = useCallback(async (projectName: string) => {
+    const config = useConfiguratorStore.getState().config;
+    await saveFlatConfigViaElectron(projectName, config);
+    getProjectListViaElectron()
+      .then(setAvailableProjects)
+      .catch(() => undefined);
+  }, []);
 
   const handleLoad = useCallback(async (projectName: string) => {
     try {

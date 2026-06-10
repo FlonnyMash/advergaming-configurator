@@ -18,7 +18,6 @@
   },
   "dependencies": {
     "@mashedgames/shared": "workspace:*",
-    "@mashedgames/templates": "workspace:*",
     "phaser": "^4.1.0"
   }
 }

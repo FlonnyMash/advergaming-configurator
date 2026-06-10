@@ -4,7 +4,6 @@ import {
   BRIDGE_MESSAGE_TYPE,
   ConfigSyncPayloadSchema,
   ConfigUpdatedMessageSchema,
-  EngineControlMessageSchema,
   EngineReadyMessageSchema,
   GameConfigSchema,
   LoadExternalAssetPayloadSchema,
@@ -19,7 +18,6 @@ import {
   type AssetLoadErrorPayload,
   type AssetReadyPayload,
   type ConfigSyncPayload,
-  type EngineControlAction,
   type GameConfig,
   type GameEventMessage,
   type GameTemplateId,
@@ -358,31 +356,6 @@ class DashboardMessenger {
     };
     warnIfInvalid(ConfigUpdatedMessageSchema, message, "CONFIG_UPDATED");
     postMessageToIframe(this.targetWindow, message, "CONFIG_UPDATED");
-  }
-
-  /**
-   * Sends an imperative ENGINE_CONTROL command across the iframe boundary via
-   * postMessage. Returns true when the message was actually dispatched to the
-   * engine iframe, false when the engine is not ready / not attached — callers
-   * must not assume the action happened in that case.
-   */
-  sendEngineControl(action: EngineControlAction): boolean {
-    if (!this.engineReady || !this.targetWindow) {
-      devWarn(
-        "sendEngineControl dropped — engine iframe not ready",
-        { action },
-      );
-      return false;
-    }
-    const message = {
-      type: BRIDGE_MESSAGE_TYPE.ENGINE_CONTROL,
-      payload: { action },
-    };
-    if (isDev) {
-      warnIfInvalid(EngineControlMessageSchema, message, "ENGINE_CONTROL");
-    }
-    this.targetWindow.postMessage(message, getBridgePostMessageTargetOrigin());
-    return true;
   }
 
   sendLoadTemplate(templateId: GameTemplateId): void {

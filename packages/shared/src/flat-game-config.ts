@@ -27,24 +27,6 @@ export const GameConfigSchema = z.object({
   parentTemplateId: z.string().optional(),
   parentPinnedVersion: z.string().optional(),
   lastParentSyncAt: z.string().optional(),
-  // Text style overrides for overlay elements
-  startScreenTitleColor: hexColorSchema.optional(),
-  startScreenTitleBold: z.boolean().optional(),
-  startScreenTitleItalic: z.boolean().optional(),
-  startScreenTitleUnderline: z.boolean().optional(),
-  startScreenSubtitleColor: hexColorSchema.optional(),
-  startScreenSubtitleBold: z.boolean().optional(),
-  startScreenSubtitleItalic: z.boolean().optional(),
-  startScreenSubtitleUnderline: z.boolean().optional(),
-  ctaTextColor: hexColorSchema.optional(),
-  ctaLabelBold: z.boolean().optional(),
-  ctaLabelItalic: z.boolean().optional(),
-  ctaLabelUnderline: z.boolean().optional(),
-  // Visibility toggles for UI modules
-  showStartScreen: z.boolean().optional(),
-  showHighscore: z.boolean().optional(),
-  showLeadCapture: z.boolean().optional(),
-  showCountdownTimer: z.boolean().optional(),
 });
 
 export type GameConfig = z.infer<typeof GameConfigSchema>;
@@ -60,22 +42,6 @@ export const DEFAULT_GAME_CONFIG: GameConfig = {
   ctaLabel: "Start Game",
   playerSpeed: 320,
   gameDurationSeconds: 60,
-  startScreenTitleColor: "#ffffff",
-  startScreenTitleBold: false,
-  startScreenTitleItalic: false,
-  startScreenTitleUnderline: false,
-  startScreenSubtitleColor: "#ffffff",
-  startScreenSubtitleBold: false,
-  startScreenSubtitleItalic: false,
-  startScreenSubtitleUnderline: false,
-  ctaTextColor: "#1e293b",
-  ctaLabelBold: false,
-  ctaLabelItalic: false,
-  ctaLabelUnderline: false,
-  showStartScreen: true,
-  showHighscore: true,
-  showLeadCapture: false,
-  showCountdownTimer: true,
 };
 
 export function parseGameConfig(data: unknown): GameConfig {

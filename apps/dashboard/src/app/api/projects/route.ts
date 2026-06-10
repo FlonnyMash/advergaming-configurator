@@ -1,26 +1,11 @@
-import { listProjectIds, loadProject } from "@/lib/project-io";
-import { normalizeTemplateId, SaveModeSchema } from "@mashedgames/shared";
-import type { NextRequest } from "next/server";
+import { listProjectIds } from "@/lib/project-io";
+import { loadProject } from "@/lib/project-io";
 
 export const runtime = "nodejs";
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
-    const { searchParams } = request.nextUrl;
-    const rawMode = searchParams.get("mode");
-    const rawTemplateId = searchParams.get("templateId");
-
-    const modeParsed = rawMode ? SaveModeSchema.safeParse(rawMode) : null;
-    const mode = modeParsed?.success ? modeParsed.data : undefined;
-    const templateId =
-      rawTemplateId !== null ? normalizeTemplateId(rawTemplateId) : undefined;
-
-    const ids = await listProjectIds(
-      mode !== undefined || templateId !== undefined
-        ? { mode, templateId }
-        : undefined,
-    );
-
+    const ids = await listProjectIds();
     const projects = await Promise.all(
       ids.map(async (projectId) => {
         const loaded = await loadProject(projectId);
@@ -30,11 +15,8 @@ export async function GET(request: NextRequest) {
         return {
           projectId,
           displayName: loaded.data.manifest.displayName,
-          parentTemplateId: normalizeTemplateId(
-            loaded.data.manifest.parentTemplateId,
-          ),
+          parentTemplateId: loaded.data.manifest.parentTemplateId,
           parentVersion: loaded.data.manifest.parentVersion,
-          mode: loaded.data.manifest.mode,
         };
       }),
     );

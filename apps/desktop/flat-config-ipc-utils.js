@@ -131,24 +131,7 @@ function loadFlatConfig(workspacePath, payload) {
   return { ok: true, raw };
 }
 
-/**
- * Returns the list of project folder names that have a saved config.json,
- * filtered to the caller's exact context.
- *
- * options.mode       — only include entries whose config.json has a matching
- *                      `appMode`. Files without `appMode` (legacy saves) are
- *                      excluded from any mode-scoped call.
- * options.templateId — further restrict Studio saves to those whose
- *                      config.json `activeTemplateId` matches the currently
- *                      open template, so templates never share each other's
- *                      save list.
- * options.projectId  — restrict Configurator saves to the single entry whose
- *                      folder name equals the currently open projectId.
- *
- * @param {string} workspacePath
- * @param {{ mode?: 'studio' | 'configurator', templateId?: string, projectId?: string }} [options]
- */
-function getProjectList(workspacePath, options = {}) {
+function getProjectList(workspacePath) {
   const projectsDir = path.join(workspacePath, PROJECTS_DIR_NAME);
   if (!fs.existsSync(projectsDir)) return [];
   let entries;
@@ -161,41 +144,7 @@ function getProjectList(workspacePath, options = {}) {
     .filter((e) => {
       if (!e.isDirectory() || !PROJECT_ID_PATTERN.test(e.name)) return false;
       const configPath = path.join(projectsDir, e.name, CONFIG_FILE_NAME);
-      if (!fs.existsSync(configPath)) return false;
-
-      // Folder-name (projectId) filter — applied before reading the file.
-      if (options.projectId !== undefined && e.name !== options.projectId) {
-        return false;
-      }
-
-      // mode / templateId filters both require reading the config payload.
-      if (options.mode !== undefined || options.templateId !== undefined) {
-        let parsed;
-        try {
-          const raw = fs.readFileSync(configPath, "utf8");
-          parsed = JSON.parse(raw);
-        } catch {
-          return false;
-        }
-        if (
-          parsed === null ||
-          typeof parsed !== "object" ||
-          Array.isArray(parsed)
-        ) {
-          return false;
-        }
-        if (options.mode !== undefined && parsed.appMode !== options.mode) {
-          return false;
-        }
-        if (
-          options.templateId !== undefined &&
-          parsed.activeTemplateId !== options.templateId
-        ) {
-          return false;
-        }
-      }
-
-      return true;
+      return fs.existsSync(configPath);
     })
     .map((e) => e.name);
 }

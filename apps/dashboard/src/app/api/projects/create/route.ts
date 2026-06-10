@@ -1,5 +1,5 @@
 import { createProject } from "@/lib/project-io";
-import { normalizeTemplateId, type GameTemplateId } from "@mashedgames/shared";
+import type { GameTemplateId } from "@mashedgames/shared";
 import type { NextRequest } from "next/server";
 
 export const runtime = "nodejs";
@@ -23,13 +23,7 @@ export async function POST(request: NextRequest) {
       { status: 400 },
     );
   }
-
-  // Resolve the EXACT template id chosen by the user. normalizeTemplateId only
-  // remaps the legacy literal "default" -> baseline; every other id passes
-  // through verbatim. Blank ids are rejected here instead of being silently
-  // remapped onto the baseline template.
-  const requestedTemplateId = normalizeTemplateId(body.parentTemplateId);
-  if (!requestedTemplateId) {
+  if (!body.parentTemplateId) {
     return Response.json(
       { ok: false, error: "parentTemplateId is required." },
       { status: 400 },
@@ -39,7 +33,7 @@ export async function POST(request: NextRequest) {
   try {
     const result = await createProject({
       displayName: body.displayName,
-      parentTemplateId: requestedTemplateId as GameTemplateId,
+      parentTemplateId: body.parentTemplateId as GameTemplateId,
       projectId: body.projectId,
     });
 

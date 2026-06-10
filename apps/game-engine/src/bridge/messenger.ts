@@ -6,7 +6,6 @@ import {
   LoadExternalAssetPayloadSchema,
   SetRuntimeAssetsPayloadSchema,
   type AssetLoadErrorPayload,
-  type EngineControlAction,
   type GameConfig,
   type GameTemplateId,
 } from "@mashedgames/shared";
@@ -24,7 +23,6 @@ export type EngineBridgeHandlers = {
   getCurrentConfig: () => GameConfig;
   getCurrentTemplateId: () => GameTemplateId;
   getGame: () => Phaser.Game | null;
-  onLoadTemplate?: (templateId: string) => void;
 };
 
 let currentTemplateId: GameTemplateId = "default";
@@ -119,11 +117,7 @@ export class EngineMessenger {
       }
       case BRIDGE_MESSAGE_TYPE.LOAD_TEMPLATE: {
         currentTemplateId = message.payload;
-        if (handlers.onLoadTemplate) {
-          handlers.onLoadTemplate(message.payload);
-        } else {
-          this.sendEngineReady();
-        }
+        this.sendEngineReady();
         break;
       }
       case BRIDGE_MESSAGE_TYPE.LOAD_EXTERNAL_ASSET: {
@@ -164,31 +158,8 @@ export class EngineMessenger {
         }
         break;
       }
-      case BRIDGE_MESSAGE_TYPE.ENGINE_CONTROL: {
-        this.handleEngineControl(message.payload.action);
-        break;
-      }
       default:
         break;
-    }
-  }
-
-  private handleEngineControl(action: EngineControlAction): void {
-    // Broadcast as a DOM CustomEvent so any non-Phaser listener can react.
-    window.dispatchEvent(new CustomEvent("engine:control", { detail: { action } }));
-
-    // START_GAME is re-broadcast as a dedicated local event INSIDE the iframe.
-    // Template scenes (e.g. CatchGameScene) subscribe via
-    // `window.addEventListener("ENGINE_START_GAME", ...)` to unpause and run.
-    if (action === "START_GAME") {
-      window.dispatchEvent(new CustomEvent("ENGINE_START_GAME"));
-    }
-
-    // Also route through the Phaser game event bus so scenes can listen with
-    // `this.game.events.on("bridge:control", handler)` without coupling to DOM.
-    const game = this.handlers?.getGame();
-    if (game) {
-      game.events.emit("bridge:control", action);
     }
   }
 }

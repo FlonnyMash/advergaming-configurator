@@ -5,10 +5,9 @@ import { useWorkspaceSessionStore } from "@/lib/workspace-session-store";
 import { useConfigStore } from "@/store/useConfigStore";
 import { useStudioConfigStore } from "@mashedgames/studio-engine";
 import type { GameTemplateId } from "@mashedgames/shared";
-import type { TemplateOverviewEntry } from "@/lib/template-overview-types";
 import { Loader2 } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
 export function StudioTemplateGate({
   children,
@@ -33,30 +32,10 @@ export function StudioTemplateGate({
   const [error, setError] = useState<string | null>(null);
   const pendingUrlTemplateSyncRef = useRef<GameTemplateId | null>(null);
 
-  const staticTemplateOptions = useMemo(() => getStudioTemplateOptions(), []);
-  /** Set of IDs fetched live from /api/templates. Null = fetch pending. */
-  const [apiTemplateIds, setApiTemplateIds] = useState<Set<string> | null>(
-    null,
+  const templateOptions = useMemo(
+    () => getStudioTemplateOptions(),
+    [],
   );
-
-  const fetchApiTemplates = useCallback(() => {
-    fetch("/api/templates")
-      .then((r) => (r.ok ? r.json() : null))
-      .then(
-        (data: { ok?: boolean; templates?: TemplateOverviewEntry[] } | null) => {
-          const ids =
-            data?.ok && Array.isArray(data.templates)
-              ? new Set(data.templates.map((t) => t.id))
-              : new Set<string>();
-          setApiTemplateIds(ids);
-        },
-      )
-      .catch(() => setApiTemplateIds(new Set()));
-  }, []);
-
-  useEffect(() => {
-    fetchApiTemplates();
-  }, [fetchApiTemplates]);
 
   useEffect(() => {
     if (detached || pathname !== "/studio" || !ready) {
@@ -98,17 +77,8 @@ export function StudioTemplateGate({
       return;
     }
 
-    const knownStatic = staticTemplateOptions.some(
-      (t) => t.id === effectiveTemplateId,
-    );
-    const knownApi = apiTemplateIds?.has(effectiveTemplateId) ?? false;
-
-    if (!knownStatic && apiTemplateIds === null) {
-      // API fetch still in flight — stay in loading state rather than error.
-      return;
-    }
-
-    if (!knownStatic && !knownApi) {
+    const known = templateOptions.some((t) => t.id === effectiveTemplateId);
+    if (!known) {
       setError(
         `Unknown template "${effectiveTemplateId}". Import it or pick from the list.`,
       );
@@ -150,11 +120,10 @@ export function StudioTemplateGate({
     setReady(true);
   }, [
     activeSessionTemplateId,
-    apiTemplateIds,
     detached,
     effectiveTemplateId,
     selectedTemplateId,
-    staticTemplateOptions,
+    templateOptions,
     templateParam,
     router,
   ]);

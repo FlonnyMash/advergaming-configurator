@@ -75,14 +75,7 @@ export async function loadFlatConfigViaElectron(
   return GameConfigSchema.parse(parsed);
 }
 
-export async function getProjectListViaElectron(
-  mode: "studio" | "configurator",
-  filters?: { templateId?: string; projectId?: string },
-): Promise<string[]> {
+export async function getProjectListViaElectron(): Promise<string[]> {
   const electron = requireElectron();
-  return electron.invoke("get-project-list", {
-    mode,
-    templateId: filters?.templateId,
-    projectId: filters?.projectId,
-  });
+  return electron.invoke("get-project-list");
 }

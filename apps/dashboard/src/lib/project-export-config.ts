@@ -1,19 +1,8 @@
-import {
-  GameConfigSchema,
-  normalizeTemplateId,
-  type GameConfig,
-} from "@mashedgames/shared";
+import { GameConfigSchema, type GameConfig } from "@mashedgames/shared";
 import { loadProject } from "@/lib/project-io";
 
 export function buildProjectExportConfigJsonFromConfig(config: GameConfig): string {
-  return JSON.stringify(
-    GameConfigSchema.parse({
-      ...config,
-      activeTemplateId: normalizeTemplateId(config.activeTemplateId),
-    }),
-    null,
-    2,
-  );
+  return JSON.stringify(GameConfigSchema.parse(config), null, 2);
 }
 
 export async function buildProjectExportConfigJson(projectId: string): Promise<
@@ -35,10 +24,9 @@ export function normalizeExportConfig(
   raw: unknown,
   fallbackTemplateId: string,
 ): GameConfig | null {
-  const resolvedTemplateId = normalizeTemplateId(fallbackTemplateId);
   const normalized = GameConfigSchema.safeParse({
     ...(typeof raw === "object" && raw !== null ? raw : {}),
-    activeTemplateId: resolvedTemplateId,
+    activeTemplateId: fallbackTemplateId,
   });
   return normalized.success ? normalized.data : null;
 }

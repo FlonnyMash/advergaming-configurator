@@ -47,7 +47,7 @@ export default defineConfig(({ command }) => ({
     port: 5173,
     strictPort: true,
     fs: {
-      allow: [gameEngineRoot, monorepoRoot],
+      allow: [gameEngineRoot],
     },
   },
   build: {

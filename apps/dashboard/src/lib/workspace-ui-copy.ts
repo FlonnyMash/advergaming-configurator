@@ -19,7 +19,7 @@ export function getStudioTemplatesPathLabel(): string | null {
   if (isWorkspaceDesktopClient()) {
     return `${WORKSPACE_FOLDER_NAME}/templates/`;
   }
-  return "packages/templates/src/";
+  return "apps/game-engine/src/templates/";
 }
 
 export function getStudioTemplatesPackagesHint(): string {

@@ -8,7 +8,6 @@ import {
   resolveGameEnginePreviewUrl,
 } from "@/bridge/messenger";
 import { usePreviewBridgeStore } from "@/lib/preview-bridge-store";
-import { OverlayLayer } from "@/components/studio/overlays/OverlayLayer";
 import { useBridgeSync } from "@/store/useBridgeSync";
 import { useConfigStore } from "@/store/useConfigStore";
 import type { AppMode, GameTemplateId } from "@mashedgames/shared";
@@ -201,7 +200,6 @@ export function DevicePreview({
                 title="Game preview"
                 className="block h-full min-h-[1px] w-full min-w-[1px] border-0"
               />
-              <OverlayLayer messenger={messenger} />
               {overlaySlot}
             </div>
           </div>
